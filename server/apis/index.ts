@@ -50,6 +50,10 @@ import GetActiveCohort from './camp/get-active-cohort.js';
 import GetAdminCampers from './camp/get-admin-campers.js';
 import GetAdminCamperDetail from './camp/get-admin-camper-detail.js';
 import GetAdminTeams from './camp/get-admin-teams.js';
+import MigrateRubrics from './camp/migrate-rubrics.js';
+import GetRubricTemplates from './camp/get-rubric-templates.js';
+import SubmitRubricScore from './camp/submit-rubric-score.js';
+import GetRubricScores from './camp/get-rubric-scores.js';
 
 const apis = {
   SetupDatabase,
@@ -98,6 +102,10 @@ const apis = {
   GetAdminCampers,
   GetAdminCamperDetail,
   GetAdminTeams,
+  MigrateRubrics,
+  GetRubricTemplates,
+  SubmitRubricScore,
+  GetRubricScores,
 } as const;
 
 export default apis;

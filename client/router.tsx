@@ -107,6 +107,14 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/rubric",
+        lazy: () =>
+          import("./pages/Rubric/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "*",
         Component: () => {
           const currentPath = window.location.pathname;

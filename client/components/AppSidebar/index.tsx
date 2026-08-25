@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { icon: "contact", label: "Cohort", path: "/cohort" },
   { icon: "sparkles", label: "XPlanation", path: "/xplanation" },
   { icon: "timer", label: "Timer", path: "/timer" },
+  { icon: "clipboard-check", label: "Rubric", path: "/rubric" },
   { icon: "shield", label: "Counselor Hub", path: "/admin" },
 ];
 
