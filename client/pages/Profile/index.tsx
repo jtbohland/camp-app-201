@@ -26,6 +26,7 @@ export default function ProfilePage() {
   }, { enabled: !!user?.email });
 
   const { run: updateProfile, loading: saving } = useApi("UpdateCamperProfile");
+  const { run: toggleGoal } = useApi("ToggleGoalAchieved");
 
   // Form state
   const [bio, setBio] = useState("");
@@ -87,6 +88,21 @@ export default function ProfilePage() {
       toast.error("Failed to save profile: " + message);
     }
   }, [user?.email, bio, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreaker1, iceBreaker2, iceBreaker3, updateProfile, refetch]);
+
+  const handleToggleGoal = useCallback(async (goalNumber: number, achieved: boolean) => {
+    if (!data?.camper?.id) return;
+    try {
+      await toggleGoal({ camper_id: data.camper.id, goal_number: goalNumber, achieved });
+      await refetch();
+      toast.success(achieved ? `Goal ${goalNumber} achieved! 🎯` : `Goal ${goalNumber} unchecked`);
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message: unknown }).message)
+          : String(error);
+      toast.error("Failed to update goal: " + message);
+    }
+  }, [data?.camper?.id, toggleGoal, refetch]);
 
   if (loading) {
     return (
@@ -211,36 +227,74 @@ export default function ProfilePage() {
           <Icon icon="target" className="w-5 h-5 text-camp-green" />
           What do you want to get out of cAMP?
         </h2>
-        <p className="text-sm text-muted-foreground mb-4">Share 3 things you hope to take away from this experience.</p>
+        <p className="text-sm text-muted-foreground mb-4">Share 3 things you hope to take away from this experience. Check them off as you achieve them!</p>
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-camp-green/10 text-camp-green text-xs font-bold mt-1">1</span>
+            <button
+              type="button"
+              onClick={() => handleToggleGoal(1, !camper?.goal_1_achieved)}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mt-1 transition-colors shrink-0 ${
+                camper?.goal_1_achieved
+                  ? "bg-camp-green border-camp-green text-white"
+                  : "border-border hover:border-camp-green/50"
+              }`}
+            >
+              {camper?.goal_1_achieved && <Icon icon="check" className="w-3.5 h-3.5" />}
+            </button>
             <Input
               placeholder="First goal or takeaway..."
               value={goal1}
               onChange={(e) => setGoal1(e.target.value)}
-              className="flex-1"
+              className={`flex-1 ${camper?.goal_1_achieved ? "line-through opacity-60" : ""}`}
             />
           </div>
           <div className="flex items-start gap-3">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-camp-green/10 text-camp-green text-xs font-bold mt-1">2</span>
+            <button
+              type="button"
+              onClick={() => handleToggleGoal(2, !camper?.goal_2_achieved)}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mt-1 transition-colors shrink-0 ${
+                camper?.goal_2_achieved
+                  ? "bg-camp-green border-camp-green text-white"
+                  : "border-border hover:border-camp-green/50"
+              }`}
+            >
+              {camper?.goal_2_achieved && <Icon icon="check" className="w-3.5 h-3.5" />}
+            </button>
             <Input
               placeholder="Second goal or takeaway..."
               value={goal2}
               onChange={(e) => setGoal2(e.target.value)}
-              className="flex-1"
+              className={`flex-1 ${camper?.goal_2_achieved ? "line-through opacity-60" : ""}`}
             />
           </div>
           <div className="flex items-start gap-3">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-camp-green/10 text-camp-green text-xs font-bold mt-1">3</span>
+            <button
+              type="button"
+              onClick={() => handleToggleGoal(3, !camper?.goal_3_achieved)}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mt-1 transition-colors shrink-0 ${
+                camper?.goal_3_achieved
+                  ? "bg-camp-green border-camp-green text-white"
+                  : "border-border hover:border-camp-green/50"
+              }`}
+            >
+              {camper?.goal_3_achieved && <Icon icon="check" className="w-3.5 h-3.5" />}
+            </button>
             <Input
               placeholder="Third goal or takeaway..."
               value={goal3}
               onChange={(e) => setGoal3(e.target.value)}
-              className="flex-1"
+              className={`flex-1 ${camper?.goal_3_achieved ? "line-through opacity-60" : ""}`}
             />
           </div>
         </div>
+        {(camper?.goal_1_achieved || camper?.goal_2_achieved || camper?.goal_3_achieved) && (
+          <div className="mt-4 pt-3 border-t border-border">
+            <p className="text-xs text-camp-green font-medium flex items-center gap-1">
+              <Icon icon="check-circle" className="w-3.5 h-3.5" />
+              {[camper?.goal_1_achieved, camper?.goal_2_achieved, camper?.goal_3_achieved].filter(Boolean).length}/3 goals achieved
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Ice Breaker Survey */}

@@ -31,6 +31,8 @@ import GetExecutives from './camp/get-executives.js';
 import CreateExecutive from './camp/create-executive.js';
 import UpdateExecutive from './camp/update-executive.js';
 import GetCohort from './camp/get-cohort.js';
+import MigrateGoalColumns from './camp/migrate-goal-columns.js';
+import ToggleGoalAchieved from './camp/toggle-goal-achieved.js';
 
 const apis = {
   SetupDatabase,
@@ -60,6 +62,8 @@ const apis = {
   CreateExecutive,
   UpdateExecutive,
   GetCohort,
+  MigrateGoalColumns,
+  ToggleGoalAchieved,
 } as const;
 
 export default apis;

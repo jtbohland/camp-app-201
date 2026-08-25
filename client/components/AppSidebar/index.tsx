@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { icon: "mic", label: "Executives", path: "/executives" },
   { icon: "contact", label: "Cohort", path: "/cohort" },
   { icon: "sparkles", label: "XPlanation", path: "/xplanation" },
+  { icon: "timer", label: "Timer", path: "/timer" },
 ];
 
 export default function AppSidebar() {
