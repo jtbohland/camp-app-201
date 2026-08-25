@@ -54,6 +54,11 @@ import MigrateRubrics from './camp/migrate-rubrics.js';
 import GetRubricTemplates from './camp/get-rubric-templates.js';
 import SubmitRubricScore from './camp/submit-rubric-score.js';
 import GetRubricScores from './camp/get-rubric-scores.js';
+import MigrateSurveys from './camp/migrate-surveys.js';
+import CreateSurvey from './camp/create-survey.js';
+import GetActiveSurvey from './camp/get-active-survey.js';
+import SubmitSurvey from './camp/submit-survey.js';
+import GetSurveyResults from './camp/get-survey-results.js';
 
 const apis = {
   SetupDatabase,
@@ -106,6 +111,11 @@ const apis = {
   GetRubricTemplates,
   SubmitRubricScore,
   GetRubricScores,
+  MigrateSurveys,
+  CreateSurvey,
+  GetActiveSurvey,
+  SubmitSurvey,
+  GetSurveyResults,
 } as const;
 
 export default apis;

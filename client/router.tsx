@@ -107,6 +107,14 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/survey",
+        lazy: () =>
+          import("./pages/Survey/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "/rubric",
         lazy: () =>
           import("./pages/Rubric/index.js").then((mod) => {
