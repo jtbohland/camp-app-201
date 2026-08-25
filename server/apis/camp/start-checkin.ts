@@ -22,6 +22,16 @@ export default api({
   async run(ctx, input) {
     const { label, duration_minutes, counselor_id } = input;
 
+    // Get active cohort
+    const CohortIdSchema = z.object({ id: z.coerce.number() });
+    const activeCohort = await ctx.integrations.apps_database.query(
+      `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
+      CohortIdSchema,
+      undefined,
+      { label: "Get active cohort" }
+    );
+    const cohortId = activeCohort.length > 0 ? activeCohort[0].id : null;
+
     // Calculate check-in window based on break length
     let windowSeconds: number;
     if (duration_minutes <= 5) {
@@ -38,11 +48,11 @@ export default api({
 
     const SessionSchema = z.object({ id: z.number() });
     const result = await ctx.integrations.apps_database.query(
-      `INSERT INTO camp201_checkin_sessions (label, duration_minutes, checkin_window_seconds, timer_ends_at, checkin_opens_at, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO camp201_checkin_sessions (label, duration_minutes, checkin_window_seconds, timer_ends_at, checkin_opens_at, created_by, cohort_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id`,
       SessionSchema,
-      [label, duration_minutes, windowSeconds, timerEndsAt.toISOString(), checkinOpensAt.toISOString(), counselor_id],
+      [label, duration_minutes, windowSeconds, timerEndsAt.toISOString(), checkinOpensAt.toISOString(), counselor_id, cohortId],
       { label: "Create check-in session" }
     );
 
