@@ -43,6 +43,30 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/teams",
+        lazy: () =>
+          import("./pages/Teams/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/teams/:teamId",
+        lazy: () =>
+          import("./pages/TeamHub/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/leaderboard",
+        lazy: () =>
+          import("./pages/Leaderboard/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "*",
         Component: () => {
           const currentPath = window.location.pathname;

@@ -17,6 +17,16 @@ import ScheduleSession from './camp/schedule-session.js';
 import RemoveAgendaItem from './camp/remove-agenda-item.js';
 import GetCampConfig from './camp/get-camp-config.js';
 import UpdateCampConfig from './camp/update-camp-config.js';
+import GetTeams from './camp/get-teams.js';
+import CreateTeam from './camp/create-team.js';
+import AssignTeamMembers from './camp/assign-team-members.js';
+import GetTeamHub from './camp/get-team-hub.js';
+import AddHubItem from './camp/add-hub-item.js';
+import UpdateHubItem from './camp/update-hub-item.js';
+import GetLeaderboard from './camp/get-leaderboard.js';
+import GetHubActivity from './camp/get-hub-activity.js';
+import GetRegisteredCampers from './camp/get-registered-campers.js';
+import MigrateTeamsTable from './camp/migrate-teams-table.js';
 
 const apis = {
   SetupDatabase,
@@ -32,6 +42,16 @@ const apis = {
   RemoveAgendaItem,
   GetCampConfig,
   UpdateCampConfig,
+  GetTeams,
+  CreateTeam,
+  AssignTeamMembers,
+  GetTeamHub,
+  AddHubItem,
+  UpdateHubItem,
+  GetLeaderboard,
+  GetHubActivity,
+  GetRegisteredCampers,
+  MigrateTeamsTable,
 } as const;
 
 export default apis;

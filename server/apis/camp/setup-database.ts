@@ -115,6 +115,36 @@ export default api({
       { label: "Create camp201_config table" }
     );
 
+    // Teams
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_teams (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        logo_url TEXT,
+        color TEXT DEFAULT '#2d6a4f',
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_teams table" }
+    );
+
+    // Team hub items (collaborative workspace content)
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_hub_items (
+        id SERIAL PRIMARY KEY,
+        team_id INTEGER NOT NULL REFERENCES camp201_teams(id),
+        author_id INTEGER NOT NULL,
+        section TEXT NOT NULL,
+        item_type TEXT NOT NULL DEFAULT 'note',
+        title TEXT NOT NULL,
+        content TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_hub_items table" }
+    );
+
     return { success: true, message: "Database tables created successfully" };
   },
 });
