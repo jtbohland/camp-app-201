@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,16 @@ export default function ProfilePage() {
 
   const { run: updateProfile, loading: saving } = useApi("UpdateCamperProfile");
   const { run: toggleGoal } = useApi("ToggleGoalAchieved");
+  const { run: requestAbsence, loading: requestingAbsence } = useApi("RequestAbsence");
+
+  const { data: historyData } = useApiData("GetCheckInHistory", {
+    camper_id: data?.camper?.id ?? 0,
+  }, { enabled: !!data?.camper?.id });
+
+  const checkInHistory = historyData?.history ?? [];
+
+  // Absence request state
+  const [absenceReason, setAbsenceReason] = useState("");
 
   // Form state
   const [bio, setBio] = useState("");
@@ -129,6 +139,26 @@ export default function ProfilePage() {
   const camper = data.camper;
   const isComplete = !!(bio && funFact && goal1 && goal2 && goal3 && iceBreaker1 && iceBreaker2 && iceBreaker3);
 
+  const handleAbsenceRequest = useCallback(async () => {
+    if (!absenceReason.trim() || !camper?.id) return;
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+      await requestAbsence({
+        camper_id: camper.id,
+        start_time: now.toISOString(),
+        end_time: end.toISOString(),
+        reason: absenceReason.trim(),
+      });
+      toast.success("Absence request submitted. Your counselor will review it.");
+      setAbsenceReason("");
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message) : String(error);
+      toast.error("Failed to submit request: " + message);
+    }
+  }, [absenceReason, camper?.id, requestAbsence]);
+
   return (
     <div className="flex flex-col gap-6 p-8 max-w-3xl overflow-auto">
       {/* Header */}
@@ -149,6 +179,88 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* PIN & Check-in Info */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Icon icon="key-round" className="w-5 h-5 text-camp-amber" />
+          Your Check-in PIN
+        </h2>
+        <div className="flex items-center gap-4">
+          <div className="px-5 py-3 bg-muted rounded-xl border border-border">
+            <span className="text-2xl font-mono font-bold tracking-[0.3em] text-foreground">
+              {camper?.pin ?? "----"}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">Use this 4-digit PIN when checking back in after breaks.</p>
+            <p className="text-xs text-muted-foreground/70">Keep it secret — it proves it's really you!</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Absence Request */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Icon icon="calendar-x" className="w-5 h-5 text-camp-amber" />
+          Request Excused Absence
+        </h2>
+        <p className="text-sm text-muted-foreground mb-3">
+          Need to step away during a session? Submit a request so your team won't be penalized.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Reason for absence (e.g., client call, appointment)..."
+            value={absenceReason}
+            onChange={(e) => setAbsenceReason(e.target.value)}
+            className="flex-1"
+            onKeyDown={(e) => e.key === "Enter" && handleAbsenceRequest()}
+          />
+          <Button
+            onClick={handleAbsenceRequest}
+            disabled={!absenceReason.trim() || requestingAbsence}
+            variant="outline"
+            size="default"
+          >
+            {requestingAbsence ? "Submitting..." : "Submit"}
+          </Button>
+        </div>
+      </Card>
+
+      {/* Check-in History */}
+      {checkInHistory.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Icon icon="history" className="w-5 h-5 text-camp-green" />
+            Check-in History
+          </h2>
+          <div className="flex flex-col gap-2">
+            {checkInHistory.slice(0, 10).map((entry: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${
+                    entry.timing === "early" ? "bg-green-500" :
+                    entry.timing === "on_time" ? "bg-yellow-500" : "bg-red-500"
+                  }`} />
+                  <span className="text-sm font-medium text-foreground">
+                    {entry.timing === "early" ? "Early" : entry.timing === "on_time" ? "On Time" : "Late"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm font-semibold ${
+                    entry.points_awarded > 0 ? "text-green-600" : entry.points_awarded < 0 ? "text-red-600" : "text-muted-foreground"
+                  }`}>
+                    {entry.points_awarded > 0 ? "+" : ""}{entry.points_awarded} pts
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(entry.checked_in_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Photo & Bio Section */}
       <Card className="p-6">

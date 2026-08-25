@@ -92,10 +92,25 @@ export default api({
       return { camper: campers[0], pointsAwarded: 0 };
     }
 
-    // New registration: insert with initial points
+    // Generate unique 4-digit PIN
+    let pin: string = "";
+    let pinUnique = false;
+    while (!pinUnique) {
+      pin = String(Math.floor(1000 + Math.random() * 9000)); // 1000-9999
+      const PinCheckSchema = z.object({ count: z.coerce.number() });
+      const pinCheck = await ctx.integrations.apps_database.query(
+        `SELECT COUNT(*) as count FROM camp201_campers WHERE pin = $1`,
+        PinCheckSchema,
+        [pin],
+        { label: "Check PIN uniqueness" }
+      );
+      if (pinCheck[0].count === 0) pinUnique = true;
+    }
+
+    // New registration: insert with initial points + PIN
     await ctx.integrations.apps_database.execute(
-      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10)`,
+      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10)`,
       [
         input.email,
         input.first_name,
@@ -106,8 +121,9 @@ export default api({
         input.country ?? "",
         input.city ?? "",
         input.start_date ?? null,
+        pin,
       ],
-      { label: "Register new cAMPer" }
+      { label: "Register new cAMPer with PIN" }
     );
 
     // Fetch the camper to get the ID

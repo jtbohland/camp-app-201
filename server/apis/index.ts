@@ -33,6 +33,15 @@ import UpdateExecutive from './camp/update-executive.js';
 import GetCohort from './camp/get-cohort.js';
 import MigrateGoalColumns from './camp/migrate-goal-columns.js';
 import ToggleGoalAchieved from './camp/toggle-goal-achieved.js';
+import MigrateCheckinTables from './camp/migrate-checkin-tables.js';
+import SeedWordBank from './camp/seed-word-bank.js';
+import StartCheckIn from './camp/start-checkin.js';
+import GetActiveCheckIn from './camp/get-active-checkin.js';
+import SubmitCheckIn from './camp/submit-checkin.js';
+import CloseCheckIn from './camp/close-checkin.js';
+import GetCheckInHistory from './camp/get-checkin-history.js';
+import RequestAbsence from './camp/request-absence.js';
+import GetAbsenceRequests from './camp/get-absence-requests.js';
 
 const apis = {
   SetupDatabase,
@@ -64,6 +73,15 @@ const apis = {
   GetCohort,
   MigrateGoalColumns,
   ToggleGoalAchieved,
+  MigrateCheckinTables,
+  SeedWordBank,
+  StartCheckIn,
+  GetActiveCheckIn,
+  SubmitCheckIn,
+  CloseCheckIn,
+  GetCheckInHistory,
+  RequestAbsence,
+  GetAbsenceRequests,
 } as const;
 
 export default apis;

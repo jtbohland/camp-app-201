@@ -27,6 +27,7 @@ const CamperSchema = z.object({
   ice_breaker_q1: z.string().nullable(),
   ice_breaker_q2: z.string().nullable(),
   ice_breaker_q3: z.string().nullable(),
+  pin: z.string().nullable(),
   profile_completed: z.boolean(),
   points: z.coerce.number(),
   team_id: z.coerce.number().nullable(),
