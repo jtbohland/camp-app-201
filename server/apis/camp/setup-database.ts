@@ -1,0 +1,77 @@
+import { api, z, postgres } from "@superblocksteam/sdk-api";
+
+const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+
+export default api({
+  name: "SetupDatabase",
+  description: "Creates all cAMP 201 database tables if they don't exist",
+  integrations: {
+    apps_database: postgres(APPS_DB),
+  },
+  input: z.object({}),
+  output: z.object({ success: z.boolean(), message: z.string() }),
+  async run(ctx) {
+    // Campers table - core registration and profile data
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_campers (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'camper',
+        manager TEXT,
+        region TEXT,
+        country TEXT,
+        city TEXT,
+        start_date DATE,
+        photo_url TEXT,
+        bio TEXT,
+        linkedin_option TEXT DEFAULT 'none',
+        linkedin_url TEXT,
+        fun_fact TEXT,
+        goal_1 TEXT,
+        goal_2 TEXT,
+        goal_3 TEXT,
+        ice_breaker_q1 TEXT,
+        ice_breaker_q2 TEXT,
+        ice_breaker_q3 TEXT,
+        profile_completed BOOLEAN DEFAULT FALSE,
+        points INTEGER DEFAULT 0,
+        team_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_campers table" }
+    );
+
+    // Points log - tracks all point awards/deductions
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_points_log (
+        id SERIAL PRIMARY KEY,
+        camper_id INTEGER NOT NULL,
+        points INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        awarded_by TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_points_log table" }
+    );
+
+    // Pre-work completions - tracks which items each camper has completed
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_prework (
+        id SERIAL PRIMARY KEY,
+        camper_id INTEGER NOT NULL,
+        item_key TEXT NOT NULL,
+        completed_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(camper_id, item_key)
+      )`,
+      undefined,
+      { label: "Create camp201_prework table" }
+    );
+
+    return { success: true, message: "Database tables created successfully" };
+  },
+});
