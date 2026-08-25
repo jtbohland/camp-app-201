@@ -72,6 +72,49 @@ export default api({
       { label: "Create camp201_prework table" }
     );
 
+    // Session bank - reusable sessions that counselors can drag into the schedule
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_session_bank (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        duration_minutes INTEGER NOT NULL DEFAULT 60,
+        session_type TEXT NOT NULL DEFAULT 'session',
+        created_by TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_session_bank table" }
+    );
+
+    // Scheduled sessions - sessions placed on the agenda
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_agenda (
+        id SERIAL PRIMARY KEY,
+        session_bank_id INTEGER REFERENCES camp201_session_bank(id),
+        day_number INTEGER NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        title TEXT NOT NULL,
+        session_type TEXT NOT NULL DEFAULT 'session',
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_agenda table" }
+    );
+
+    // Camp configuration (number of days, etc.)
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_config (
+        id SERIAL PRIMARY KEY,
+        key TEXT UNIQUE NOT NULL,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_config table" }
+    );
+
     return { success: true, message: "Database tables created successfully" };
   },
 });

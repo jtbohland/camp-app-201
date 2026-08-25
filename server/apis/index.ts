@@ -10,6 +10,13 @@ import GetCurrentCamper from './camp/get-current-camper.js';
 import UpdateCamperProfile from './camp/update-camper-profile.js';
 import GetPreworkStatus from './camp/get-prework-status.js';
 import CompletePreworkItem from './camp/complete-prework-item.js';
+import GetSessionBank from './camp/get-session-bank.js';
+import CreateBankSession from './camp/create-bank-session.js';
+import GetAgenda from './camp/get-agenda.js';
+import ScheduleSession from './camp/schedule-session.js';
+import RemoveAgendaItem from './camp/remove-agenda-item.js';
+import GetCampConfig from './camp/get-camp-config.js';
+import UpdateCampConfig from './camp/update-camp-config.js';
 
 const apis = {
   SetupDatabase,
@@ -18,6 +25,13 @@ const apis = {
   UpdateCamperProfile,
   GetPreworkStatus,
   CompletePreworkItem,
+  GetSessionBank,
+  CreateBankSession,
+  GetAgenda,
+  ScheduleSession,
+  RemoveAgendaItem,
+  GetCampConfig,
+  UpdateCampConfig,
 } as const;
 
 export default apis;

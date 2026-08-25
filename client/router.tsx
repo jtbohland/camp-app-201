@@ -35,6 +35,14 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/agenda",
+        lazy: () =>
+          import("./pages/Agenda/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "*",
         Component: () => {
           const currentPath = window.location.pathname;
