@@ -99,6 +99,14 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/admin",
+        lazy: () =>
+          import("./pages/Admin/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "*",
         Component: () => {
           const currentPath = window.location.pathname;

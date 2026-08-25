@@ -47,6 +47,9 @@ import GetCohorts from './camp/get-cohorts.js';
 import CreateCohort from './camp/create-cohort.js';
 import SetActiveCohort from './camp/set-active-cohort.js';
 import GetActiveCohort from './camp/get-active-cohort.js';
+import GetAdminCampers from './camp/get-admin-campers.js';
+import GetAdminCamperDetail from './camp/get-admin-camper-detail.js';
+import GetAdminTeams from './camp/get-admin-teams.js';
 
 const apis = {
   SetupDatabase,
@@ -92,6 +95,9 @@ const apis = {
   CreateCohort,
   SetActiveCohort,
   GetActiveCohort,
+  GetAdminCampers,
+  GetAdminCamperDetail,
+  GetAdminTeams,
 } as const;
 
 export default apis;
