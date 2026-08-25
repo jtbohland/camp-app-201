@@ -27,6 +27,10 @@ import GetLeaderboard from './camp/get-leaderboard.js';
 import GetHubActivity from './camp/get-hub-activity.js';
 import GetRegisteredCampers from './camp/get-registered-campers.js';
 import MigrateTeamsTable from './camp/migrate-teams-table.js';
+import GetExecutives from './camp/get-executives.js';
+import CreateExecutive from './camp/create-executive.js';
+import UpdateExecutive from './camp/update-executive.js';
+import GetCohort from './camp/get-cohort.js';
 
 const apis = {
   SetupDatabase,
@@ -52,6 +56,10 @@ const apis = {
   GetHubActivity,
   GetRegisteredCampers,
   MigrateTeamsTable,
+  GetExecutives,
+  CreateExecutive,
+  UpdateExecutive,
+  GetCohort,
 } as const;
 
 export default apis;

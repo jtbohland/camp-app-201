@@ -16,7 +16,8 @@ const navItems: NavItem[] = [
   { icon: "users", label: "Teams", path: "/teams" },
   { icon: "trophy", label: "Leaderboard", path: "/leaderboard" },
   { icon: "mic", label: "Executives", path: "/executives" },
-  { icon: "clock", label: "Check-In", path: "/checkin" },
+  { icon: "contact", label: "Cohort", path: "/cohort" },
+  { icon: "sparkles", label: "XPlanation", path: "/xplanation" },
 ];
 
 export default function AppSidebar() {
