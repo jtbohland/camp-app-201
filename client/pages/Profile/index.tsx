@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,17 @@ export default function ProfilePage() {
   }, { enabled: !!user?.email });
 
   const { run: updateProfile, loading: saving } = useApi("UpdateCamperProfile");
+  const { run: toggleGoal } = useApi("ToggleGoalAchieved");
+  const { run: requestAbsence, loading: requestingAbsence } = useApi("RequestAbsence");
+
+  const { data: historyData } = useApiData("GetCheckInHistory", {
+    camper_id: data?.camper?.id ?? 0,
+  }, { enabled: !!data?.camper?.id });
+
+  const checkInHistory = historyData?.history ?? [];
+
+  // Absence request state
+  const [absenceReason, setAbsenceReason] = useState("");
 
   // Form state
   const [bio, setBio] = useState("");
@@ -88,6 +99,21 @@ export default function ProfilePage() {
     }
   }, [user?.email, bio, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreaker1, iceBreaker2, iceBreaker3, updateProfile, refetch]);
 
+  const handleToggleGoal = useCallback(async (goalNumber: number, achieved: boolean) => {
+    if (!data?.camper?.id) return;
+    try {
+      await toggleGoal({ camper_id: data.camper.id, goal_number: goalNumber, achieved });
+      await refetch();
+      toast.success(achieved ? `Goal ${goalNumber} achieved! 🎯` : `Goal ${goalNumber} unchecked`);
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message: unknown }).message)
+          : String(error);
+      toast.error("Failed to update goal: " + message);
+    }
+  }, [data?.camper?.id, toggleGoal, refetch]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-8 max-w-3xl">
@@ -113,6 +139,26 @@ export default function ProfilePage() {
   const camper = data.camper;
   const isComplete = !!(bio && funFact && goal1 && goal2 && goal3 && iceBreaker1 && iceBreaker2 && iceBreaker3);
 
+  const handleAbsenceRequest = useCallback(async () => {
+    if (!absenceReason.trim() || !camper?.id) return;
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+      await requestAbsence({
+        camper_id: camper.id,
+        start_time: now.toISOString(),
+        end_time: end.toISOString(),
+        reason: absenceReason.trim(),
+      });
+      toast.success("Absence request submitted. Your counselor will review it.");
+      setAbsenceReason("");
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message) : String(error);
+      toast.error("Failed to submit request: " + message);
+    }
+  }, [absenceReason, camper?.id, requestAbsence]);
+
   return (
     <div className="flex flex-col gap-6 p-8 max-w-3xl overflow-auto">
       {/* Header */}
@@ -133,6 +179,88 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* PIN & Check-in Info */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Icon icon="key-round" className="w-5 h-5 text-camp-amber" />
+          Your Check-in PIN
+        </h2>
+        <div className="flex items-center gap-4">
+          <div className="px-5 py-3 bg-muted rounded-xl border border-border">
+            <span className="text-2xl font-mono font-bold tracking-[0.3em] text-foreground">
+              {camper?.pin ?? "----"}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">Use this 4-digit PIN when checking back in after breaks.</p>
+            <p className="text-xs text-muted-foreground/70">Keep it secret — it proves it's really you!</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Absence Request */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Icon icon="calendar-x" className="w-5 h-5 text-camp-amber" />
+          Request Excused Absence
+        </h2>
+        <p className="text-sm text-muted-foreground mb-3">
+          Need to step away during a session? Submit a request so your team won't be penalized.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Reason for absence (e.g., client call, appointment)..."
+            value={absenceReason}
+            onChange={(e) => setAbsenceReason(e.target.value)}
+            className="flex-1"
+            onKeyDown={(e) => e.key === "Enter" && handleAbsenceRequest()}
+          />
+          <Button
+            onClick={handleAbsenceRequest}
+            disabled={!absenceReason.trim() || requestingAbsence}
+            variant="outline"
+            size="default"
+          >
+            {requestingAbsence ? "Submitting..." : "Submit"}
+          </Button>
+        </div>
+      </Card>
+
+      {/* Check-in History */}
+      {checkInHistory.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Icon icon="history" className="w-5 h-5 text-camp-green" />
+            Check-in History
+          </h2>
+          <div className="flex flex-col gap-2">
+            {checkInHistory.slice(0, 10).map((entry: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${
+                    entry.timing === "early" ? "bg-green-500" :
+                    entry.timing === "on_time" ? "bg-yellow-500" : "bg-red-500"
+                  }`} />
+                  <span className="text-sm font-medium text-foreground">
+                    {entry.timing === "early" ? "Early" : entry.timing === "on_time" ? "On Time" : "Late"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm font-semibold ${
+                    entry.points_awarded > 0 ? "text-green-600" : entry.points_awarded < 0 ? "text-red-600" : "text-muted-foreground"
+                  }`}>
+                    {entry.points_awarded > 0 ? "+" : ""}{entry.points_awarded} pts
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(entry.checked_in_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Photo & Bio Section */}
       <Card className="p-6">
@@ -211,36 +339,74 @@ export default function ProfilePage() {
           <Icon icon="target" className="w-5 h-5 text-camp-green" />
           What do you want to get out of cAMP?
         </h2>
-        <p className="text-sm text-muted-foreground mb-4">Share 3 things you hope to take away from this experience.</p>
+        <p className="text-sm text-muted-foreground mb-4">Share 3 things you hope to take away from this experience. Check them off as you achieve them!</p>
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-camp-green/10 text-camp-green text-xs font-bold mt-1">1</span>
+            <button
+              type="button"
+              onClick={() => handleToggleGoal(1, !camper?.goal_1_achieved)}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mt-1 transition-colors shrink-0 ${
+                camper?.goal_1_achieved
+                  ? "bg-camp-green border-camp-green text-white"
+                  : "border-border hover:border-camp-green/50"
+              }`}
+            >
+              {camper?.goal_1_achieved && <Icon icon="check" className="w-3.5 h-3.5" />}
+            </button>
             <Input
               placeholder="First goal or takeaway..."
               value={goal1}
               onChange={(e) => setGoal1(e.target.value)}
-              className="flex-1"
+              className={`flex-1 ${camper?.goal_1_achieved ? "line-through opacity-60" : ""}`}
             />
           </div>
           <div className="flex items-start gap-3">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-camp-green/10 text-camp-green text-xs font-bold mt-1">2</span>
+            <button
+              type="button"
+              onClick={() => handleToggleGoal(2, !camper?.goal_2_achieved)}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mt-1 transition-colors shrink-0 ${
+                camper?.goal_2_achieved
+                  ? "bg-camp-green border-camp-green text-white"
+                  : "border-border hover:border-camp-green/50"
+              }`}
+            >
+              {camper?.goal_2_achieved && <Icon icon="check" className="w-3.5 h-3.5" />}
+            </button>
             <Input
               placeholder="Second goal or takeaway..."
               value={goal2}
               onChange={(e) => setGoal2(e.target.value)}
-              className="flex-1"
+              className={`flex-1 ${camper?.goal_2_achieved ? "line-through opacity-60" : ""}`}
             />
           </div>
           <div className="flex items-start gap-3">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-camp-green/10 text-camp-green text-xs font-bold mt-1">3</span>
+            <button
+              type="button"
+              onClick={() => handleToggleGoal(3, !camper?.goal_3_achieved)}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mt-1 transition-colors shrink-0 ${
+                camper?.goal_3_achieved
+                  ? "bg-camp-green border-camp-green text-white"
+                  : "border-border hover:border-camp-green/50"
+              }`}
+            >
+              {camper?.goal_3_achieved && <Icon icon="check" className="w-3.5 h-3.5" />}
+            </button>
             <Input
               placeholder="Third goal or takeaway..."
               value={goal3}
               onChange={(e) => setGoal3(e.target.value)}
-              className="flex-1"
+              className={`flex-1 ${camper?.goal_3_achieved ? "line-through opacity-60" : ""}`}
             />
           </div>
         </div>
+        {(camper?.goal_1_achieved || camper?.goal_2_achieved || camper?.goal_3_achieved) && (
+          <div className="mt-4 pt-3 border-t border-border">
+            <p className="text-xs text-camp-green font-medium flex items-center gap-1">
+              <Icon icon="check-circle" className="w-3.5 h-3.5" />
+              {[camper?.goal_1_achieved, camper?.goal_2_achieved, camper?.goal_3_achieved].filter(Boolean).length}/3 goals achieved
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Ice Breaker Survey */}

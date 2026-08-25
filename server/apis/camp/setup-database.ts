@@ -145,6 +145,22 @@ export default api({
       { label: "Create camp201_hub_items table" }
     );
 
+    // Executives / speaker bank
+    await ctx.integrations.apps_database.execute(
+      `CREATE TABLE IF NOT EXISTS camp201_executives (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        title TEXT NOT NULL,
+        photo_url TEXT,
+        bio TEXT,
+        linkedin_url TEXT,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      undefined,
+      { label: "Create camp201_executives table" }
+    );
+
     return { success: true, message: "Database tables created successfully" };
   },
 });

@@ -67,6 +67,38 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/executives",
+        lazy: () =>
+          import("./pages/Executives/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/cohort",
+        lazy: () =>
+          import("./pages/Cohort/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/xplanation",
+        lazy: () =>
+          import("./pages/XPlanation/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/timer",
+        lazy: () =>
+          import("./pages/Timer/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "*",
         Component: () => {
           const currentPath = window.location.pathname;

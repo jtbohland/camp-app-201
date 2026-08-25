@@ -53,19 +53,64 @@ export default api({
     pointsAwarded: z.number(),
   }),
   async run(ctx, input) {
-    // Insert the new camper with initial points
+    // Check if already registered — prevents double points
+    const existing = await ctx.integrations.apps_database.query(
+      `SELECT id, points FROM camp201_campers WHERE email = $1 LIMIT 1`,
+      z.object({ id: z.coerce.number(), points: z.coerce.number() }),
+      [input.email],
+      { label: "Check existing registration" }
+    );
+
+    if (existing.length > 0) {
+      // Already registered — update info but DON'T award points again
+      await ctx.integrations.apps_database.execute(
+        `UPDATE camp201_campers SET
+           first_name = $2, last_name = $3, role = $4, manager = $5,
+           region = $6, country = $7, city = $8, start_date = $9::date,
+           updated_at = NOW()
+         WHERE email = $1`,
+        [
+          input.email,
+          input.first_name,
+          input.last_name,
+          input.role,
+          input.manager ?? "",
+          input.region ?? "",
+          input.country ?? "",
+          input.city ?? "",
+          input.start_date ?? null,
+        ],
+        { label: "Update existing camper info" }
+      );
+
+      const campers = await ctx.integrations.apps_database.query(
+        `SELECT * FROM camp201_campers WHERE email = $1 LIMIT 1`,
+        CamperSchema,
+        [input.email],
+        { label: "Fetch updated camper" }
+      );
+      return { camper: campers[0], pointsAwarded: 0 };
+    }
+
+    // Generate unique 4-digit PIN
+    let pin: string = "";
+    let pinUnique = false;
+    while (!pinUnique) {
+      pin = String(Math.floor(1000 + Math.random() * 9000)); // 1000-9999
+      const PinCheckSchema = z.object({ count: z.coerce.number() });
+      const pinCheck = await ctx.integrations.apps_database.query(
+        `SELECT COUNT(*) as count FROM camp201_campers WHERE pin = $1`,
+        PinCheckSchema,
+        [pin],
+        { label: "Check PIN uniqueness" }
+      );
+      if (pinCheck[0].count === 0) pinUnique = true;
+    }
+
+    // New registration: insert with initial points + PIN
     await ctx.integrations.apps_database.execute(
-      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10)
-       ON CONFLICT (email) DO UPDATE SET
-         first_name = EXCLUDED.first_name,
-         last_name = EXCLUDED.last_name,
-         role = EXCLUDED.role,
-         manager = EXCLUDED.manager,
-         region = EXCLUDED.region,
-         country = EXCLUDED.country,
-         city = EXCLUDED.city,
-         start_date = EXCLUDED.start_date`,
+      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10)`,
       [
         input.email,
         input.first_name,
@@ -76,8 +121,9 @@ export default api({
         input.country ?? "",
         input.city ?? "",
         input.start_date ?? null,
+        pin,
       ],
-      { label: "Register new cAMPer" }
+      { label: "Register new cAMPer with PIN" }
     );
 
     // Fetch the camper to get the ID
@@ -90,10 +136,11 @@ export default api({
 
     const camper = campers[0];
 
-    // Log the registration points
+    // Log the registration points (only once — new registrations only)
     await ctx.integrations.apps_database.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-       VALUES ($1, 10, 'Registration completed', 'system')`,
+       VALUES ($1, 10, 'Registration completed', 'system')
+       ON CONFLICT DO NOTHING`,
       [camper.id],
       { label: "Award registration points" }
     );
