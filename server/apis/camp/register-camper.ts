@@ -53,6 +53,16 @@ export default api({
     pointsAwarded: z.number(),
   }),
   async run(ctx, input) {
+    // Get active cohort
+    const CohortIdSchema = z.object({ id: z.coerce.number() });
+    const activeCohort = await ctx.integrations.apps_database.query(
+      `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
+      CohortIdSchema,
+      undefined,
+      { label: "Get active cohort" }
+    );
+    const cohortId = activeCohort.length > 0 ? activeCohort[0].id : null;
+
     // Check if already registered — prevents double points
     const existing = await ctx.integrations.apps_database.query(
       `SELECT id, points FROM camp201_campers WHERE email = $1 LIMIT 1`,
@@ -107,10 +117,10 @@ export default api({
       if (pinCheck[0].count === 0) pinUnique = true;
     }
 
-    // New registration: insert with initial points + PIN
+    // New registration: insert with initial points + PIN + cohort
     await ctx.integrations.apps_database.execute(
-      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10)`,
+      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin, cohort_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10, $11)`,
       [
         input.email,
         input.first_name,
@@ -122,8 +132,9 @@ export default api({
         input.city ?? "",
         input.start_date ?? null,
         pin,
+        cohortId,
       ],
-      { label: "Register new cAMPer with PIN" }
+      { label: "Register new cAMPer with PIN + cohort" }
     );
 
     // Fetch the camper to get the ID
@@ -138,10 +149,10 @@ export default api({
 
     // Log the registration points (only once — new registrations only)
     await ctx.integrations.apps_database.execute(
-      `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-       VALUES ($1, 10, 'Registration completed', 'system')
+      `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
+       VALUES ($1, 10, 'Registration completed', 'system', $2)
        ON CONFLICT DO NOTHING`,
-      [camper.id],
+      [camper.id, cohortId],
       { label: "Award registration points" }
     );
 

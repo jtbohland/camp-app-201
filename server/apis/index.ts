@@ -42,6 +42,11 @@ import CloseCheckIn from './camp/close-checkin.js';
 import GetCheckInHistory from './camp/get-checkin-history.js';
 import RequestAbsence from './camp/request-absence.js';
 import GetAbsenceRequests from './camp/get-absence-requests.js';
+import MigrateCohorts from './camp/migrate-cohorts.js';
+import GetCohorts from './camp/get-cohorts.js';
+import CreateCohort from './camp/create-cohort.js';
+import SetActiveCohort from './camp/set-active-cohort.js';
+import GetActiveCohort from './camp/get-active-cohort.js';
 
 const apis = {
   SetupDatabase,
@@ -82,6 +87,11 @@ const apis = {
   GetCheckInHistory,
   RequestAbsence,
   GetAbsenceRequests,
+  MigrateCohorts,
+  GetCohorts,
+  CreateCohort,
+  SetActiveCohort,
+  GetActiveCohort,
 } as const;
 
 export default apis;
