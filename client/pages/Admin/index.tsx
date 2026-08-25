@@ -10,7 +10,7 @@ import AdminLearnerGrid from "@/components/AdminLearnerGrid";
 import AdminTeamView from "@/components/AdminTeamView";
 import AdminCamperDetail from "@/components/AdminCamperDetail";
 
-const ADMIN_PASSWORD = "camp201admin";
+const ADMIN_PASSWORD = "NewAchievement201";
 
 type View = "learners" | "teams" | "camper-detail";
 
