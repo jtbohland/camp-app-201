@@ -59,6 +59,25 @@ import CreateSurvey from './camp/create-survey.js';
 import GetActiveSurvey from './camp/get-active-survey.js';
 import SubmitSurvey from './camp/submit-survey.js';
 import GetSurveyResults from './camp/get-survey-results.js';
+import MigrateAgendaResources from './camp/migrate-agenda-resources.js';
+import AddAgendaResource from './camp/add-agenda-resource.js';
+import GetAgendaResources from './camp/get-agenda-resources.js';
+import MigrateBadges from './camp/migrate-badges.js';
+import GetBadges from './camp/get-badges.js';
+import AwardBadge from './camp/award-badge.js';
+import MigrateAnnouncements from './camp/migrate-announcements.js';
+import GetAnnouncements from './camp/get-announcements.js';
+import CreateAnnouncement from './camp/create-announcement.js';
+import MigrateGallery from './camp/migrate-gallery.js';
+import GetGallery from './camp/get-gallery.js';
+import AddGalleryPhoto from './camp/add-gallery-photo.js';
+import GetGraduationSummary from './camp/get-graduation-summary.js';
+import MigrateTeamHistory from './camp/migrate-team-history.js';
+import GetTeamHistory from './camp/get-team-history.js';
+import AddTeamHistory from './camp/add-team-history.js';
+import MigratePeerFeedback from './camp/migrate-peer-feedback.js';
+import GetPeerFeedback from './camp/get-peer-feedback.js';
+import SubmitPeerFeedback from './camp/submit-peer-feedback.js';
 
 const apis = {
   SetupDatabase,
@@ -116,6 +135,25 @@ const apis = {
   GetActiveSurvey,
   SubmitSurvey,
   GetSurveyResults,
+  MigrateAgendaResources,
+  AddAgendaResource,
+  GetAgendaResources,
+  MigrateBadges,
+  GetBadges,
+  AwardBadge,
+  MigrateAnnouncements,
+  GetAnnouncements,
+  CreateAnnouncement,
+  MigrateGallery,
+  GetGallery,
+  AddGalleryPhoto,
+  GetGraduationSummary,
+  MigrateTeamHistory,
+  GetTeamHistory,
+  AddTeamHistory,
+  MigratePeerFeedback,
+  GetPeerFeedback,
+  SubmitPeerFeedback,
 } as const;
 
 export default apis;

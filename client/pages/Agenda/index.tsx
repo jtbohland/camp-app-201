@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import SessionBankPanel, { type BankSession } from "@/components/SessionBankPanel";
 import DaySchedule, { type AgendaItem, timeToMinutes } from "@/components/DaySchedule";
+import AgendaResources from "@/components/AgendaResources/index.js";
 
 const DAY_LABELS: Record<number, string> = {
   1: "Monday",
@@ -58,6 +59,7 @@ export default function AgendaPage() {
 
   // Determine role
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const camperId = camperData?.camper?.id ?? 0;
 
   // Determine camp days from config
   const configDays = useMemo(() => {
@@ -264,6 +266,13 @@ export default function AgendaPage() {
             </div>
           )}
         </div>
+
+        {/* Resources panel */}
+        <AgendaResources
+          agendaItems={agendaItems}
+          isAdmin={isAdmin}
+          camperId={camperId}
+        />
       </div>
 
       {/* Drag overlay */}

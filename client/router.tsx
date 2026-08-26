@@ -115,6 +115,54 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/badges",
+        lazy: () =>
+          import("./pages/Badges/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/announcements",
+        lazy: () =>
+          import("./pages/Announcements/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/gallery",
+        lazy: () =>
+          import("./pages/Gallery/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/graduation",
+        lazy: () =>
+          import("./pages/Graduation/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/team-history",
+        lazy: () =>
+          import("./pages/TeamHistory/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
+        path: "/feedback",
+        lazy: () =>
+          import("./pages/PeerFeedback/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "/rubric",
         lazy: () =>
           import("./pages/Rubric/index.js").then((mod) => {
