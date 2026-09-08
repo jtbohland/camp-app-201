@@ -1,4 +1,5 @@
-import { useDroppable } from "@dnd-kit/core";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 
@@ -79,6 +80,13 @@ function DroppableSlot({ slotTime, dayNumber }: { slotTime: string; dayNumber: n
 }
 
 function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin: boolean; onRemove?: () => void }) {
+  const isDraggableItem = isAdmin && item.session_type !== "lunch";
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `agenda-${item.id}`,
+    data: { agendaItem: item },
+    disabled: !isDraggableItem,
+  });
+
   const startMin = timeToMinutes(item.start_time);
   const endMin = timeToMinutes(item.end_time);
   const durationMin = endMin - startMin;
@@ -88,10 +96,15 @@ function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin
   const colors = getColors(item.session_type);
   const isExec = item.session_type === "executive";
 
+  const dragStyle = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+
   return (
     <div
-      className={`absolute left-0 right-0 mx-1 rounded-md border px-2 py-1 overflow-hidden group ${colors.bg} ${colors.border}`}
-      style={{ top: `${topOffset}px`, height: `${height - 2}px` }}
+      ref={isDraggableItem ? setNodeRef : undefined}
+      className={`absolute left-0 right-0 mx-1 rounded-md border px-2 py-1 overflow-hidden group ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"}`}
+      style={{ top: `${topOffset}px`, height: `${height - 2}px`, ...dragStyle }}
+      {...(isDraggableItem ? attributes : {})}
+      {...(isDraggableItem ? listeners : {})}
     >
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">

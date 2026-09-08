@@ -43,9 +43,11 @@ export default function AgendaScheduleTab() {
   const { run: removeItem } = useApi("RemoveAgendaItem");
   const { run: updateConfig } = useApi("UpdateCampConfig");
   const { run: clearDay } = useApi("ClearDaySchedule");
+  const { run: moveItem } = useApi("MoveAgendaItem");
 
   const [numDays, setNumDays] = useState<number | null>(null);
-  const [activeDrag, setActiveDrag] = useState<BankSession | null>(null);
+  const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
+  const [activeDragType, setActiveDragType] = useState<"bank" | "agenda" | null>(null);
 
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const camperId = camperData?.camper?.id ?? 0;
@@ -71,24 +73,41 @@ export default function AgendaScheduleTab() {
   }, [updateConfig]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    const session = event.active.data.current?.session as BankSession | undefined;
-    if (session) setActiveDrag(session);
+    const bankSession = event.active.data.current?.session as BankSession | undefined;
+    const agendaItem = event.active.data.current?.agendaItem as AgendaItem | undefined;
+    if (bankSession) {
+      setActiveDrag(bankSession);
+      setActiveDragType("bank");
+    } else if (agendaItem) {
+      setActiveDrag(agendaItem);
+      setActiveDragType("agenda");
+    }
   }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setActiveDrag(null);
+    setActiveDragType(null);
     const { over, active } = event;
     if (!over) return;
 
-    const session = active.data.current?.session as BankSession | undefined;
-    if (!session) return;
-
     const dropData = over.data.current as { dayNumber: number; slotTime: string } | undefined;
     if (!dropData) return;
-
     const { dayNumber, slotTime } = dropData;
+
+    // Determine if this is a bank → calendar (new) or calendar → calendar (move)
+    const bankSession = active.data.current?.session as BankSession | undefined;
+    const agendaItem = active.data.current?.agendaItem as AgendaItem | undefined;
+
+    const sessionTitle = bankSession?.title ?? agendaItem?.title ?? "";
+    const sessionType = bankSession?.session_type ?? agendaItem?.session_type ?? "session";
+    const durationMin = bankSession
+      ? bankSession.duration_minutes
+      : agendaItem
+      ? timeToMinutes(agendaItem.end_time) - timeToMinutes(agendaItem.start_time)
+      : 60;
+
     const startMin = timeToMinutes(slotTime);
-    const endMin = startMin + session.duration_minutes;
+    const endMin = startMin + durationMin;
 
     if (endMin > 17 * 60) {
       toast.error("Session would extend past 5:00 PM");
@@ -102,7 +121,8 @@ export default function AgendaScheduleTab() {
       return;
     }
 
-    const dayItems = agendaData?.items?.filter((i: any) => i.day_number === dayNumber) ?? [];
+    // Check overlaps (exclude the item being moved)
+    const dayItems = agendaData?.items?.filter((i: any) => i.day_number === dayNumber && i.id !== agendaItem?.id) ?? [];
     const hasOverlap = dayItems.some((item: any) => {
       const iStart = timeToMinutes(item.start_time);
       const iEnd = timeToMinutes(item.end_time);
@@ -119,24 +139,31 @@ export default function AgendaScheduleTab() {
     const endTime = `${endHour.toString().padStart(2, "0")}:${endMinRemainder.toString().padStart(2, "0")}`;
 
     try {
-      await scheduleSession({
-        session_bank_id: session.id,
-        day_number: dayNumber,
-        start_time: slotTime,
-        end_time: endTime,
-        title: session.title,
-        session_type: session.session_type,
-      });
-      toast.success(`Scheduled "${session.title}"`);
+      if (agendaItem) {
+        // Move existing agenda item
+        await moveItem({ id: agendaItem.id, day_number: dayNumber, start_time: slotTime, end_time: endTime });
+        toast.success(`Moved "${agendaItem.title}"`);
+      } else if (bankSession) {
+        // Create new from bank
+        await scheduleSession({
+          session_bank_id: bankSession.id,
+          day_number: dayNumber,
+          start_time: slotTime,
+          end_time: endTime,
+          title: bankSession.title,
+          session_type: bankSession.session_type,
+        });
+        toast.success(`Scheduled "${bankSession.title}"`);
+      }
       refetchAgenda();
     } catch (err) {
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message: unknown }).message)
           : String(err);
-      toast.error("Failed to schedule: " + message);
+      toast.error("Failed: " + message);
     }
-  }, [agendaData, scheduleSession, refetchAgenda]);
+  }, [agendaData, scheduleSession, moveItem, refetchAgenda]);
 
   const handleRemoveItem = useCallback(async (id: number) => {
     try {
@@ -258,12 +285,19 @@ export default function AgendaScheduleTab() {
       <DragOverlay>
         {activeDrag && (
           <div className="flex items-center gap-2 p-2.5 rounded-lg border border-camp-green bg-card shadow-lg">
-            <Icon icon="presentation" className="w-3.5 h-3.5 text-camp-green" />
+            <Icon icon={activeDragType === "agenda" ? "move" : "presentation"} className="w-3.5 h-3.5 text-camp-green" />
             <span className="text-xs font-medium">{activeDrag.title}</span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {activeDrag.duration_minutes >= 60
-                ? `${activeDrag.duration_minutes / 60}h`
-                : `${activeDrag.duration_minutes}m`}
+              {activeDragType === "bank" && "duration_minutes" in activeDrag
+                ? (activeDrag as BankSession).duration_minutes >= 60
+                  ? `${(activeDrag as BankSession).duration_minutes / 60}h`
+                  : `${(activeDrag as BankSession).duration_minutes}m`
+                : activeDragType === "agenda" && "start_time" in activeDrag
+                ? (() => {
+                    const d = timeToMinutes((activeDrag as AgendaItem).end_time) - timeToMinutes((activeDrag as AgendaItem).start_time);
+                    return d >= 60 ? `${d / 60}h` : `${d}m`;
+                  })()
+                : ""}
             </Badge>
           </div>
         )}
