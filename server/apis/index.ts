@@ -111,6 +111,9 @@ import MigrateDailySurveys from './camp/migrate-daily-surveys.js';
 import GetDailySurvey from './camp/get-daily-survey.js';
 import SubmitDailySurvey from './camp/submit-daily-survey.js';
 import GetDailySurveyResults from './camp/get-daily-survey-results.js';
+import MigrateFeatureGates from './camp/migrate-feature-gates.js';
+import GetFeatureGates from './camp/get-feature-gates.js';
+import UpdateFeatureGate from './camp/update-feature-gate.js';
 
 const apis = {
   SetupDatabase,
@@ -220,6 +223,9 @@ const apis = {
   GetDailySurvey,
   SubmitDailySurvey,
   GetDailySurveyResults,
+  MigrateFeatureGates,
+  GetFeatureGates,
+  UpdateFeatureGate,
 } as const;
 
 export default apis;

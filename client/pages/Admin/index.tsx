@@ -14,10 +14,12 @@ import AdminManagerOverview from "@/components/AdminManagerOverview/index.js";
 import RegistrationForm from "@/components/RegistrationForm/index.js";
 import ManagerRegistrationForm from "@/components/ManagerRegistrationForm/index.js";
 import AdminSurveyResults from "@/components/AdminSurveyResults/index.js";
+import AdminFeatureGates from "@/components/AdminFeatureGates/index.js";
+import AgendaScheduleTab from "@/components/AgendaScheduleTab/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
-type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
+type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "schedule" | "gates" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -198,6 +200,15 @@ export default function AdminPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => setView("schedule")}
+                  className={`text-white ${view === "schedule" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="calendar" className="w-4 h-4 mr-1" />
+                  Schedule
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setView("managers")}
                   className={`text-white ${view === "managers" ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
@@ -221,6 +232,15 @@ export default function AdminPage() {
                 >
                   <Icon name="plane" className="w-4 h-4 mr-1" />
                   Flights
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("gates")}
+                  className={`text-white ${view === "gates" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="lock" className="w-4 h-4 mr-1" />
+                  Gates
                 </Button>
                 <Button
                   variant="ghost"
@@ -251,8 +271,16 @@ export default function AdminPage() {
         {view === "surveys" && (
           <AdminSurveyResults />
         )}
+        {view === "schedule" && (
+          <div className="bg-background rounded-xl overflow-hidden">
+            <AgendaScheduleTab />
+          </div>
+        )}
         {view === "flights" && (
           <AdminFlightSummary />
+        )}
+        {view === "gates" && (
+          <AdminFeatureGates />
         )}
         {view === "settings" && (
           <AdminPreworkSettings />
