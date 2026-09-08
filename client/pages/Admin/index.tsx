@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import AdminLearnerGrid from "@/components/AdminLearnerGrid";
 import AdminTeamView from "@/components/AdminTeamView";
 import AdminCamperDetail from "@/components/AdminCamperDetail";
 import AdminFlightSummary from "@/components/AdminFlightSummary/index.js";
 import AdminPreworkSettings from "@/components/AdminPreworkSettings/index.js";
+import AdminManagerOverview from "@/components/AdminManagerOverview/index.js";
+import RegistrationForm from "@/components/RegistrationForm/index.js";
+import ManagerRegistrationForm from "@/components/ManagerRegistrationForm/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
-type View = "learners" | "teams" | "flights" | "settings" | "camper-detail";
+type View = "learners" | "teams" | "flights" | "managers" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -78,6 +80,36 @@ export default function AdminPage() {
     );
   }
 
+  // Demo registration views
+  const isDemoView = view === "demo-reg-camper" || view === "demo-reg-manager";
+  if (isDemoView) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-950 via-emerald-900 to-green-950 p-6">
+        <div className="max-w-7xl mx-auto mb-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setView("learners")} className="text-white hover:bg-white/10">
+              <Icon name="arrow-left" className="w-4 h-4 mr-1" />
+              Back to Hub
+            </Button>
+            <h1 className="text-xl font-bold text-white">
+              Registration Preview {view === "demo-reg-camper" ? "(cAMPer)" : "(Manager)"}
+            </h1>
+            <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">
+              Demo Mode — No data will be saved
+            </span>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto bg-background rounded-xl overflow-hidden shadow-2xl">
+          {view === "demo-reg-camper" ? (
+            <RegistrationForm userEmail="demo@example.com" onSuccess={() => setView("learners")} />
+          ) : (
+            <ManagerRegistrationForm userEmail="demo@example.com" onSuccess={() => setView("learners")} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-emerald-900 to-green-950 p-6">
       {/* Header */}
@@ -96,7 +128,31 @@ export default function AdminPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Demo registration buttons */}
+            {view !== "camper-detail" && (
+              <div className="flex bg-white/5 rounded-lg p-1 gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("demo-reg-camper")}
+                  className="text-white/60 hover:text-white hover:bg-white/10 text-xs"
+                >
+                  <Icon name="eye" className="w-3.5 h-3.5 mr-1" />
+                  Preview cAMPer Reg
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("demo-reg-manager")}
+                  className="text-white/60 hover:text-white hover:bg-white/10 text-xs"
+                >
+                  <Icon name="eye" className="w-3.5 h-3.5 mr-1" />
+                  Preview Manager Reg
+                </Button>
+              </div>
+            )}
+
             {/* Cohort Switcher */}
             {cohortsData?.cohorts && (
               <Select
@@ -108,7 +164,7 @@ export default function AdminPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active Cohort</SelectItem>
-                  {cohortsData.cohorts.map((c) => (
+                  {cohortsData.cohorts.map((c: { id: number; name: string; is_active: boolean }) => (
                     <SelectItem key={c.id} value={c.id.toString()}>
                       {c.name} {c.is_active ? "✦" : ""}
                     </SelectItem>
@@ -141,6 +197,15 @@ export default function AdminPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => setView("managers")}
+                  className={`text-white ${view === "managers" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="binoculars" className="w-4 h-4 mr-1" />
+                  Managers
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setView("flights")}
                   className={`text-white ${view === "flights" ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
@@ -169,6 +234,9 @@ export default function AdminPage() {
         )}
         {view === "teams" && (
           <AdminTeamView cohortId={selectedCohortId} onCamperClick={handleCamperClick} />
+        )}
+        {view === "managers" && (
+          <AdminManagerOverview />
         )}
         {view === "flights" && (
           <AdminFlightSummary />

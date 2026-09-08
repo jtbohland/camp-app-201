@@ -107,6 +107,14 @@ export const router = createBrowserRouter([
           }),
       },
       {
+        path: "/manager",
+        lazy: () =>
+          import("./pages/ManagerDashboard/index.js").then((mod) => {
+            const Component = mod.default;
+            return { Component };
+          }),
+      },
+      {
         path: "/admin",
         lazy: () =>
           import("./pages/Admin/index.js").then((mod) => {
