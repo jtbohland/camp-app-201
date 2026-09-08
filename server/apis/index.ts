@@ -100,6 +100,20 @@ import MigrateQAFeed from './camp/migrate-qa-feed.js';
 import GetExecQuestions from './camp/get-exec-questions.js';
 import SubmitExecQuestion from './camp/submit-exec-question.js';
 import VoteExecQuestion from './camp/vote-exec-question.js';
+import MigrateManagers from './camp/migrate-managers.js';
+import RegisterManager from './camp/register-manager.js';
+import GetCurrentManager from './camp/get-current-manager.js';
+import GetCohortCampersForManager from './camp/get-cohort-campers.js';
+import GetManagerDashboard from './camp/get-manager-dashboard.js';
+import AddManagerComment from './camp/add-manager-comment.js';
+import GetAdminManagerOverview from './camp/get-admin-manager-overview.js';
+import MigrateDailySurveys from './camp/migrate-daily-surveys.js';
+import GetDailySurvey from './camp/get-daily-survey.js';
+import SubmitDailySurvey from './camp/submit-daily-survey.js';
+import GetDailySurveyResults from './camp/get-daily-survey-results.js';
+import MigrateFeatureGates from './camp/migrate-feature-gates.js';
+import GetFeatureGates from './camp/get-feature-gates.js';
+import UpdateFeatureGate from './camp/update-feature-gate.js';
 
 const apis = {
   SetupDatabase,
@@ -198,6 +212,20 @@ const apis = {
   GetExecQuestions,
   SubmitExecQuestion,
   VoteExecQuestion,
+  MigrateManagers,
+  RegisterManager,
+  GetCurrentManager,
+  GetCohortCampersForManager,
+  GetManagerDashboard,
+  AddManagerComment,
+  GetAdminManagerOverview,
+  MigrateDailySurveys,
+  GetDailySurvey,
+  SubmitDailySurvey,
+  GetDailySurveyResults,
+  MigrateFeatureGates,
+  GetFeatureGates,
+  UpdateFeatureGate,
 } as const;
 
 export default apis;

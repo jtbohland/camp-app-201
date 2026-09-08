@@ -247,7 +247,7 @@ export default function AgendaScheduleTab() {
 
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex flex-col gap-6 p-6 max-w-7xl">
+      <div className="flex flex-col gap-4 p-6 max-w-7xl">
         {/* Admin controls */}
         {isAdmin && (
           <div className="flex items-center gap-2">
@@ -270,7 +270,7 @@ export default function AgendaScheduleTab() {
         <div className={`flex gap-6 ${agendaFetching && !agendaLoading ? "opacity-70" : ""}`}>
           {/* Schedule grid */}
           <div className="flex-1 overflow-hidden">
-            <Card className="p-4 flex flex-col" style={{ height: "680px" }}>
+            <Card className="p-4 flex flex-col" style={{ height: "calc(100vh - 240px)", minHeight: "500px" }}>
               {/* Sticky day headers */}
               <div className="flex flex-shrink-0">
                 <div className="w-16 flex-shrink-0" />
@@ -323,8 +323,8 @@ export default function AgendaScheduleTab() {
 
           {/* Session bank sidebar - admin only */}
           {isAdmin && (
-            <div className="w-[260px] flex-shrink-0">
-              <Card className="p-4 h-[680px] overflow-hidden flex flex-col">
+            <div className="w-[280px] flex-shrink-0">
+              <Card className="p-4 overflow-hidden flex flex-col" style={{ height: "calc(100vh - 240px)", minHeight: "500px" }}>
                 <SessionBankPanel sessions={sessions} onSessionCreated={refetchBank} />
               </Card>
             </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { NavLink } from "react-router";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData.js";
@@ -12,7 +12,7 @@ type NavItem = {
   path: string;
 };
 
-const navItems: NavItem[] = [
+const camperNavItems: NavItem[] = [
   { icon: "house", label: "Base Camp", path: "/" },
   { icon: "map", label: "Journey", path: "/journey" },
   { icon: "calendar", label: "Agenda", path: "/agenda" },
@@ -26,6 +26,12 @@ const navItems: NavItem[] = [
   { icon: "shield", label: "Counselor Hub", path: "/admin" },
 ];
 
+const managerNavItems: NavItem[] = [
+  { icon: "binoculars", label: "My cAMPers", path: "/manager" },
+  { icon: "calendar", label: "Agenda", path: "/agenda" },
+  { icon: "trophy", label: "Leaderboard", path: "/leaderboard" },
+];
+
 export default function AppSidebar() {
   const user = useSuperblocksUser();
   const [showCheckin, setShowCheckin] = useState(false);
@@ -34,13 +40,30 @@ export default function AppSidebar() {
   const { data: checkinData } = useApiData("GetActiveCheckIn", {}, { refetchInterval: 5000 });
   const checkinOpen = checkinData?.checkin_open ?? false;
 
-  // Get camper ID for check-in modal
+  // Get camper data
   const { data: camperData } = useApiData("GetCurrentCamper", {
+    email: user?.email ?? "",
+  }, { enabled: !!user?.email });
+
+  // Check if user is a manager
+  const { data: managerData } = useApiData("GetCurrentManager", {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
   const isAdmin = user?.email === "jt.bohland@amplitude.com";
+  const isCamper = camperData?.isRegistered === true;
+  const isManager = managerData?.isManager === true;
+
+  // Determine which nav items to show
+  const navItems = useMemo(() => {
+    // If user is both camper and admin, show full camper nav
+    if (isCamper) return camperNavItems;
+    // If user is only a manager (not a camper), show restricted nav
+    if (isManager) return managerNavItems;
+    // Default (not registered yet) — show minimal
+    return [{ icon: "house" as IconName, label: "Home", path: "/" }];
+  }, [isCamper, isManager]);
 
   return (
     <>
@@ -52,12 +75,14 @@ export default function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold tracking-wide">cAMP 201</span>
-            <span className="text-xs text-sidebar-accent-foreground/60">Amplitude</span>
+            <span className="text-xs text-sidebar-accent-foreground/60">
+              {isManager && !isCamper ? "Manager Portal" : "Amplitude"}
+            </span>
           </div>
         </div>
 
         {/* Check-in Banner */}
-        {checkinOpen && !isAdmin && (
+        {checkinOpen && isCamper && !isAdmin && (
           <button
             onClick={() => setShowCheckin(true)}
             className="mx-3 mt-3 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-600/10 border border-green-600/30 text-green-600 text-sm font-semibold hover:bg-green-600/20 transition-colors animate-pulse"

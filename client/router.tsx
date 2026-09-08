@@ -3,117 +3,48 @@ import { createBrowserRouter, Navigate } from "react-router";
 import { PageNotFound, RouteLoadError } from "@superblocksteam/library";
 
 import RegisteredApp from "./App.js";
+import FeatureGate from "./components/FeatureGate/index.js";
+
+/** Helper: lazy load a page, optionally wrapped in a FeatureGate */
+function gatedLazy(importFn: () => Promise<{ default: React.ComponentType }>, gateKey?: string) {
+  return {
+    lazy: () =>
+      importFn().then((mod) => {
+        const Page = mod.default;
+        if (!gateKey) return { Component: Page };
+        const GatedPage = () => (
+          <FeatureGate featureKey={gateKey}>
+            <Page />
+          </FeatureGate>
+        );
+        return { Component: GatedPage };
+      }),
+  };
+}
 
 export const router = createBrowserRouter([
   {
     Component: RegisteredApp,
     errorElement: <RouteLoadError />,
     children: [
-      {
-        path: "/",
-        index: true,
-        lazy: () =>
-          import("./pages/Home/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/profile",
-        lazy: () =>
-          import("./pages/Profile/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/journey",
-        lazy: () =>
-          import("./pages/Journey/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/agenda",
-        lazy: () =>
-          import("./pages/Agenda/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/teams",
-        lazy: () =>
-          import("./pages/Teams/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/teams/:teamId",
-        lazy: () =>
-          import("./pages/TeamHub/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/leaderboard",
-        lazy: () =>
-          import("./pages/Leaderboard/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/presentations",
-        lazy: () =>
-          import("./pages/Presentations/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/timer",
-        lazy: () =>
-          import("./pages/Timer/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/survey",
-        lazy: () =>
-          import("./pages/Survey/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/badges",
-        lazy: () =>
-          import("./pages/Badges/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/graduation",
-        lazy: () =>
-          import("./pages/Graduation/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/admin",
-        lazy: () =>
-          import("./pages/Admin/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
+      // No gate — always accessible
+      { path: "/", index: true, ...gatedLazy(() => import("./pages/Home/index.js")) },
+      { path: "/profile", ...gatedLazy(() => import("./pages/Profile/index.js")) },
+      { path: "/manager", ...gatedLazy(() => import("./pages/ManagerDashboard/index.js")) },
+      { path: "/admin", ...gatedLazy(() => import("./pages/Admin/index.js")) },
+
+      // Gated pages
+      { path: "/journey", ...gatedLazy(() => import("./pages/Journey/index.js"), "journey") },
+      { path: "/agenda", ...gatedLazy(() => import("./pages/Agenda/index.js"), "agenda") },
+      { path: "/teams", ...gatedLazy(() => import("./pages/Teams/index.js"), "teams") },
+      { path: "/teams/:teamId", ...gatedLazy(() => import("./pages/TeamHub/index.js"), "teams") },
+      { path: "/leaderboard", ...gatedLazy(() => import("./pages/Leaderboard/index.js"), "leaderboard") },
+      { path: "/presentations", ...gatedLazy(() => import("./pages/Presentations/index.js"), "presentations") },
+      { path: "/timer", ...gatedLazy(() => import("./pages/Timer/index.js"), "timer") },
+      { path: "/survey", ...gatedLazy(() => import("./pages/Survey/index.js"), "surveys") },
+      { path: "/badges", ...gatedLazy(() => import("./pages/Badges/index.js"), "badges") },
+      { path: "/graduation", ...gatedLazy(() => import("./pages/Graduation/index.js"), "graduation") },
+
       // Redirects for old standalone routes
       { path: "/cohort", element: <Navigate to="/teams" replace /> },
       { path: "/team-history", element: <Navigate to="/teams" replace /> },
