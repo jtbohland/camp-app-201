@@ -16,28 +16,52 @@ type PreworkItem = {
 
 const PREWORK_ITEMS: PreworkItem[] = [
   {
-    key: "challenger_sales",
-    icon: "book-open",
-    title: "Challenger Sales Training",
-    description:
-      "Complete the Challenger Sales fundamentals course in your LMS. Focus on the teaching, tailoring, and taking control principles.",
-    tip: "Estimated time: 2-3 hours",
-  },
-  {
     key: "wheel_and_deal",
     icon: "target",
-    title: "Wheel & Deal Practice",
+    title: "Wheel & Deal — Product Pitch Practice",
     description:
-      "Run through at least one full Wheel & Deal practice session. Record yourself and review your talk track before cAMP.",
-    tip: "Estimated time: 1-2 hours",
+      "Wheel & Deal is a self-guided product pitch practice tool designed to build your fluency talking about Amplitude's products in a casual, conversational way. No slides, no script, and no prep time required. Read the Welcome tab in the app for more details, then get your reps in and have fun with it! You'll pitch Amplitude live in front of your new hire class at cAMP 201.",
+    tip: "Use it as your warm-up for cAMP 201!",
+  },
+  {
+    key: "challenger_sales",
+    icon: "book-open",
+    title: "Challenger Sales Methodology",
+    description:
+      "Register with your Amplitude credentials and follow the prompts to enroll in the Challenger pre-work. Complete \"Why Challenger?\" (~20–30 minutes) and \"Intro to Challenger Skills\" (~1 hour).",
+    tip: "NOTE: AEs are exempt — you completed this in cAMP Ascent!",
   },
   {
     key: "ice_breaker_survey",
     icon: "message-circle",
-    title: "Complete Ice Breaker Survey",
+    title: "Camper Trivia Form",
     description:
-      "Fill out your Ice Breaker answers on your profile. These will be used in team activities during cAMP.",
+      "Complete the icebreaker survey so we can use your answers for team activities during cAMP. Everyone MUST complete this before cAMP starts — no exceptions!",
     tip: "Go to My Profile → Ice Breaker section",
+  },
+  {
+    key: "calendar_invites",
+    icon: "calendar",
+    title: "Accept Calendar Invites & Free Up Your Schedule",
+    description:
+      "Accept the cAMP 201 calendar invites so it's on your calendar and blocked off. Free up your calendar and reschedule your meetings — your full presence is expected at cAMP.",
+    tip: "cAMP 201: Aug 24–26, 2026, 9am–5pm each day",
+  },
+  {
+    key: "ramp_budget",
+    icon: "credit-card",
+    title: "Create Your Ramp Budget",
+    description:
+      "Open the Ramp Okta tile, create a budget for your cAMP-related travel and expenses, and submit it for manager approval. Please do this BEFORE booking travel.",
+    tip: "Must be approved before booking in Navan",
+  },
+  {
+    key: "book_travel",
+    icon: "plane",
+    title: "Book Travel & Accommodations",
+    description:
+      "After your Ramp budget is approved, book your travel and hotel in Navan. AMER travelers: arrive Sunday (8/23). International travelers: arrive Saturday (8/22) for jet lag. cAMP ends at 5pm Wednesday (8/26) — attend in its entirety and book return travel accordingly!",
+    tip: "Don't wait until the weekend — book early so we can help with any issues!",
   },
 ];
 
