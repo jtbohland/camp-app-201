@@ -28,6 +28,10 @@ export default function JourneyPage() {
     user_id: camperId,
   }, { enabled: camperId > 0 });
 
+  // Get deadline from config
+  const { data: configData } = useApiData("GetCampConfig", {});
+  const deadline = (configData?.config as any[])?.find((c: any) => c.key === "prework_deadline")?.value ?? "";
+
   const loading = camperLoading || preworkLoading;
 
   if (loading) {
@@ -54,6 +58,7 @@ export default function JourneyPage() {
   }
 
   const camper = camperData.camper;
+  const isAdmin = user?.email === "jt.bohland@amplitude.com";
   const completedKeys = (preworkData?.completedItems ?? []).map((item) => item.item);
   const allPreworkDone = completedKeys.length >= 3;
 
@@ -89,11 +94,13 @@ export default function JourneyPage() {
           camperEmail={user?.email ?? ""}
           completedKeys={completedKeys}
           onComplete={refetchPrework}
+          isAdmin={isAdmin}
+          deadline={deadline}
         />
       </div>
 
       {/* Know Before You Go */}
-      <KnowBeforeYouGo />
+      <KnowBeforeYouGo isAdmin={isAdmin} />
     </div>
   );
 }

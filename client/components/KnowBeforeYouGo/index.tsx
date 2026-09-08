@@ -1,57 +1,77 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useApiData } from "@/hooks/useApiData";
+import { useApi } from "@/hooks/useApi";
+import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
 
-type InfoItem = {
-  icon: IconName;
+type Link = { label: string; url: string };
+type ContentItem = {
+  id: number;
+  tab: string | null;
+  sort_order: number;
+  icon: string;
   title: string;
   content: string;
+  tip: string | null;
+  links: Link[];
 };
 
-const INFO_SECTIONS: Record<string, InfoItem[]> = {
-  rules: [
-    { icon: "shield", title: "Be Present", content: "Phones away during sessions. Laptops only for cAMP activities. Full participation is expected." },
-    { icon: "clock", title: "Be Punctual", content: "Sessions start on time. Check-in is gamified — early earns points, late loses them for your team!" },
-    { icon: "users", title: "Be Collaborative", content: "You're part of a team. Contribute, support each other, and have fun competing." },
-    { icon: "heart", title: "Be Open", content: "cAMP is a safe space to learn, fail, and grow. Ask questions. Get uncomfortable." },
-  ],
-  budget: [
-    { icon: "credit-card", title: "Ramp Budget", content: "Your manager can approve ramp-related expenses. Check with your manager for your specific budget allocation." },
-    { icon: "file-text", title: "How to Submit", content: "Submit expenses through your company expense tool. Tag them as 'cAMP 201 - Onboarding' for quick approval." },
-    { icon: "info", title: "What's Covered", content: "Travel, lodging, meals during cAMP, and any required materials. Personal purchases are not covered." },
-  ],
-  travel: [
-    { icon: "plane", title: "Book via Navan", content: "All travel must be booked through Navan (formerly TripActions). Log in with your Amplitude credentials." },
-    { icon: "calendar", title: "When to Arrive", content: "Fly in the day BEFORE cAMP starts. Plan to arrive by 6 PM for the welcome dinner." },
-    { icon: "calendar", title: "When to Depart", content: "cAMP ends at 5 PM on the final day. Book flights for 7 PM or later, or stay an extra night." },
-    { icon: "alert-circle", title: "Flight Policy", content: "Economy class for domestic. Economy or Premium Economy for international (6+ hours). Book 2+ weeks in advance." },
-  ],
-  hotels: [
-    { icon: "building", title: "Hotel Nikko SF", content: "222 Mason St — Walking distance to the office. Modern rooms, great location in Union Square." },
-    { icon: "building", title: "Courtyard by Marriott", content: "299 2nd St — SoMa location, 10 min walk to office. Good for Marriott loyalty members." },
-    { icon: "building", title: "Hyatt Place SF", content: "701 3rd St — Near the office in SoMa. Complimentary breakfast included." },
-    { icon: "info", title: "Budget", content: "Aim for $200-300/night. Book through Navan for pre-negotiated rates." },
-  ],
-  office: [
-    { icon: "map-pin", title: "Office Address", content: "631 Howard St, Suite 300, San Francisco, CA 94105 (SoMa district)" },
-    { icon: "door-open", title: "Getting In", content: "Check in at the front desk with your ID. You'll receive a visitor badge on Day 1." },
-    { icon: "coffee", title: "Amenities", content: "Kitchen fully stocked with snacks, coffee, and beverages. Lunch provided during cAMP." },
-    { icon: "wifi", title: "WiFi", content: "Network: Amplitude-Guest. Password will be shared on Day 1." },
-  ],
-};
-
-const TABS = [
-  { key: "rules", label: "Rules & Expectations", icon: "shield" as IconName },
-  { key: "budget", label: "Ramp Budget", icon: "credit-card" as IconName },
-  { key: "travel", label: "Travel & Flights", icon: "plane" as IconName },
-  { key: "hotels", label: "Hotels in SF", icon: "building" as IconName },
-  { key: "office", label: "Office Info", icon: "map-pin" as IconName },
+const TAB_META: { key: string; label: string; icon: IconName }[] = [
+  { key: "rules", label: "Rules", icon: "shield" },
+  { key: "budget", label: "Budget", icon: "credit-card" },
+  { key: "travel", label: "Travel", icon: "plane" },
+  { key: "hotels", label: "Hotels", icon: "building" },
+  { key: "office", label: "Office", icon: "map-pin" },
 ];
 
-export default function KnowBeforeYouGo() {
+type Props = {
+  isAdmin?: boolean;
+};
+
+export default function KnowBeforeYouGo({ isAdmin }: Props) {
   const [activeTab, setActiveTab] = useState("rules");
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const { data, loading, refetch } = useApiData("GetJourneyContent", {
+    section: "know_before_you_go",
+    camper_id: null,
+  });
+
+  const items = useMemo(() => {
+    return ((data?.items ?? []) as any[]).map((item: any) => ({
+      ...item,
+      links: Array.isArray(item.links) ? item.links : [],
+    })) as ContentItem[];
+  }, [data]);
+
+  const itemsByTab = useMemo(() => {
+    const map: Record<string, ContentItem[]> = {};
+    items.forEach((item) => {
+      const tab = item.tab ?? "other";
+      if (!map[tab]) map[tab] = [];
+      map[tab].push(item);
+    });
+    return map;
+  }, [items]);
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <Skeleton className="h-6 w-48 mb-4" />
+        <Skeleton className="h-10 w-full mb-4" />
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-6">
@@ -62,7 +82,7 @@ export default function KnowBeforeYouGo() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-5 mb-4">
-          {TABS.map((tab) => (
+          {TAB_META.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key} className="text-xs gap-1">
               <Icon icon={tab.icon} className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">{tab.label}</span>
@@ -70,24 +90,141 @@ export default function KnowBeforeYouGo() {
           ))}
         </TabsList>
 
-        {TABS.map((tab) => (
+        {TAB_META.map((tab) => (
           <TabsContent key={tab.key} value={tab.key}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {INFO_SECTIONS[tab.key].map((item, idx) => (
-                <div key={idx} className="flex gap-3 p-3 rounded-lg bg-muted/50 border border-border/50">
-                  <div className="text-camp-green mt-0.5">
-                    <Icon icon={item.icon} className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.content}</p>
-                  </div>
-                </div>
+              {(itemsByTab[tab.key] ?? []).map((item) => (
+                editingId === item.id ? (
+                  <EditCard key={item.id} item={item} onSave={() => { setEditingId(null); refetch(); }} onCancel={() => setEditingId(null)} />
+                ) : (
+                  <InfoCard key={item.id} item={item} isAdmin={isAdmin} onEdit={() => setEditingId(item.id)} />
+                )
               ))}
             </div>
           </TabsContent>
         ))}
       </Tabs>
     </Card>
+  );
+}
+
+function InfoCard({ item, isAdmin, onEdit }: { item: ContentItem; isAdmin?: boolean; onEdit: () => void }) {
+  const links = item.links;
+
+  return (
+    <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border border-border/50 relative group">
+      <div className="text-camp-green mt-0.5 flex-shrink-0">
+        <Icon icon={item.icon as IconName} className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{item.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.content}</p>
+        {links.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {links.map((link, i) => (
+              <a
+                key={i}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-primary/5 border border-primary/20 text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Icon icon="external-link" className="w-2.5 h-2.5" />
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+      {isAdmin && (
+        <button
+          onClick={onEdit}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-accent"
+          title="Edit"
+        >
+          <Icon icon="pencil" className="w-3 h-3 text-muted-foreground" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EditCard({ item, onSave, onCancel }: { item: ContentItem; onSave: () => void; onCancel: () => void }) {
+  const [title, setTitle] = useState(item.title);
+  const [content, setContent] = useState(item.content);
+  const [tip, setTip] = useState(item.tip ?? "");
+  const [icon, setIcon] = useState(item.icon);
+  const [links, setLinks] = useState<Link[]>(item.links);
+  const [newLabel, setNewLabel] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const { run: updateContent, loading } = useApi("UpdateJourneyContent");
+
+  const addLink = useCallback(() => {
+    if (!newUrl.trim()) return;
+    setLinks((prev) => [...prev, { label: newLabel.trim() || newUrl.trim(), url: newUrl.trim() }]);
+    setNewLabel("");
+    setNewUrl("");
+  }, [newLabel, newUrl]);
+
+  const removeLink = useCallback((idx: number) => {
+    setLinks((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    try {
+      await updateContent({
+        id: item.id,
+        title: title.trim(),
+        content: content.trim(),
+        tip: tip.trim() || null,
+        icon,
+        links: JSON.stringify(links),
+      });
+      toast.success("Updated!");
+      onSave();
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : String(err);
+      toast.error("Error: " + message);
+    }
+  }, [item.id, title, content, tip, icon, links, updateContent, onSave]);
+
+  return (
+    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 col-span-full">
+      <div className="grid gap-2">
+        <div className="flex gap-2">
+          <Input value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="Icon" className="w-24 text-xs" />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="flex-1 text-xs" />
+        </div>
+        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Content" rows={2} className="text-xs" />
+        <Input value={tip} onChange={(e) => setTip(e.target.value)} placeholder="Tip (optional)" className="text-xs" />
+
+        {/* Links editor */}
+        {links.length > 0 && (
+          <div className="space-y-1">
+            {links.map((l, i) => (
+              <div key={i} className="flex items-center gap-1 text-xs bg-muted/30 rounded px-2 py-1">
+                <span className="flex-1 truncate">{l.label}: {l.url}</span>
+                <button onClick={() => removeLink(i)} className="text-destructive"><Icon icon="x" className="w-3 h-3" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-1">
+          <Input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Link label" className="text-xs flex-1" />
+          <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="URL" className="text-xs flex-[2]" />
+          <Button size="sm" variant="outline" onClick={addLink} disabled={!newUrl.trim()}><Icon icon="plus" className="w-3 h-3" /></Button>
+        </div>
+
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} disabled={loading} className="text-xs">
+            {loading ? "Saving..." : "Save"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={onCancel} className="text-xs">Cancel</Button>
+        </div>
+      </div>
+    </div>
   );
 }

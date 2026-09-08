@@ -83,6 +83,23 @@ import GetPresentations from './camp/get-presentations.js';
 import CreatePresentation from './camp/create-presentation.js';
 import GetPresentationDetail from './camp/get-presentation-detail.js';
 import SubmitPresentationFeedback from './camp/submit-presentation-feedback.js';
+import MigrateJourneyContent from './camp/migrate-journey-content.js';
+import GetJourneyContent from './camp/get-journey-content.js';
+import UpdateJourneyContent from './camp/update-journey-content.js';
+import TrackLinkClick from './camp/track-link-click.js';
+import MigrateIceBreaker from './camp/migrate-ice-breaker.js';
+import MigrateFlightAndDeadline from './camp/migrate-flight-deadline.js';
+import UpdateFlightInfo from './camp/update-flight-info.js';
+import GetFlightSummary from './camp/get-flight-summary.js';
+import UpdateBankSession from './camp/update-bank-session.js';
+import RemoveBankSession from './camp/remove-bank-session.js';
+import ClearDaySchedule from './camp/clear-day-schedule.js';
+import MoveAgendaItem from './camp/move-agenda-item.js';
+import SeedSessionBank from './camp/seed-session-bank.js';
+import MigrateQAFeed from './camp/migrate-qa-feed.js';
+import GetExecQuestions from './camp/get-exec-questions.js';
+import SubmitExecQuestion from './camp/submit-exec-question.js';
+import VoteExecQuestion from './camp/vote-exec-question.js';
 
 const apis = {
   SetupDatabase,
@@ -164,6 +181,23 @@ const apis = {
   CreatePresentation,
   GetPresentationDetail,
   SubmitPresentationFeedback,
+  MigrateJourneyContent,
+  GetJourneyContent,
+  UpdateJourneyContent,
+  TrackLinkClick,
+  MigrateIceBreaker,
+  MigrateFlightAndDeadline,
+  UpdateFlightInfo,
+  GetFlightSummary,
+  UpdateBankSession,
+  RemoveBankSession,
+  ClearDaySchedule,
+  MoveAgendaItem,
+  SeedSessionBank,
+  MigrateQAFeed,
+  GetExecQuestions,
+  SubmitExecQuestion,
+  VoteExecQuestion,
 } as const;
 
 export default apis;

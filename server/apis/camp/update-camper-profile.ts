@@ -50,6 +50,7 @@ export default api({
     ice_breaker_q1: z.string().nullable(),
     ice_breaker_q2: z.string().nullable(),
     ice_breaker_q3: z.string().nullable(),
+    ice_breaker_answers: z.string().nullable(),
   }),
   output: z.object({
     camper: CamperSchema,
@@ -67,7 +68,10 @@ export default api({
     const wasAlreadyCompleted = existing.length > 0 && existing[0].profile_completed;
 
     // Determine if profile is now complete
-    const isComplete = !!(input.bio && input.fun_fact && input.goal_1 && input.goal_2 && input.goal_3 && input.ice_breaker_q1 && input.ice_breaker_q2 && input.ice_breaker_q3);
+    const iceBreakerAnswers = input.ice_breaker_answers ? JSON.parse(input.ice_breaker_answers) : {};
+    const iceBreakerKeys = Object.keys(iceBreakerAnswers).filter(k => iceBreakerAnswers[k]?.trim());
+    const iceBreakerComplete = iceBreakerKeys.length >= 16;
+    const isComplete = !!(input.bio && input.fun_fact && input.goal_1 && input.goal_2 && input.goal_3 && iceBreakerComplete);
 
     // Update profile fields
     await ctx.integrations.apps_database.execute(
@@ -84,9 +88,10 @@ export default api({
         ice_breaker_q2 = $11,
         ice_breaker_q3 = $12,
         profile_completed = $13,
+        ice_breaker_answers = $14::jsonb,
         updated_at = NOW()
       WHERE email = $1`,
-      [input.email, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete],
+      [input.email, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete, input.ice_breaker_answers ?? '{}'],
       { label: "Update camper profile" }
     );
 
