@@ -91,6 +91,10 @@ import MigrateIceBreaker from './camp/migrate-ice-breaker.js';
 import MigrateFlightAndDeadline from './camp/migrate-flight-deadline.js';
 import UpdateFlightInfo from './camp/update-flight-info.js';
 import GetFlightSummary from './camp/get-flight-summary.js';
+import UpdateBankSession from './camp/update-bank-session.js';
+import RemoveBankSession from './camp/remove-bank-session.js';
+import ClearDaySchedule from './camp/clear-day-schedule.js';
+import SeedSessionBank from './camp/seed-session-bank.js';
 
 const apis = {
   SetupDatabase,
@@ -180,6 +184,10 @@ const apis = {
   MigrateFlightAndDeadline,
   UpdateFlightInfo,
   GetFlightSummary,
+  UpdateBankSession,
+  RemoveBankSession,
+  ClearDaySchedule,
+  SeedSessionBank,
 } as const;
 
 export default apis;

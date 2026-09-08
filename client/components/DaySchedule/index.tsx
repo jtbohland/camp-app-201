@@ -19,13 +19,18 @@ type DayScheduleProps = {
   items: AgendaItem[];
   isAdmin: boolean;
   onRemoveItem?: (id: number) => void;
+  onClearDay?: (dayNumber: number) => void;
 };
 
 // Generate time slots from 9:00 to 17:00 in 30-min increments
 const TIME_SLOTS: string[] = [];
-for (let h = 9; h < 17; h++) {
-  TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:00`);
-  TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:30`);
+for (let h = 8; h < 17; h++) {
+  if (h === 8) {
+    TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:30`);
+  } else {
+    TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:00`);
+    TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:30`);
+  }
 }
 
 function timeToMinutes(time: string): number {
@@ -129,7 +134,7 @@ function ScheduledBlock({
   );
 }
 
-export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem }: DayScheduleProps) {
+export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onClearDay }: DayScheduleProps) {
   const slotHeight = 40;
   const totalSlots = TIME_SLOTS.length; // 16 slots (9:00–16:30)
   const gridHeight = totalSlots * slotHeight;
@@ -160,8 +165,17 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
   return (
     <div className="flex flex-col">
       {/* Day header */}
-      <div className="text-center py-2 border-b border-border bg-muted/30 rounded-t-lg">
+      <div className="flex items-center justify-center gap-1 py-2 border-b border-border bg-muted/30 rounded-t-lg relative">
         <span className="text-sm font-semibold">{dayLabel}</span>
+        {isAdmin && onClearDay && items.length > 0 && (
+          <button
+            onClick={() => onClearDay(dayNumber)}
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Clear day (keep lunch)"
+          >
+            <Icon icon="trash-2" className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {/* Time grid */}

@@ -21,7 +21,7 @@ const DAY_LABELS: Record<number, string> = {
   5: "Friday",
 };
 
-const TIME_LABELS: string[] = [];
+const TIME_LABELS: string[] = ["8:30 AM"];
 for (let h = 9; h <= 17; h++) {
   const hour = h > 12 ? h - 12 : h;
   const ampm = h >= 12 ? "PM" : "AM";
@@ -42,6 +42,7 @@ export default function AgendaScheduleTab() {
   const { run: scheduleSession } = useApi("ScheduleSession");
   const { run: removeItem } = useApi("RemoveAgendaItem");
   const { run: updateConfig } = useApi("UpdateCampConfig");
+  const { run: clearDay } = useApi("ClearDaySchedule");
 
   const [numDays, setNumDays] = useState<number | null>(null);
   const [activeDrag, setActiveDrag] = useState<BankSession | null>(null);
@@ -147,6 +148,16 @@ export default function AgendaScheduleTab() {
     }
   }, [removeItem, refetchAgenda]);
 
+  const handleClearDay = useCallback(async (dayNumber: number) => {
+    try {
+      const result = await clearDay({ day_number: dayNumber });
+      toast.success(`Cleared ${(result as any)?.removed ?? 0} items from ${DAY_LABELS[dayNumber]} (Lunch kept)`);
+      refetchAgenda();
+    } catch (err) {
+      toast.error("Failed to clear day");
+    }
+  }, [clearDay, refetchAgenda]);
+
   const loading = camperLoading || configLoading || bankLoading || agendaLoading;
 
   if (loading) {
@@ -215,6 +226,7 @@ export default function AgendaScheduleTab() {
                       items={agendaItems.filter((item: any) => item.day_number === day)}
                       isAdmin={isAdmin}
                       onRemoveItem={handleRemoveItem}
+                      onClearDay={handleClearDay}
                     />
                   ))}
                 </div>
