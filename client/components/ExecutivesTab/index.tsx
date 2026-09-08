@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Icon } from "@/components/ui/icon";
 import ExecutiveCard from "@/components/ExecutiveCard/index.js";
 import ExecutiveDialog from "@/components/ExecutiveDialog/index.js";
+import ExecQAFeed from "@/components/ExecQAFeed/index.js";
 
 type Executive = {
   id: number;
@@ -25,6 +26,7 @@ export default function ExecutivesTab() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExec, setEditingExec] = useState<Executive | null>(null);
+  const [selectedExecForQA, setSelectedExecForQA] = useState<Executive | null>(null);
 
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const { data: execData, loading: execLoading, fetching, refetch } = useApiData("GetExecutives", { active_only: !isAdmin });
@@ -88,6 +90,22 @@ export default function ExecutivesTab() {
 
   const executives = execData?.executives ?? [];
 
+  // Q&A Feed view
+  if (selectedExecForQA) {
+    return (
+      <div className="flex flex-col gap-6 p-6 w-full">
+        <ExecQAFeed
+          executiveId={selectedExecForQA.id}
+          executiveName={selectedExecForQA.name}
+          camperId={camperData?.camper?.id ?? 0}
+          camperTeamId={camperData?.camper?.team_id ?? null}
+          isLocked={false}
+          onBack={() => setSelectedExecForQA(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6 w-full">
       {/* Header row */}
@@ -121,12 +139,13 @@ export default function ExecutivesTab() {
       ) : (
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 ${fetching ? "opacity-70" : ""}`}>
           {executives.map((exec: Executive) => (
-            <ExecutiveCard
-              key={exec.id}
-              executive={exec}
-              isAdmin={isAdmin}
-              onEdit={handleEdit}
-            />
+            <div key={exec.id} className="cursor-pointer" onClick={() => setSelectedExecForQA(exec)}>
+              <ExecutiveCard
+                executive={exec}
+                isAdmin={isAdmin}
+                onEdit={handleEdit}
+              />
+            </div>
           ))}
         </div>
       )}

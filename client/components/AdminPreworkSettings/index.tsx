@@ -17,6 +17,7 @@ export default function AdminPreworkSettings() {
   const getVal = (key: string) => configs.find((c: any) => c.key === key)?.value ?? "";
 
   const [deadline, setDeadline] = useState("");
+  const [startDate, setStartDate] = useState("");
   const [bonus2Day, setBonus2Day] = useState("15");
   const [bonus1Day, setBonus1Day] = useState("10");
   const [penaltyPerItem, setPenaltyPerItem] = useState("10");
@@ -24,6 +25,7 @@ export default function AdminPreworkSettings() {
   useEffect(() => {
     if (configs.length > 0) {
       setDeadline(getVal("prework_deadline"));
+      setStartDate(getVal("camp_start_date"));
       setBonus2Day(getVal("early_bird_2day_bonus") || "15");
       setBonus1Day(getVal("early_bird_1day_bonus") || "10");
       setPenaltyPerItem(getVal("deadline_penalty_per_item") || "10");
@@ -45,6 +47,7 @@ export default function AdminPreworkSettings() {
   const handleSaveAll = useCallback(async () => {
     try {
       await updateConfig({ key: "prework_deadline", value: deadline });
+      await updateConfig({ key: "camp_start_date", value: startDate });
       await updateConfig({ key: "early_bird_2day_bonus", value: bonus2Day });
       await updateConfig({ key: "early_bird_1day_bonus", value: bonus1Day });
       await updateConfig({ key: "deadline_penalty_per_item", value: penaltyPerItem });
@@ -55,7 +58,7 @@ export default function AdminPreworkSettings() {
         ? String((err as { message: unknown }).message) : String(err);
       toast.error("Error: " + message);
     }
-  }, [deadline, bonus2Day, bonus1Day, penaltyPerItem, updateConfig, refetch]);
+  }, [deadline, startDate, bonus2Day, bonus1Day, penaltyPerItem, updateConfig, refetch]);
 
   if (loading) return <Skeleton className="h-48 rounded-xl" />;
 
@@ -84,6 +87,33 @@ export default function AdminPreworkSettings() {
         {deadline && (
           <p className="text-xs text-amber-400 mt-2">
             Deadline set: {new Date(deadline).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+          </p>
+        )}
+      </Card>
+
+      {/* cAMP Start Date */}
+      <Card className="p-5 bg-white/5 border-white/10">
+        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+          <Icon icon="calendar" className="w-4 h-4 text-camp-green" />
+          cAMP Start Date
+        </h3>
+        <p className="text-xs text-white/50 mb-3">
+          First day of cAMP. Powers the live agenda tracker, day numbering, and session lock timing.
+        </p>
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <Label className="text-xs text-white/60 mb-1 block">Start Date</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-white/10 border-white/20 text-white"
+            />
+          </div>
+        </div>
+        {startDate && (
+          <p className="text-xs text-camp-green mt-2">
+            cAMP starts: {new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
           </p>
         )}
       </Card>

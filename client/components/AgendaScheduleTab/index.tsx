@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
@@ -39,6 +39,21 @@ export default function AgendaScheduleTab() {
   const { data: bankData, loading: bankLoading, refetch: refetchBank } = useApiData("GetSessionBank", {});
   const { data: agendaData, loading: agendaLoading, fetching: agendaFetching, refetch: refetchAgenda } = useApiData("GetAgenda", {});
 
+  // Live clock — updates every 60s, in PT
+  const [nowPT, setNowPT] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      setNowPT(new Date(d.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })));
+    };
+    const interval = setInterval(tick, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const { run: scheduleSession } = useApi("ScheduleSession");
   const { run: removeItem } = useApi("RemoveAgendaItem");
   const { run: updateConfig } = useApi("UpdateCampConfig");
@@ -51,6 +66,26 @@ export default function AgendaScheduleTab() {
 
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const camperId = camperData?.camper?.id ?? 0;
+
+  // Compute current cAMP day + time
+  const campStartDate = useMemo(() => {
+    if (configData?.config) {
+      const sd = configData.config.find((c: any) => c.key === "camp_start_date");
+      if (sd?.value) return sd.value;
+    }
+    return null;
+  }, [configData]);
+
+  const currentDayNumber = useMemo(() => {
+    if (!campStartDate) return null;
+    const start = new Date(campStartDate + "T00:00:00");
+    const diffMs = nowPT.getTime() - start.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return null; // before cAMP
+    return diffDays + 1; // Day 1, 2, 3...
+  }, [campStartDate, nowPT]);
+
+  const currentTimeMinutes = nowPT.getHours() * 60 + nowPT.getMinutes();
 
   const configDays = useMemo(() => {
     if (configData?.config) {
@@ -234,30 +269,53 @@ export default function AgendaScheduleTab() {
         {/* Main layout */}
         <div className={`flex gap-6 ${agendaFetching && !agendaLoading ? "opacity-70" : ""}`}>
           {/* Schedule grid */}
-          <div className="flex-1 overflow-auto">
-            <Card className="p-4">
-              <div className="flex">
-                <div className="w-16 flex-shrink-0">
-                  <div className="h-10" />{/* Match day header height */}
-                  {TIME_LABELS.map((label, idx) => (
-                    <div key={idx} className="h-[80px] flex items-start">
-                      <span className="text-[10px] text-muted-foreground -mt-1.5">{label}</span>
+          <div className="flex-1 overflow-hidden">
+            <Card className="p-4 flex flex-col" style={{ height: "680px" }}>
+              {/* Sticky day headers */}
+              <div className="flex flex-shrink-0">
+                <div className="w-16 flex-shrink-0" />
+                <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${effectiveDays}, 1fr)`, gap: "4px" }}>
+                  {Array.from({ length: effectiveDays }, (_, i) => i + 1).map((day) => (
+                    <div key={day} className="flex items-center justify-center gap-1 h-10 border-b border-border bg-muted/30 rounded-t-lg relative">
+                      <span className="text-sm font-semibold">{DAY_LABELS[day]}</span>
+                      {isAdmin && agendaItems.some((item: any) => item.day_number === day) && (
+                        <button
+                          onClick={() => handleClearDay(day)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Clear day (keep lunch)"
+                        >
+                          <Icon icon="trash-2" className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
-
-                <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${effectiveDays}, 1fr)`, gap: "4px" }}>
-                  {Array.from({ length: effectiveDays }, (_, i) => i + 1).map((day) => (
-                    <DaySchedule
-                      key={day}
-                      dayNumber={day}
-                      dayLabel={DAY_LABELS[day]}
-                      items={agendaItems.filter((item: any) => item.day_number === day)}
-                      isAdmin={isAdmin}
-                      onRemoveItem={handleRemoveItem}
-                      onClearDay={handleClearDay}
-                    />
-                  ))}
+              </div>
+              {/* Scrollable time grid */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="flex">
+                  <div className="w-16 flex-shrink-0">
+                    {TIME_LABELS.map((label, idx) => (
+                      <div key={idx} className="h-[80px] flex items-start">
+                        <span className="text-[10px] text-muted-foreground -mt-1.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${effectiveDays}, 1fr)`, gap: "4px" }}>
+                    {Array.from({ length: effectiveDays }, (_, i) => i + 1).map((day) => (
+                      <DaySchedule
+                        key={day}
+                        dayNumber={day}
+                        dayLabel={DAY_LABELS[day]}
+                        items={agendaItems.filter((item: any) => item.day_number === day)}
+                        isAdmin={isAdmin}
+                        onRemoveItem={handleRemoveItem}
+                        onClearDay={handleClearDay}
+                        showHeader={false}
+                        currentTimeMinutes={currentDayNumber === day ? currentTimeMinutes : null}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </Card>

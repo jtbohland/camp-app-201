@@ -20,6 +20,8 @@ type DayScheduleProps = {
   isAdmin: boolean;
   onRemoveItem?: (id: number) => void;
   onClearDay?: (dayNumber: number) => void;
+  showHeader?: boolean;
+  currentTimeMinutes?: number | null;
 };
 
 const TIME_SLOTS: string[] = [];
@@ -79,7 +81,7 @@ function DroppableSlot({ slotTime, dayNumber }: { slotTime: string; dayNumber: n
   );
 }
 
-function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin: boolean; onRemove?: () => void }) {
+function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: AgendaItem; isAdmin: boolean; onRemove?: () => void; isPast?: boolean; isUpNext?: boolean }) {
   const isDraggableItem = isAdmin && item.session_type !== "lunch";
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `agenda-${item.id}`,
@@ -101,7 +103,7 @@ function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin
   return (
     <div
       ref={isDraggableItem ? setNodeRef : undefined}
-      className={`absolute left-0 right-0 mx-1 rounded-md border px-2 py-1 overflow-hidden group ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"}`}
+      className={`absolute left-0 right-0 mx-1 rounded-md border px-2 py-1 overflow-hidden group ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"} ${isPast ? "opacity-40" : ""} ${isUpNext ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
       style={{ top: `${topOffset}px`, height: `${height - 2}px`, ...dragStyle }}
       {...(isDraggableItem ? attributes : {})}
       {...(isDraggableItem ? listeners : {})}
@@ -109,7 +111,7 @@ function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
           <p className={`text-xs font-medium truncate ${colors.text}`}>
-            {isExec && "⭐ "}{item.title}
+            {isExec && "⭐ "}{isUpNext && "▶ "}{item.title}
           </p>
           {durationMin >= 45 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -134,7 +136,7 @@ function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin
   );
 }
 
-export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onClearDay }: DayScheduleProps) {
+export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onClearDay, showHeader = true, currentTimeMinutes = null }: DayScheduleProps) {
   const slotHeight = 40;
   const totalSlots = TIME_SLOTS.length;
   const gridHeight = totalSlots * slotHeight;
@@ -157,20 +159,35 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-center gap-1 h-10 border-b border-border bg-muted/30 rounded-t-lg relative">
-        <span className="text-sm font-semibold">{dayLabel}</span>
-        {isAdmin && onClearDay && items.length > 0 && (
-          <button
-            onClick={() => onClearDay(dayNumber)}
-            className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Clear day (keep lunch)"
-          >
+      {showHeader && (
+        <div className="flex items-center justify-center gap-1 h-10 border-b border-border bg-muted/30 rounded-t-lg relative">
+          <span className="text-sm font-semibold">{dayLabel}</span>
+          {isAdmin && onClearDay && items.length > 0 && (
+            <button
+              onClick={() => onClearDay(dayNumber)}
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Clear day (keep lunch)"
+            >
             <Icon icon="trash-2" className="w-3 h-3" />
           </button>
         )}
       </div>
+      )}
 
       <div className="relative" style={{ height: `${gridHeight}px` }}>
+        {/* "Now" line */}
+        {currentTimeMinutes !== null && currentTimeMinutes >= 510 && currentTimeMinutes <= 1020 && (
+          <div
+            className="absolute left-0 right-0 z-20 pointer-events-none"
+            style={{ top: `${((currentTimeMinutes - 510) / 30) * slotHeight}px` }}
+          >
+            <div className="flex items-center">
+              <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
+              <div className="flex-1 h-[2px] bg-red-500" />
+            </div>
+          </div>
+        )}
+
         {TIME_SLOTS.map((slot, idx) => {
           const isHour = slot.endsWith(":00");
           return (
@@ -186,14 +203,30 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
           );
         })}
 
-        {allItems.map((item) => (
-          <ScheduledBlock
-            key={item.id}
-            item={item}
-            isAdmin={isAdmin}
-            onRemove={onRemoveItem ? () => onRemoveItem(item.id) : undefined}
-          />
-        ))}
+        {allItems.map((item) => {
+          const itemEnd = timeToMinutes(item.end_time);
+          const itemStart = timeToMinutes(item.start_time);
+          const isPast = currentTimeMinutes !== null && itemEnd <= currentTimeMinutes;
+          const isUpNext = currentTimeMinutes !== null && !isPast && itemStart > currentTimeMinutes &&
+            !allItems.some((other) => {
+              const otherStart = timeToMinutes(other.start_time);
+              const otherEnd = timeToMinutes(other.end_time);
+              return otherEnd <= currentTimeMinutes! && false; // skip past
+            }) &&
+            allItems.filter((o) => timeToMinutes(o.start_time) > currentTimeMinutes!)
+              .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))[0]?.id === item.id;
+
+          return (
+            <ScheduledBlock
+              key={item.id}
+              item={item}
+              isAdmin={isAdmin}
+              onRemove={onRemoveItem ? () => onRemoveItem(item.id) : undefined}
+              isPast={isPast}
+              isUpNext={isUpNext}
+            />
+          );
+        })}
       </div>
     </div>
   );

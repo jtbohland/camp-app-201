@@ -96,6 +96,10 @@ import RemoveBankSession from './camp/remove-bank-session.js';
 import ClearDaySchedule from './camp/clear-day-schedule.js';
 import MoveAgendaItem from './camp/move-agenda-item.js';
 import SeedSessionBank from './camp/seed-session-bank.js';
+import MigrateQAFeed from './camp/migrate-qa-feed.js';
+import GetExecQuestions from './camp/get-exec-questions.js';
+import SubmitExecQuestion from './camp/submit-exec-question.js';
+import VoteExecQuestion from './camp/vote-exec-question.js';
 
 const apis = {
   SetupDatabase,
@@ -190,6 +194,10 @@ const apis = {
   ClearDaySchedule,
   MoveAgendaItem,
   SeedSessionBank,
+  MigrateQAFeed,
+  GetExecQuestions,
+  SubmitExecQuestion,
+  VoteExecQuestion,
 } as const;
 
 export default apis;
