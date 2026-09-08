@@ -13,7 +13,20 @@ type RegistrationFormProps = {
   onSuccess: () => void;
 };
 
-const ROLES = ["Account Executive", "Solutions Consultant", "Customer Success Manager", "Sales Development Representative", "Sales Manager", "Sales Engineer", "Other"];
+const TITLES = [
+  "Area Vice President (AVP)",
+  "Sales Manager",
+  "Partner Sales Manager",
+  "Strategic Enterprise Account Executive",
+  "Enterprise Account Executive",
+  "Emerging Enterprise Account Executive",
+  "Velocity Account Executive",
+  "Sales Development Representative",
+  "Solutions Engineer",
+  "Customer Success Manager",
+  "Technical Success Manager",
+  "Renewal Manager",
+];
 
 const MANAGERS = ["Select your manager", "Sarah Chen", "Mike Rodriguez", "Emily Watson", "David Park", "Jessica Liu", "Chris Taylor", "Other"];
 
@@ -96,16 +109,16 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
             </div>
           </div>
 
-          {/* Role */}
+          {/* Title */}
           <div className="flex flex-col gap-1.5">
-            <Label>Role *</Label>
+            <Label>Title *</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger>
-                <SelectValue placeholder="Select your role" />
+                <SelectValue placeholder="Select your title" />
               </SelectTrigger>
               <SelectContent>
-                {ROLES.map((r) => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                {TITLES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
