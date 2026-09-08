@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,34 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
     return groups;
   }, [openResponses]);
 
+  const handleExportCsv = useCallback(() => {
+    const rows: string[][] = [];
+    // Header
+    rows.push(["Camper", "Submitted At", "Points", "Session", "Rating (1-5)", "Usefulness (1-5)", "Comment"]);
+    // Data rows
+    camperSubs.forEach((sub: { camper_name: string; submitted_at: string; points_awarded: number; ratings: { session_title: string; rating: number; usefulness: number; comment: string }[] }) => {
+      sub.ratings.forEach(r => {
+        rows.push([sub.camper_name, sub.submitted_at, String(sub.points_awarded), r.session_title, String(r.rating), String(r.usefulness), r.comment]);
+      });
+    });
+    // Open responses section
+    rows.push([]);
+    rows.push(["--- Open Responses ---"]);
+    rows.push(["Question", "Camper", "Response"]);
+    openResponses.forEach((r: { question_key: string; camper_name: string; response: string }) => {
+      rows.push([OPEN_Q_LABELS[r.question_key] ?? r.question_key, r.camper_name, r.response]);
+    });
+
+    const csv = rows.map(row => row.map(cell => `"${(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `camp201_survey_day${selectedDay}_results.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [camperSubs, openResponses, selectedDay]);
+
   if (loading) {
     return <div className="space-y-4"><Skeleton className="h-32 bg-white/10" /><Skeleton className="h-48 bg-white/10" /></div>;
   }
@@ -82,6 +110,10 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
             <Icon icon="list" className="w-3.5 h-3.5 mr-1" />Responses
           </Button>
         </div>
+        <Button size="sm" variant="ghost" onClick={handleExportCsv}
+          className="text-white hover:bg-white/10 text-xs ml-2">
+          <Icon icon="download" className="w-3.5 h-3.5 mr-1" />Export CSV
+        </Button>
       </div>
 
       {/* Completion stats */}

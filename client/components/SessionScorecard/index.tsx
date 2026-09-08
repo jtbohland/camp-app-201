@@ -24,11 +24,11 @@ type SessionScorecardProps = {
 };
 
 const EMOJIS = [
-  { value: 1, emoji: "😞", label: "Poor" },
-  { value: 2, emoji: "😕", label: "Below Avg" },
-  { value: 3, emoji: "😐", label: "Average" },
-  { value: 4, emoji: "🙂", label: "Good" },
-  { value: 5, emoji: "🤩", label: "Excellent" },
+  { value: 1, emoji: "😢", label: "Poor" },
+  { value: 2, emoji: "🥱", label: "Boring" },
+  { value: 3, emoji: "😮‍💨", label: "Meh" },
+  { value: 4, emoji: "😃", label: "Good" },
+  { value: 5, emoji: "🤩", label: "Amazing" },
 ];
 
 const USEFULNESS = [
