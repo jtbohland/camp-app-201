@@ -83,6 +83,10 @@ import GetPresentations from './camp/get-presentations.js';
 import CreatePresentation from './camp/create-presentation.js';
 import GetPresentationDetail from './camp/get-presentation-detail.js';
 import SubmitPresentationFeedback from './camp/submit-presentation-feedback.js';
+import MigrateJourneyContent from './camp/migrate-journey-content.js';
+import GetJourneyContent from './camp/get-journey-content.js';
+import UpdateJourneyContent from './camp/update-journey-content.js';
+import TrackLinkClick from './camp/track-link-click.js';
 
 const apis = {
   SetupDatabase,
@@ -164,6 +168,10 @@ const apis = {
   CreatePresentation,
   GetPresentationDetail,
   SubmitPresentationFeedback,
+  MigrateJourneyContent,
+  GetJourneyContent,
+  UpdateJourneyContent,
+  TrackLinkClick,
 } as const;
 
 export default apis;

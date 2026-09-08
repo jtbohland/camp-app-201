@@ -54,6 +54,7 @@ export default function JourneyPage() {
   }
 
   const camper = camperData.camper;
+  const isAdmin = user?.email === "jt.bohland@amplitude.com";
   const completedKeys = (preworkData?.completedItems ?? []).map((item) => item.item);
   const allPreworkDone = completedKeys.length >= 3;
 
@@ -89,11 +90,12 @@ export default function JourneyPage() {
           camperEmail={user?.email ?? ""}
           completedKeys={completedKeys}
           onComplete={refetchPrework}
+          isAdmin={isAdmin}
         />
       </div>
 
       {/* Know Before You Go */}
-      <KnowBeforeYouGo />
+      <KnowBeforeYouGo isAdmin={isAdmin} />
     </div>
   );
 }
