@@ -103,7 +103,7 @@ function ScheduledBlock({ item, isAdmin, onRemove }: { item: AgendaItem; isAdmin
               {formatTime(item.start_time)} – {formatTime(item.end_time)}
             </p>
           )}
-          {isExec && durationMin >= 60 && (
+          {isExec && (
             <p className="text-[9px] text-yellow-600 italic mt-0.5">Mandatory — all cAMPers expected</p>
           )}
         </div>
