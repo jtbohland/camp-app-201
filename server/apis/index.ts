@@ -78,6 +78,11 @@ import AddTeamHistory from './camp/add-team-history.js';
 import MigratePeerFeedback from './camp/migrate-peer-feedback.js';
 import GetPeerFeedback from './camp/get-peer-feedback.js';
 import SubmitPeerFeedback from './camp/submit-peer-feedback.js';
+import MigratePresentations from './camp/migrate-presentations.js';
+import GetPresentations from './camp/get-presentations.js';
+import CreatePresentation from './camp/create-presentation.js';
+import GetPresentationDetail from './camp/get-presentation-detail.js';
+import SubmitPresentationFeedback from './camp/submit-presentation-feedback.js';
 
 const apis = {
   SetupDatabase,
@@ -154,6 +159,11 @@ const apis = {
   MigratePeerFeedback,
   GetPeerFeedback,
   SubmitPeerFeedback,
+  MigratePresentations,
+  GetPresentations,
+  CreatePresentation,
+  GetPresentationDetail,
+  SubmitPresentationFeedback,
 } as const;
 
 export default apis;

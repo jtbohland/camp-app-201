@@ -5,8 +5,8 @@ import { useApiData } from "@/hooks/useApiData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
 import RegistrationForm from "@/components/RegistrationForm";
+import AnnouncementsFeed from "@/components/AnnouncementsFeed/index.js";
 import type { IconName } from "lucide-react/dynamic";
 
 type QuickLink = {
@@ -18,12 +18,12 @@ type QuickLink = {
 };
 
 const quickLinks: QuickLink[] = [
-  { icon: "user", label: "Complete Profile", description: "Build your cAMP identity", path: "/profile", color: "text-camp-green" },
   { icon: "map", label: "cAMP Journey", description: "Track your progress", path: "/journey", color: "text-camp-amber" },
   { icon: "calendar", label: "Agenda", description: "See what's ahead", path: "/agenda", color: "text-camp-brown" },
-  { icon: "users", label: "Team Hub", description: "Collaborate with your team", path: "/teams", color: "text-camp-green" },
+  { icon: "users", label: "Teams", description: "Collaborate with your team", path: "/teams", color: "text-camp-green" },
   { icon: "trophy", label: "Leaderboard", description: "See the rankings", path: "/leaderboard", color: "text-camp-amber" },
-  { icon: "mic", label: "Meet Executives", description: "Submit your questions", path: "/executives", color: "text-camp-brown" },
+  { icon: "presentation", label: "Presentations", description: "Group presentations", path: "/presentations", color: "text-purple-500" },
+  { icon: "award", label: "Badges & XP", description: "Earn achievements", path: "/badges", color: "text-camp-green" },
 ];
 
 export default function HomePage() {
@@ -51,7 +51,6 @@ export default function HomePage() {
     );
   }
 
-  // Not registered — show registration form
   if (!data?.isRegistered) {
     return <RegistrationForm userEmail={user?.email ?? ""} onSuccess={handleRegistrationSuccess} />;
   }
@@ -59,7 +58,7 @@ export default function HomePage() {
   const camper = data.camper;
 
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-5xl">
+    <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
       {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/90 to-primary p-8 text-primary-foreground">
         <div className="absolute top-0 right-0 opacity-10">
@@ -85,46 +84,43 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Quick Links */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Icon icon="compass" className="w-5 h-5 text-camp-green" />
-          Trail Guide
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {quickLinks.map((link) => (
-            <Card
-              key={link.path}
-              className="p-5 cursor-pointer hover:shadow-md transition-all hover:border-camp-green/30 group"
-              onClick={() => navigate(link.path)}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`mt-0.5 ${link.color}`}>
-                  <Icon icon={link.icon} className="w-5 h-5" />
+      {/* Two column layout: Quick links + Announcements */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Quick Links - 2 cols */}
+        <div className="lg:col-span-2">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Icon icon="compass" className="w-5 h-5 text-camp-green" />
+            Trail Guide
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {quickLinks.map((link) => (
+              <Card
+                key={link.path}
+                className="p-4 cursor-pointer hover:shadow-md transition-all hover:border-camp-green/30 group"
+                onClick={() => navigate(link.path)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 ${link.color}`}>
+                    <Icon icon={link.icon} className="w-5 h-5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-sm group-hover:text-primary transition-colors">{link.label}</span>
+                    <span className="text-xs text-muted-foreground mt-0.5">{link.description}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-medium text-sm group-hover:text-primary transition-colors">{link.label}</span>
-                  <span className="text-xs text-muted-foreground mt-0.5">{link.description}</span>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Points Activity (placeholder) */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Icon icon="flame" className="w-5 h-5 text-camp-amber" />
-          Recent Activity
-        </h2>
-        <Card className="p-5">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-camp-green" />
-            <span>Registered for cAMP 201</span>
-            <span className="ml-auto font-medium text-camp-green">+10 pts</span>
+              </Card>
+            ))}
           </div>
-        </Card>
+        </div>
+
+        {/* Announcements - 1 col */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Icon icon="megaphone" className="w-5 h-5 text-amber-400" />
+            Announcements
+          </h2>
+          <AnnouncementsFeed />
+        </div>
       </div>
     </div>
   );

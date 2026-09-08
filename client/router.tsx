@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 
 import { PageNotFound, RouteLoadError } from "@superblocksteam/library";
 
@@ -67,25 +67,9 @@ export const router = createBrowserRouter([
           }),
       },
       {
-        path: "/executives",
+        path: "/presentations",
         lazy: () =>
-          import("./pages/Executives/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/cohort",
-        lazy: () =>
-          import("./pages/Cohort/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/xplanation",
-        lazy: () =>
-          import("./pages/XPlanation/index.js").then((mod) => {
+          import("./pages/Presentations/index.js").then((mod) => {
             const Component = mod.default;
             return { Component };
           }),
@@ -94,14 +78,6 @@ export const router = createBrowserRouter([
         path: "/timer",
         lazy: () =>
           import("./pages/Timer/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/admin",
-        lazy: () =>
-          import("./pages/Admin/index.js").then((mod) => {
             const Component = mod.default;
             return { Component };
           }),
@@ -123,22 +99,6 @@ export const router = createBrowserRouter([
           }),
       },
       {
-        path: "/announcements",
-        lazy: () =>
-          import("./pages/Announcements/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/gallery",
-        lazy: () =>
-          import("./pages/Gallery/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
         path: "/graduation",
         lazy: () =>
           import("./pages/Graduation/index.js").then((mod) => {
@@ -147,29 +107,22 @@ export const router = createBrowserRouter([
           }),
       },
       {
-        path: "/team-history",
+        path: "/admin",
         lazy: () =>
-          import("./pages/TeamHistory/index.js").then((mod) => {
+          import("./pages/Admin/index.js").then((mod) => {
             const Component = mod.default;
             return { Component };
           }),
       },
-      {
-        path: "/feedback",
-        lazy: () =>
-          import("./pages/PeerFeedback/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
-      {
-        path: "/rubric",
-        lazy: () =>
-          import("./pages/Rubric/index.js").then((mod) => {
-            const Component = mod.default;
-            return { Component };
-          }),
-      },
+      // Redirects for old standalone routes
+      { path: "/cohort", element: <Navigate to="/teams" replace /> },
+      { path: "/team-history", element: <Navigate to="/teams" replace /> },
+      { path: "/executives", element: <Navigate to="/agenda" replace /> },
+      { path: "/announcements", element: <Navigate to="/" replace /> },
+      { path: "/gallery", element: <Navigate to="/graduation" replace /> },
+      { path: "/xplanation", element: <Navigate to="/badges" replace /> },
+      { path: "/feedback", element: <Navigate to="/presentations" replace /> },
+      { path: "/rubric", element: <Navigate to="/presentations" replace /> },
       {
         path: "*",
         Component: () => {
