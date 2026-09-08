@@ -56,6 +56,7 @@ export default function ManagerDashboard() {
   const manager = dashboard?.manager;
   const hires = dashboard?.hires ?? [];
   const totalCampers = dashboard?.total_campers ?? 0;
+  const totalSurveys = dashboard?.total_surveys ?? 0;
 
   return (
     <div className="flex flex-col gap-6 p-8 max-w-4xl overflow-auto">
@@ -103,6 +104,7 @@ export default function ManagerDashboard() {
               key={hire.camper.id}
               hire={hire}
               totalCampers={totalCampers}
+              totalSurveys={totalSurveys}
               managerEmail={user?.email ?? ""}
               onCommentAdded={refetch}
             />

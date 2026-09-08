@@ -11,7 +11,10 @@ const HireDetailSchema = z.object({
   points: z.coerce.number(),
   photo_url: z.string().nullable(),
   profile_completed: z.boolean(),
+  team_id: z.coerce.number().nullable(),
   team_name: z.string().nullable(),
+  team_color: z.string().nullable(),
+  team_logo_url: z.string().nullable(),
   flight_departure_date: z.string().nullable(),
   flight_departure_time: z.string().nullable(),
   leave_office_by: z.string().nullable(),
@@ -42,6 +45,28 @@ const CommentSchema = z.object({
   manager_last_name: z.string(),
 });
 
+const SurveyCompletionSchema = z.object({
+  survey_id: z.coerce.number(),
+  survey_title: z.string(),
+  submitted_at: z.string(),
+});
+
+const ExecQuestionSchema = z.object({
+  id: z.coerce.number(),
+  question_text: z.string(),
+  executive_name: z.string(),
+  vote_count: z.coerce.number(),
+  is_asked: z.boolean(),
+  created_at: z.string(),
+});
+
+const PresentationScoreSchema = z.object({
+  presentation_title: z.string(),
+  day_number: z.coerce.number(),
+  total_score: z.coerce.number(),
+  max_possible: z.coerce.number(),
+});
+
 const LeaderboardEntrySchema = z.object({
   camper_id: z.coerce.number(),
   rank: z.coerce.number(),
@@ -49,7 +74,7 @@ const LeaderboardEntrySchema = z.object({
 
 export default api({
   name: "GetManagerDashboard",
-  description: "Gets full dashboard data for a manager including hire details, prework, absences, comments",
+  description: "Gets full dashboard data for a manager with all hire analytics",
   integrations: {
     apps_database: postgres(APPS_DB),
   },
@@ -68,9 +93,13 @@ export default api({
       prework: z.array(PreworkItemSchema),
       absences: z.array(AbsenceSchema),
       comments: z.array(CommentSchema),
+      surveys: z.array(SurveyCompletionSchema),
+      exec_questions: z.array(ExecQuestionSchema),
+      presentation_scores: z.array(PresentationScoreSchema),
       rank: z.number().nullable(),
     })),
     total_campers: z.number(),
+    total_surveys: z.number(),
   }),
   async run(ctx, input) {
     // Find manager
@@ -88,7 +117,7 @@ export default api({
     );
 
     if (managers.length === 0) {
-      return { manager: null, hires: [], total_campers: 0 };
+      return { manager: null, hires: [], total_campers: 0, total_surveys: 0 };
     }
 
     const manager = managers[0];
@@ -100,10 +129,10 @@ export default api({
       { label: "Update manager last viewed" }
     );
 
-    // Get linked hires with details
+    // Get linked hires with team details
     const hires = await ctx.integrations.apps_database.query(
       `SELECT c.id, c.first_name, c.last_name, c.role, c.email, c.points, c.photo_url,
-              c.profile_completed, t.name as team_name,
+              c.profile_completed, c.team_id, t.name as team_name, t.color as team_color, t.logo_url as team_logo_url,
               c.flight_departure_date::text, c.flight_departure_time, c.leave_office_by
        FROM camp201_manager_hires mh
        JOIN camp201_campers c ON c.id = mh.camper_id
@@ -113,10 +142,10 @@ export default api({
        LIMIT 50`,
       HireDetailSchema,
       [manager.id],
-      { label: "Get manager hires" }
+      { label: "Get manager hires with team info" }
     );
 
-    // Get leaderboard ranks for all campers in active cohort
+    // Get leaderboard ranks
     const ranks = await ctx.integrations.apps_database.query(
       `SELECT id as camper_id, RANK() OVER (ORDER BY points DESC)::integer as rank
        FROM camp201_campers
@@ -129,7 +158,7 @@ export default api({
     );
     const rankMap = new Map(ranks.map(r => [r.camper_id, r.rank]));
 
-    // Get total camper count for percentile context
+    // Get total camper count
     const CountSchema = z.object({ count: z.coerce.number() });
     const totalResult = await ctx.integrations.apps_database.query(
       `SELECT COUNT(*) as count FROM camp201_campers
@@ -141,10 +170,20 @@ export default api({
     );
     const totalCampers = totalResult[0]?.count ?? 0;
 
-    // Build hire details with prework, absences, and comments
+    // Get total surveys count for context
+    const surveyCountResult = await ctx.integrations.apps_database.query(
+      `SELECT COUNT(*) as count FROM camp201_surveys
+       WHERE cohort_id = (SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)`,
+      CountSchema,
+      undefined,
+      { label: "Count total surveys" }
+    );
+    const totalSurveys = surveyCountResult[0]?.count ?? 0;
+
+    // Build hire details
     const hireDetails = [];
     for (const hire of hires) {
-      // Get prework status
+      // Prework status
       const prework = await ctx.integrations.apps_database.query(
         `SELECT jc.item_key, jc.title,
                 CASE WHEN pw.id IS NOT NULL AND pw.completed = true THEN true ELSE false END as completed
@@ -158,7 +197,7 @@ export default api({
         { label: `Prework for ${hire.first_name}` }
       );
 
-      // Get absences
+      // Absences
       const absences = await ctx.integrations.apps_database.query(
         `SELECT id, reason, start_time::text, end_time::text, status, created_at::text
          FROM camp201_absence_requests
@@ -170,7 +209,7 @@ export default api({
         { label: `Absences for ${hire.first_name}` }
       );
 
-      // Get comments from all managers about this camper
+      // Manager comments
       const comments = await ctx.integrations.apps_database.query(
         `SELECT mc.id, mc.comment_type, mc.sentiment, mc.content, mc.created_at::text,
                 m.first_name as manager_first_name, m.last_name as manager_last_name
@@ -184,15 +223,63 @@ export default api({
         { label: `Comments for ${hire.first_name}` }
       );
 
+      // Survey completions
+      const surveys = await ctx.integrations.apps_database.query(
+        `SELECT sr.survey_id, s.title as survey_title, sr.submitted_at::text
+         FROM camp201_survey_responses sr
+         JOIN camp201_surveys s ON s.id = sr.survey_id
+         WHERE sr.camper_id = $1
+         ORDER BY sr.submitted_at DESC
+         LIMIT 20`,
+        SurveyCompletionSchema,
+        [hire.id],
+        { label: `Surveys for ${hire.first_name}` }
+      );
+
+      // Executive Q&A submissions
+      const execQuestions = await ctx.integrations.apps_database.query(
+        `SELECT eq.id, eq.question_text, e.name as executive_name, eq.vote_count, eq.is_asked, eq.created_at::text
+         FROM camp201_exec_questions eq
+         JOIN camp201_executives e ON e.id = eq.executive_id
+         WHERE eq.submitted_by = $1
+         ORDER BY eq.created_at DESC
+         LIMIT 20`,
+        ExecQuestionSchema,
+        [hire.id],
+        { label: `Exec Q&A for ${hire.first_name}` }
+      );
+
+      // Team presentation scores (via team_id)
+      let presentationScores: z.infer<typeof PresentationScoreSchema>[] = [];
+      if (hire.team_id) {
+        presentationScores = await ctx.integrations.apps_database.query(
+          `SELECT p.title as presentation_title, p.day_number,
+                  COALESCE(SUM(ps.score), 0)::integer as total_score,
+                  COALESCE(SUM(ps.max_points), 0)::integer as max_possible
+           FROM camp201_presentations p
+           LEFT JOIN camp201_presentation_scores ps ON ps.presentation_id = p.id
+           WHERE p.team_id = $1
+           GROUP BY p.id, p.title, p.day_number, p.sort_order
+           ORDER BY p.day_number, p.sort_order
+           LIMIT 20`,
+          PresentationScoreSchema,
+          [hire.team_id],
+          { label: `Presentation scores for team ${hire.team_name}` }
+        );
+      }
+
       hireDetails.push({
         camper: hire,
         prework,
         absences,
         comments,
+        surveys,
+        exec_questions: execQuestions,
+        presentation_scores: presentationScores,
         rank: rankMap.get(hire.id) ?? null,
       });
     }
 
-    return { manager, hires: hireDetails, total_campers: totalCampers };
+    return { manager, hires: hireDetails, total_campers: totalCampers, total_surveys: totalSurveys };
   },
 });
