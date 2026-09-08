@@ -202,6 +202,7 @@ export default function AgendaScheduleTab() {
             </Select>
           </div>
         )}
+        <p className="text-[10px] text-muted-foreground italic">All times in Pacific Time (PT)</p>
 
         {/* Main layout */}
         <div className={`flex gap-6 ${agendaFetching && !agendaLoading ? "opacity-70" : ""}`}>
@@ -209,7 +210,8 @@ export default function AgendaScheduleTab() {
           <div className="flex-1 overflow-auto">
             <Card className="p-4">
               <div className="flex">
-                <div className="w-16 flex-shrink-0 pt-[33px]">
+                <div className="w-16 flex-shrink-0">
+                  <div className="h-10" />{/* Match day header height */}
                   {TIME_LABELS.map((label, idx) => (
                     <div key={idx} className="h-[80px] flex items-start">
                       <span className="text-[10px] text-muted-foreground -mt-1.5">{label}</span>

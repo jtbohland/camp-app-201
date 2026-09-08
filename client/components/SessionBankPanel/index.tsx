@@ -9,6 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 
+const BANK_COLORS: Record<string, string> = {
+  core: "border-l-emerald-400",
+  challenger: "border-l-blue-400",
+  workshop: "border-l-purple-400",
+  value: "border-l-teal-400",
+  presentation: "border-l-amber-400",
+  executive: "border-l-yellow-400",
+  social: "border-l-pink-400",
+  break: "border-l-gray-300",
+  session: "border-l-emerald-400",
+  lunch: "border-l-orange-400",
+};
+
 export type BankSession = {
   id: number;
   title: string;
@@ -46,7 +59,7 @@ function DraggableBankItem({ session, onEdit, onRemove }: { session: BankSession
   const dur = session.duration_minutes >= 60 ? `${session.duration_minutes / 60}h` : `${session.duration_minutes}m`;
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-1 p-2 rounded-lg border border-border bg-card hover:border-camp-green/40 transition-colors group">
+    <div ref={setNodeRef} style={style} className={`flex items-center gap-1 p-2 rounded-lg border border-l-[3px] ${BANK_COLORS[session.session_type] ?? "border-l-gray-300"} bg-card hover:border-camp-green/40 transition-colors group`}>
       <div {...attributes} {...listeners} className="flex-1 flex items-center gap-2 cursor-grab active:cursor-grabbing min-w-0">
         <Icon icon={session.session_type === "executive" ? "star" : session.session_type === "break" ? "coffee" : "presentation"} className="w-3 h-3 text-muted-foreground flex-shrink-0" />
         <p className="text-xs font-medium truncate">{session.title}</p>
