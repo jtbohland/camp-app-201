@@ -20,13 +20,85 @@ export default api({
     pointsAwarded: z.number(),
     warning: z.boolean(),
     missing_links: z.array(z.object({ label: z.string(), url: z.string() })),
+    missing_profile_fields: z.array(z.string()),
     penalty_applied: z.boolean(),
   }),
   async run(ctx, { user_id, item, content_id, force }) {
-    // Check link clicks if content_id is provided
     let missing_links: { label: string; url: string }[] = [];
+    let missing_profile_fields: string[] = [];
 
-    if (content_id && content_id > 0) {
+    // === SPECIAL CASE: Registration/Profile completion ===
+    if (item === "complete_registration") {
+      const camperRows = await ctx.integrations.apps_database.query(
+        `SELECT bio, fun_fact, goal_1, goal_2, goal_3, ice_breaker_answers
+         FROM camp201_campers WHERE id = $1 LIMIT 1`,
+        z.object({
+          bio: z.string().nullable(),
+          fun_fact: z.string().nullable(),
+          goal_1: z.string().nullable(),
+          goal_2: z.string().nullable(),
+          goal_3: z.string().nullable(),
+          ice_breaker_answers: z.any().nullable(),
+        }),
+        [user_id],
+        { label: "Check profile completion" }
+      );
+
+      if (camperRows.length > 0) {
+        const c = camperRows[0];
+        if (!c.bio?.trim()) missing_profile_fields.push("Bio");
+        if (!c.fun_fact?.trim()) missing_profile_fields.push("Fun Fact");
+        if (!c.goal_1?.trim()) missing_profile_fields.push("Goal 1");
+        if (!c.goal_2?.trim()) missing_profile_fields.push("Goal 2");
+        if (!c.goal_3?.trim()) missing_profile_fields.push("Goal 3");
+
+        // Check ice breaker answers (need all 16)
+        const answers = (c.ice_breaker_answers && typeof c.ice_breaker_answers === "object") ? c.ice_breaker_answers : {};
+        const answeredCount = Object.keys(answers).filter(k => answers[k]?.trim()).length;
+        if (answeredCount < 16) {
+          missing_profile_fields.push(`Ice Breaker Questions (${answeredCount}/16 answered)`);
+        }
+      }
+
+      if (missing_profile_fields.length > 0 && !force) {
+        return { success: false, pointsAwarded: 0, warning: true, missing_links: [], missing_profile_fields, penalty_applied: false };
+      }
+
+      // If forcing with missing fields, check for prior attempts (penalty logic)
+      if (missing_profile_fields.length > 0 && force && content_id) {
+        const attempts = await ctx.integrations.apps_database.query(
+          `SELECT COUNT(*)::int AS cnt FROM camp201_completion_attempts
+           WHERE camper_id = $1 AND content_id = $2 AND links_missing > 0`,
+          z.object({ cnt: z.coerce.number() }),
+          [user_id, content_id],
+          { label: "Count prior profile skip attempts" }
+        );
+
+        await ctx.integrations.apps_database.execute(
+          `INSERT INTO camp201_completion_attempts (camper_id, content_id, links_missing)
+           VALUES ($1, $2, $3)`,
+          [user_id, content_id, missing_profile_fields.length],
+          { label: "Log profile completion attempt" }
+        );
+
+        if (attempts[0].cnt >= 1) {
+          await ctx.integrations.apps_database.execute(
+            `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+            [PENALTY_POINTS, user_id],
+            { label: "Apply profile skip penalty" }
+          );
+          await ctx.integrations.apps_database.execute(
+            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
+             VALUES ($1, $2, $3, 'system')`,
+            [user_id, PENALTY_POINTS, "Marked registration complete with incomplete profile"],
+            { label: "Log profile skip penalty" }
+          );
+        }
+      }
+    }
+
+    // === LINK-BASED VALIDATION (for non-registration items) ===
+    if (item !== "complete_registration" && content_id && content_id > 0) {
       // Get the content item's links
       const contentRows = await ctx.integrations.apps_database.query(
         "SELECT links FROM camp201_journey_content WHERE id = $1 LIMIT 1",
@@ -60,6 +132,7 @@ export default api({
         pointsAwarded: 0,
         warning: true,
         missing_links,
+        missing_profile_fields: [],
         penalty_applied: false,
       };
     }
@@ -134,6 +207,7 @@ export default api({
       pointsAwarded: netPoints,
       warning: false,
       missing_links: [],
+      missing_profile_fields: [],
       penalty_applied,
     };
   },

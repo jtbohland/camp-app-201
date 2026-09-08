@@ -87,6 +87,7 @@ import MigrateJourneyContent from './camp/migrate-journey-content.js';
 import GetJourneyContent from './camp/get-journey-content.js';
 import UpdateJourneyContent from './camp/update-journey-content.js';
 import TrackLinkClick from './camp/track-link-click.js';
+import MigrateIceBreaker from './camp/migrate-ice-breaker.js';
 
 const apis = {
   SetupDatabase,
@@ -172,6 +173,7 @@ const apis = {
   GetJourneyContent,
   UpdateJourneyContent,
   TrackLinkClick,
+  MigrateIceBreaker,
 } as const;
 
 export default apis;

@@ -35,6 +35,7 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
   const [completingKey, setCompletingKey] = useState<string | null>(null);
   const [warningItem, setWarningItem] = useState<ContentItem | null>(null);
   const [missingLinks, setMissingLinks] = useState<Link[]>([]);
+  const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);
 
   const { data, loading } = useApiData("GetJourneyContent", {
     section: "prework",
@@ -79,6 +80,7 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
       if (result?.warning) {
         setWarningItem(item);
         setMissingLinks(result.missing_links as Link[]);
+        setMissingProfileFields((result.missing_profile_fields ?? []) as string[]);
         setCompletingKey(null);
         return;
       }
@@ -113,6 +115,7 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
   const handleWarningClose = useCallback(() => {
     setWarningItem(null);
     setMissingLinks([]);
+    setMissingProfileFields([]);
   }, []);
 
   if (loading) {
@@ -253,6 +256,7 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
         <PreWorkWarningModal
           itemTitle={warningItem.title}
           missingLinks={missingLinks}
+          missingProfileFields={missingProfileFields}
           onOpenLink={(url) => handleLinkClick(warningItem.id, url)}
           onForceComplete={handleForceComplete}
           onClose={handleWarningClose}

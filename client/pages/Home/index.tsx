@@ -15,10 +15,11 @@ type QuickLink = {
   description: string;
   path: string;
   color: string;
+  badge?: string;
 };
 
 const quickLinks: QuickLink[] = [
-  { icon: "map", label: "cAMP Journey", description: "Track your progress", path: "/journey", color: "text-camp-amber" },
+  { icon: "map", label: "cAMP Journey", description: "Pre-work & know before you go", path: "/journey", color: "text-camp-amber", badge: "Pre-work" },
   { icon: "calendar", label: "Agenda", description: "See what's ahead", path: "/agenda", color: "text-camp-brown" },
   { icon: "users", label: "Teams", description: "Collaborate with your team", path: "/teams", color: "text-camp-green" },
   { icon: "trophy", label: "Leaderboard", description: "See the rankings", path: "/leaderboard", color: "text-camp-amber" },
@@ -104,7 +105,14 @@ export default function HomePage() {
                     <Icon icon={link.icon} className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-medium text-sm group-hover:text-primary transition-colors">{link.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm group-hover:text-primary transition-colors">{link.label}</span>
+                      {link.badge && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide bg-camp-amber/15 text-camp-amber px-1.5 py-0.5 rounded-full">
+                          {link.badge}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground mt-0.5">{link.description}</span>
                   </div>
                 </div>

@@ -11,12 +11,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-
-const ICE_BREAKER_QUESTIONS = [
-  "If you could have dinner with anyone (living or dead), who would it be and why?",
-  "What's one thing on your bucket list you haven't done yet?",
-  "If you were stranded on a desert island, what 3 items would you bring?",
-];
+import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreakerSection/index.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -46,9 +41,7 @@ export default function ProfilePage() {
   const [goal1, setGoal1] = useState("");
   const [goal2, setGoal2] = useState("");
   const [goal3, setGoal3] = useState("");
-  const [iceBreaker1, setIceBreaker1] = useState("");
-  const [iceBreaker2, setIceBreaker2] = useState("");
-  const [iceBreaker3, setIceBreaker3] = useState("");
+  const [iceBreakerAnswers, setIceBreakerAnswers] = useState<Record<string, string>>({});
 
   // Populate form when data loads
   useEffect(() => {
@@ -61,9 +54,17 @@ export default function ProfilePage() {
       setGoal1(c.goal_1 ?? "");
       setGoal2(c.goal_2 ?? "");
       setGoal3(c.goal_3 ?? "");
-      setIceBreaker1(c.ice_breaker_q1 ?? "");
-      setIceBreaker2(c.ice_breaker_q2 ?? "");
-      setIceBreaker3(c.ice_breaker_q3 ?? "");
+      // Load ice breaker answers from JSONB or legacy columns
+      const savedAnswers = (c.ice_breaker_answers && typeof c.ice_breaker_answers === 'object' && Object.keys(c.ice_breaker_answers).length > 0)
+        ? c.ice_breaker_answers as Record<string, string>
+        : {};
+      // Migrate legacy q1/q2/q3 if JSONB is empty
+      if (Object.keys(savedAnswers).length === 0 && (c.ice_breaker_q1 || c.ice_breaker_q2 || c.ice_breaker_q3)) {
+        if (c.ice_breaker_q1) savedAnswers.q0 = c.ice_breaker_q1;
+        if (c.ice_breaker_q2) savedAnswers.q1 = c.ice_breaker_q2;
+        if (c.ice_breaker_q3) savedAnswers.q2 = c.ice_breaker_q3;
+      }
+      setIceBreakerAnswers(savedAnswers);
     }
   }, [data]);
 
@@ -79,9 +80,10 @@ export default function ProfilePage() {
         goal_1: goal1 || null,
         goal_2: goal2 || null,
         goal_3: goal3 || null,
-        ice_breaker_q1: iceBreaker1 || null,
-        ice_breaker_q2: iceBreaker2 || null,
-        ice_breaker_q3: iceBreaker3 || null,
+        ice_breaker_q1: iceBreakerAnswers.q0 || null,
+        ice_breaker_q2: iceBreakerAnswers.q1 || null,
+        ice_breaker_q3: iceBreakerAnswers.q2 || null,
+        ice_breaker_answers: JSON.stringify(iceBreakerAnswers),
       });
 
       if (result && result.pointsAwarded > 0) {
@@ -97,7 +99,7 @@ export default function ProfilePage() {
           : String(error);
       toast.error("Failed to save profile: " + message);
     }
-  }, [user?.email, bio, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreaker1, iceBreaker2, iceBreaker3, updateProfile, refetch]);
+  }, [user?.email, bio, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch]);
 
   const handleToggleGoal = useCallback(async (goalNumber: number, achieved: boolean) => {
     if (!data?.camper?.id) return;
@@ -113,6 +115,30 @@ export default function ProfilePage() {
       toast.error("Failed to update goal: " + message);
     }
   }, [data?.camper?.id, toggleGoal, refetch]);
+
+  const camper = data?.camper;
+  const iceBreakerComplete = ICE_BREAKER_QUESTIONS.every((_, i) => iceBreakerAnswers[`q${i}`]?.trim());
+  const isComplete = !!(bio && funFact && goal1 && goal2 && goal3 && iceBreakerComplete);
+
+  const handleAbsenceRequest = useCallback(async () => {
+    if (!absenceReason.trim() || !camper?.id) return;
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+      await requestAbsence({
+        camper_id: camper.id,
+        start_time: now.toISOString(),
+        end_time: end.toISOString(),
+        reason: absenceReason.trim(),
+      });
+      toast.success("Absence request submitted. Your counselor will review it.");
+      setAbsenceReason("");
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message) : String(error);
+      toast.error("Failed to submit request: " + message);
+    }
+  }, [absenceReason, camper?.id, requestAbsence]);
 
   if (loading) {
     return (
@@ -135,29 +161,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  const camper = data.camper;
-  const isComplete = !!(bio && funFact && goal1 && goal2 && goal3 && iceBreaker1 && iceBreaker2 && iceBreaker3);
-
-  const handleAbsenceRequest = useCallback(async () => {
-    if (!absenceReason.trim() || !camper?.id) return;
-    try {
-      const now = new Date();
-      const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
-      await requestAbsence({
-        camper_id: camper.id,
-        start_time: now.toISOString(),
-        end_time: end.toISOString(),
-        reason: absenceReason.trim(),
-      });
-      toast.success("Absence request submitted. Your counselor will review it.");
-      setAbsenceReason("");
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("Failed to submit request: " + message);
-    }
-  }, [absenceReason, camper?.id, requestAbsence]);
 
   return (
     <div className="flex flex-col gap-6 p-8 max-w-3xl overflow-auto">
@@ -409,31 +412,8 @@ export default function ProfilePage() {
         )}
       </Card>
 
-      {/* Ice Breaker Survey */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Icon icon="message-circle" className="w-5 h-5 text-camp-amber" />
-          Ice Breaker Survey
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">Your answers help our Counselors plan fun activities!</p>
-        <div className="flex flex-col gap-5">
-          {ICE_BREAKER_QUESTIONS.map((question, idx) => (
-            <div key={idx} className="flex flex-col gap-1.5">
-              <Label className="text-sm">{question} *</Label>
-              <Textarea
-                placeholder="Your answer..."
-                value={idx === 0 ? iceBreaker1 : idx === 1 ? iceBreaker2 : iceBreaker3}
-                onChange={(e) => {
-                  if (idx === 0) setIceBreaker1(e.target.value);
-                  else if (idx === 1) setIceBreaker2(e.target.value);
-                  else setIceBreaker3(e.target.value);
-                }}
-                className="min-h-[70px]"
-              />
-            </div>
-          ))}
-        </div>
-      </Card>
+      {/* Ice Breaker Questions */}
+      <IceBreakerSection answers={iceBreakerAnswers} onChange={setIceBreakerAnswers} />
 
       {/* Save Button */}
       <div className="flex items-center justify-between py-4 sticky bottom-0 bg-background border-t border-border -mx-8 px-8">
