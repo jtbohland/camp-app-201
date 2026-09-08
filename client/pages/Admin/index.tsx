@@ -9,10 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import AdminLearnerGrid from "@/components/AdminLearnerGrid";
 import AdminTeamView from "@/components/AdminTeamView";
 import AdminCamperDetail from "@/components/AdminCamperDetail";
+import AdminFlightSummary from "@/components/AdminFlightSummary/index.js";
+import AdminPreworkSettings from "@/components/AdminPreworkSettings/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
-type View = "learners" | "teams" | "camper-detail";
+type View = "learners" | "teams" | "flights" | "settings" | "camper-detail";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -117,7 +119,7 @@ export default function AdminPage() {
 
             {/* View Toggle */}
             {view !== "camper-detail" && (
-              <div className="flex bg-white/10 rounded-lg p-1">
+              <div className="flex bg-white/10 rounded-lg p-1 flex-wrap">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -136,6 +138,24 @@ export default function AdminPage() {
                   <Icon name="flag" className="w-4 h-4 mr-1" />
                   Teams
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("flights")}
+                  className={`text-white ${view === "flights" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="plane" className="w-4 h-4 mr-1" />
+                  Flights
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("settings")}
+                  className={`text-white ${view === "settings" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="settings" className="w-4 h-4 mr-1" />
+                  Settings
+                </Button>
               </div>
             )}
           </div>
@@ -149,6 +169,12 @@ export default function AdminPage() {
         )}
         {view === "teams" && (
           <AdminTeamView cohortId={selectedCohortId} onCamperClick={handleCamperClick} />
+        )}
+        {view === "flights" && (
+          <AdminFlightSummary />
+        )}
+        {view === "settings" && (
+          <AdminPreworkSettings />
         )}
         {view === "camper-detail" && selectedCamperId && (
           <AdminCamperDetail camperId={selectedCamperId} onBack={handleBack} />

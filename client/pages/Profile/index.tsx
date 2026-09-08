@@ -12,6 +12,8 @@ import { useSuperblocksUser } from "@superblocksteam/library";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreakerSection/index.js";
+import CamperAvatar from "@/components/CamperAvatar/index.js";
+import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -35,6 +37,7 @@ export default function ProfilePage() {
 
   // Form state
   const [bio, setBio] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [linkedinOption, setLinkedinOption] = useState("none");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [funFact, setFunFact] = useState("");
@@ -48,6 +51,7 @@ export default function ProfilePage() {
     if (data?.camper) {
       const c = data.camper;
       setBio(c.bio ?? "");
+      setPhotoUrl(c.photo_url ?? "");
       setLinkedinOption(c.linkedin_option ?? "none");
       setLinkedinUrl(c.linkedin_url ?? "");
       setFunFact(c.fun_fact ?? "");
@@ -72,7 +76,7 @@ export default function ProfilePage() {
     try {
       const result = await updateProfile({
         email: user?.email ?? "",
-        photo_url: null,
+        photo_url: photoUrl || null,
         bio: bio || null,
         linkedin_option: linkedinOption,
         linkedin_url: linkedinUrl || null,
@@ -230,6 +234,15 @@ export default function ProfilePage() {
         </div>
       </Card>
 
+      {/* Flight Departure */}
+      <FlightDepartureSection
+        camperId={camper?.id ?? 0}
+        flightDepartureDate={camper?.flight_departure_date ?? null}
+        flightDepartureTime={camper?.flight_departure_time ?? null}
+        leaveOfficeBy={camper?.leave_office_by ?? null}
+        onSaved={refetch}
+      />
+
       {/* Check-in History */}
       {checkInHistory.length > 0 && (
         <Card className="p-6">
@@ -273,14 +286,25 @@ export default function ProfilePage() {
         </h2>
 
         <div className="flex flex-col gap-5">
-          {/* Photo placeholder */}
+          {/* Photo */}
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-border">
-              <Icon icon="user" className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <div className="flex flex-col gap-1">
+            <CamperAvatar
+              email={user?.email ?? ""}
+              photoUrl={camper?.photo_url}
+              name={`${camper?.first_name ?? ""} ${camper?.last_name ?? ""}`}
+              size="lg"
+            />
+            <div className="flex flex-col gap-2 flex-1">
               <p className="text-sm font-medium">Profile Photo</p>
-              <p className="text-xs text-muted-foreground">Photo upload coming soon — for now, your initials will be displayed</p>
+              <p className="text-xs text-muted-foreground">
+                We'll try your Gravatar first. Paste a URL below to override.
+              </p>
+              <Input
+                placeholder="https://your-photo-url.com/photo.jpg"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                className="text-xs"
+              />
             </div>
           </div>
 

@@ -28,6 +28,10 @@ export default function JourneyPage() {
     user_id: camperId,
   }, { enabled: camperId > 0 });
 
+  // Get deadline from config
+  const { data: configData } = useApiData("GetCampConfig", {});
+  const deadline = (configData?.config as any[])?.find((c: any) => c.key === "prework_deadline")?.value ?? "";
+
   const loading = camperLoading || preworkLoading;
 
   if (loading) {
@@ -91,6 +95,7 @@ export default function JourneyPage() {
           completedKeys={completedKeys}
           onComplete={refetchPrework}
           isAdmin={isAdmin}
+          deadline={deadline}
         />
       </div>
 

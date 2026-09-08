@@ -17,26 +17,26 @@ export default function JourneyPath({ profileCompleted, preworkDone }: JourneyPa
   const steps: JourneyStep[] = [
     {
       icon: "compass",
-      label: "Path Finder",
-      description: "Registration & profile setup",
+      label: "Base cAMP + Path Finder",
+      description: "HR, IT, systems access, values, and GTM foundations",
       status: profileCompleted ? "completed" : "active",
     },
     {
       icon: "trending-up",
-      label: "Ascent",
-      description: "Pre-work & preparation",
+      label: "cAMP Ascent",
+      description: "Your role-specific onboarding experience",
       status: profileCompleted ? (preworkDone ? "completed" : "active") : "upcoming",
     },
     {
       icon: "package",
-      label: "Product 101",
-      description: "Core product knowledge",
+      label: "cAMP 101 — Product Training",
+      description: "Required product fluency training through Academy pre-work and live sessions",
       status: preworkDone && profileCompleted ? "active" : "upcoming",
     },
     {
       icon: "mountain",
       label: "cAMP 201",
-      description: "The summit experience",
+      description: "Your in-person GTM capstone in San Francisco",
       status: "destination",
     },
   ];

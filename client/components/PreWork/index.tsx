@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { IconName } from "lucide-react/dynamic";
 import { toast } from "sonner";
 import PreWorkWarningModal from "@/components/PreWorkWarningModal/index.js";
+import DeadlineCountdown from "@/components/DeadlineCountdown/index.js";
 
 type Link = { label: string; url: string };
 type ContentItem = {
@@ -27,9 +28,10 @@ type PreWorkProps = {
   completedKeys: string[];
   onComplete: () => void;
   isAdmin?: boolean;
+  deadline?: string;
 };
 
-export default function PreWork({ userId, camperEmail, completedKeys, onComplete, isAdmin }: PreWorkProps) {
+export default function PreWork({ userId, camperEmail, completedKeys, onComplete, isAdmin, deadline }: PreWorkProps) {
   const { run: completeItem, loading: completing } = useApi("CompletePreworkItem");
   const { run: trackClick } = useApi("TrackLinkClick");
   const [completingKey, setCompletingKey] = useState<string | null>(null);
@@ -153,6 +155,13 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
             </div>
           </div>
         </div>
+
+        {/* Deadline countdown */}
+        {deadline && !allDone && (
+          <div className="mb-4">
+            <DeadlineCountdown deadline={deadline} />
+          </div>
+        )}
 
         {allDone && (
           <div className="mb-4 p-3 rounded-lg bg-camp-green/10 border border-camp-green/20 flex items-center gap-2">
