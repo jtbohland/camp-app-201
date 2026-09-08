@@ -13,10 +13,11 @@ import AdminPreworkSettings from "@/components/AdminPreworkSettings/index.js";
 import AdminManagerOverview from "@/components/AdminManagerOverview/index.js";
 import RegistrationForm from "@/components/RegistrationForm/index.js";
 import ManagerRegistrationForm from "@/components/ManagerRegistrationForm/index.js";
+import AdminSurveyResults from "@/components/AdminSurveyResults/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
-type View = "learners" | "teams" | "flights" | "managers" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
+type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -206,6 +207,15 @@ export default function AdminPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => setView("surveys")}
+                  className={`text-white ${view === "surveys" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="clipboard-list" className="w-4 h-4 mr-1" />
+                  Surveys
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setView("flights")}
                   className={`text-white ${view === "flights" ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
@@ -237,6 +247,9 @@ export default function AdminPage() {
         )}
         {view === "managers" && (
           <AdminManagerOverview />
+        )}
+        {view === "surveys" && (
+          <AdminSurveyResults />
         )}
         {view === "flights" && (
           <AdminFlightSummary />
