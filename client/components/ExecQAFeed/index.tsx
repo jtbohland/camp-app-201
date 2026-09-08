@@ -98,7 +98,7 @@ export default function ExecQAFeed({ executiveId, executiveName, camperId, campe
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            {myQuestionCount}/5 questions used · +2 pts per question · +1 pt per vote received
+            {myQuestionCount}/5 questions used
           </p>
         </Card>
       )}
