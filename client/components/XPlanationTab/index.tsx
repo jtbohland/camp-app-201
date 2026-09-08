@@ -53,28 +53,16 @@ const categories: PointCategory[] = [
   },
 ];
 
-const principles = [
-  { icon: "eye" as IconName, title: "Transparent", description: "Every point earned is logged and visible. You can always see why points were awarded." },
-  { icon: "scale" as IconName, title: "Fair", description: "Multiple ways to earn means everyone can contribute. No single path dominates." },
-  { icon: "target" as IconName, title: "Achievable", description: "Points are earned through effort and engagement, not luck. Show up and participate." },
-  { icon: "lightbulb" as IconName, title: "Informative", description: "The system teaches you what behaviors lead to success at Amplitude." },
+const principles: { icon: IconName; title: string; description: string }[] = [
+  { icon: "eye", title: "Transparent", description: "Every point earned is logged and visible. You can always see why points were awarded." },
+  { icon: "scale", title: "Fair", description: "Multiple ways to earn means everyone can contribute. No single path dominates." },
+  { icon: "target", title: "Achievable", description: "Points are earned through effort and engagement, not luck. Show up and participate." },
+  { icon: "lightbulb", title: "Informative", description: "The system teaches you what behaviors lead to success at Amplitude." },
 ];
 
-export default function XPlanationPage() {
+export default function XPlanationTab() {
   return (
-    <div className="flex flex-col gap-8 p-6 w-full overflow-auto max-w-4xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Icon icon="sparkles" className="w-6 h-6 text-primary" />
-          XPlanation — How Points Work
-        </h1>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-          Points drive the leaderboard and reward engagement throughout your cAMP experience. 
-          Here's everything you need to know about earning and tracking points.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-8 max-w-4xl">
       {/* Principles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {principles.map((p) => (
@@ -128,7 +116,7 @@ export default function XPlanationPage() {
         <ul className="space-y-2">
           <li className="flex items-start gap-2 text-sm text-foreground/80">
             <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <span>Complete your profile early — it's the easiest points you'll earn and helps your team get to know you.</span>
+            <span>Complete your profile early — it's the easiest points you'll earn.</span>
           </li>
           <li className="flex items-start gap-2 text-sm text-foreground/80">
             <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -142,17 +130,7 @@ export default function XPlanationPage() {
             <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
             <span>Ask questions during exec sessions — it shows engagement and earns bonus points.</span>
           </li>
-          <li className="flex items-start gap-2 text-sm text-foreground/80">
-            <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <span>Check the leaderboard to see how your team stacks up and identify opportunities.</span>
-          </li>
         </ul>
-      </div>
-
-      {/* Footer */}
-      <div className="text-center text-xs text-muted-foreground pb-6">
-        <p>Points are tracked in real-time and visible on the Leaderboard.</p>
-        <p className="mt-1">Questions? Ask your counselor.</p>
       </div>
     </div>
   );

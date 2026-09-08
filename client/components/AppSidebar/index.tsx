@@ -14,23 +14,15 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { icon: "house", label: "Base Camp", path: "/" },
-  { icon: "user", label: "My Profile", path: "/profile" },
   { icon: "map", label: "Journey", path: "/journey" },
   { icon: "calendar", label: "Agenda", path: "/agenda" },
   { icon: "users", label: "Teams", path: "/teams" },
-  { icon: "archive", label: "Team History", path: "/team-history" },
   { icon: "trophy", label: "Leaderboard", path: "/leaderboard" },
-  { icon: "award", label: "Badges", path: "/badges" },
-  { icon: "megaphone", label: "Announcements", path: "/announcements" },
-  { icon: "camera", label: "Memories", path: "/gallery" },
-  { icon: "graduation-cap", label: "Graduation", path: "/graduation" },
-  { icon: "mic", label: "Executives", path: "/executives" },
-  { icon: "contact", label: "Cohort", path: "/cohort" },
-  { icon: "sparkles", label: "XPlanation", path: "/xplanation" },
+  { icon: "presentation", label: "Presentations", path: "/presentations" },
   { icon: "timer", label: "Timer", path: "/timer" },
-  { icon: "clipboard-list", label: "Survey", path: "/survey" },
-  { icon: "clipboard-check", label: "Rubric", path: "/rubric" },
-  { icon: "message-square", label: "Peer Feedback", path: "/feedback" },
+  { icon: "clipboard-list", label: "Surveys", path: "/survey" },
+  { icon: "award", label: "Badges & XP", path: "/badges" },
+  { icon: "graduation-cap", label: "Graduation", path: "/graduation" },
   { icon: "shield", label: "Counselor Hub", path: "/admin" },
 ];
 

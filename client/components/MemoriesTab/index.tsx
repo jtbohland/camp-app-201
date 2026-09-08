@@ -10,12 +10,12 @@ import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 
-export default function GalleryPage() {
+export default function MemoriesTab() {
   const user = useSuperblocksUser();
   const [dayFilter, setDayFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data: camperData, loading: loadingCamper } = useApiData("GetCurrentCamper", {
+  const { data: camperData } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
@@ -27,10 +27,9 @@ export default function GalleryPage() {
 
   const photos = data?.photos ?? [];
 
-  if (loadingCamper || loading) {
+  if (loading) {
     return (
-      <div className="max-w-5xl mx-auto p-6 space-y-4">
-        <Skeleton className="h-16 rounded-xl" />
+      <div className="max-w-5xl space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="aspect-square rounded-xl" />
@@ -41,18 +40,12 @@ export default function GalleryPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Header */}
+    <div className="max-w-5xl space-y-6">
+      {/* Controls */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            <Icon icon="camera" className="w-6 h-6 text-amber-400" />
-            Camp Memories
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {photos.length} photo{photos.length !== 1 ? "s" : ""} shared
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {photos.length} photo{photos.length !== 1 ? "s" : ""} shared
+        </p>
         <div className="flex items-center gap-3">
           <Select value={dayFilter} onValueChange={setDayFilter}>
             <SelectTrigger className="w-32 h-9">
@@ -65,19 +58,17 @@ export default function GalleryPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => setShowAdd(!showAdd)} className="bg-amber-600 hover:bg-amber-700">
+          <Button onClick={() => setShowAdd(!showAdd)} size="sm" className="bg-amber-600 hover:bg-amber-700">
             <Icon icon={showAdd ? "x" : "plus"} className="w-4 h-4 mr-1.5" />
             {showAdd ? "Cancel" : "Add Photo"}
           </Button>
         </div>
       </div>
 
-      {/* Add form */}
       {showAdd && (
         <AddPhotoForm camperId={camperId} onSuccess={() => { setShowAdd(false); refetch(); }} />
       )}
 
-      {/* Photo grid */}
       <div className={`${fetching ? "opacity-70" : ""}`}>
         {photos.length === 0 ? (
           <Card className="p-12 text-center">
@@ -86,7 +77,7 @@ export default function GalleryPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {photos.map((photo) => (
+            {photos.map((photo: any) => (
               <PhotoCard key={photo.id} photo={photo} />
             ))}
           </div>
@@ -106,7 +97,6 @@ function PhotoCard({ photo }: { photo: any }) {
           className="w-full h-full object-cover"
           loading="lazy"
         />
-        {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
           <div className="text-white">
             {photo.caption && (

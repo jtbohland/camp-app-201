@@ -17,7 +17,7 @@ type Executive = {
   is_active: boolean;
 };
 
-export default function ExecutivesPage() {
+export default function ExecutivesTab() {
   const user = useSuperblocksUser();
   const { data: camperData, loading: camperLoading } = useApiData("GetCurrentCamper", { email: user?.email ?? "" });
   const { run: createExec } = useApi("CreateExecutive");
@@ -77,7 +77,6 @@ export default function ExecutivesPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-6 w-full animate-pulse">
-        <div className="h-8 w-56 bg-muted rounded" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-72 bg-muted rounded-xl" />
@@ -90,18 +89,12 @@ export default function ExecutivesPage() {
   const executives = execData?.executives ?? [];
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full overflow-auto">
-      {/* Header */}
+    <div className="flex flex-col gap-6 p-6 w-full">
+      {/* Header row */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Icon icon="mic" className="w-6 h-6 text-primary" />
-            Meet the Executives
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Leadership speakers and mentors you'll connect with during cAMP
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Leadership speakers and mentors you'll connect with during cAMP
+        </p>
         {isAdmin && (
           <button
             onClick={handleAdd}
@@ -113,12 +106,10 @@ export default function ExecutivesPage() {
         )}
       </div>
 
-      {/* Refetch indicator */}
       {fetching && !loading && (
         <div className="text-xs text-muted-foreground">Updating...</div>
       )}
 
-      {/* Grid */}
       {executives.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Icon icon="users" className="w-12 h-12 opacity-30 mb-3" />
@@ -140,7 +131,6 @@ export default function ExecutivesPage() {
         </div>
       )}
 
-      {/* Dialog */}
       <ExecutiveDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}

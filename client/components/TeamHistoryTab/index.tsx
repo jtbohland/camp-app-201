@@ -9,7 +9,7 @@ import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 
-export default function TeamHistoryPage() {
+export default function TeamHistoryTab() {
   const user = useSuperblocksUser();
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -35,28 +35,21 @@ export default function TeamHistoryPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 space-y-4">
-        <Skeleton className="h-16 rounded-xl" />
+      <div className="space-y-4">
         {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Header row */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            <Icon icon="archive" className="w-6 h-6 text-amber-400" />
-            Team History
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {allNames.length} team{allNames.length !== 1 ? "s" : ""} across all cohorts
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {allNames.length} team{allNames.length !== 1 ? "s" : ""} across all past cohorts — use for name inspiration!
+        </p>
         {isAdmin && (
-          <Button onClick={() => setShowAdd(!showAdd)} className="bg-amber-600 hover:bg-amber-700">
+          <Button onClick={() => setShowAdd(!showAdd)} size="sm" className="bg-amber-600 hover:bg-amber-700">
             <Icon icon={showAdd ? "x" : "plus"} className="w-4 h-4 mr-1.5" />
             {showAdd ? "Cancel" : "Add Historical Team"}
           </Button>
@@ -76,16 +69,16 @@ export default function TeamHistoryPage() {
             />
           </div>
         </div>
-        {search.trim() && allNames.some(n => n.toLowerCase() === search.toLowerCase()) && (
+        {search.trim() && allNames.some((n: string) => n.toLowerCase() === search.toLowerCase()) && (
           <p className="text-xs text-red-400 mt-2 flex items-center gap-1.5">
             <Icon icon="alert-circle" className="w-3.5 h-3.5" />
-            "{search}" is already taken! Choose a different name.
+            &quot;{search}&quot; is already taken! Choose a different name.
           </p>
         )}
-        {search.trim() && !allNames.some(n => n.toLowerCase() === search.toLowerCase()) && (
+        {search.trim() && !allNames.some((n: string) => n.toLowerCase() === search.toLowerCase()) && (
           <p className="text-xs text-green-400 mt-2 flex items-center gap-1.5">
             <Icon icon="check-circle" className="w-3.5 h-3.5" />
-            "{search}" is available!
+            &quot;{search}&quot; is available!
           </p>
         )}
       </Card>
@@ -111,7 +104,6 @@ export default function TeamHistoryPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {yearTeams.map((team) => (
                   <Card key={team.id} className="p-4 flex items-start gap-3">
-                    {/* Logo/avatar */}
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
                       style={{

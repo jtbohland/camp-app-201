@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { Icon } from "@/components/ui/icon";
+import { Skeleton } from "@/components/ui/skeleton";
 import CohortMemberCard from "@/components/CohortMemberCard/index.js";
 
 type CohortMember = {
@@ -23,7 +24,7 @@ type CohortMember = {
   team_logo_url: string | null;
 };
 
-export default function CohortPage() {
+export default function CohortTab() {
   const { data, loading, fetching } = useApiData("GetCohort", {});
   const [search, setSearch] = useState("");
   const [localSearch, setLocalSearch] = useState("");
@@ -51,12 +52,11 @@ export default function CohortPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-6 w-full animate-pulse">
-        <div className="h-8 w-48 bg-muted rounded" />
+      <div className="flex flex-col gap-6 w-full animate-pulse">
         <div className="h-10 w-full max-w-sm bg-muted rounded-lg" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="h-40 bg-muted rounded-xl" />
+            <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
       </div>
@@ -64,19 +64,13 @@ export default function CohortPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full overflow-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Icon icon="contact" className="w-6 h-6 text-primary" />
-            cAMP Cohort
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {members.length} members in this cohort
-          </p>
-        </div>
-        <div className="relative w-full sm:w-64">
+    <div className="flex flex-col gap-6 w-full">
+      {/* Search */}
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          {members.length} members in this cohort
+        </p>
+        <div className="relative w-full max-w-xs">
           <Icon icon="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={localSearch}
@@ -87,7 +81,6 @@ export default function CohortPage() {
         </div>
       </div>
 
-      {/* Refetch indicator */}
       {fetching && !loading && (
         <div className="text-xs text-muted-foreground">Updating...</div>
       )}
