@@ -110,7 +110,7 @@ function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: A
     >
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
-          <p className={`text-xs font-medium truncate ${colors.text}`}>
+          <p className={`text-xs font-medium leading-tight ${colors.text}`}>
             {isExec && "⭐ "}{isUpNext && "▶ "}{item.title}
           </p>
           {durationMin >= 45 && (

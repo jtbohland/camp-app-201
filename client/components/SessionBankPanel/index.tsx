@@ -62,7 +62,7 @@ function DraggableBankItem({ session, onEdit, onRemove }: { session: BankSession
     <div ref={setNodeRef} style={style} className={`flex items-center gap-1 p-2 rounded-lg border border-l-[3px] ${BANK_COLORS[session.session_type] ?? "border-l-gray-300"} bg-card hover:border-camp-green/40 transition-colors group`}>
       <div {...attributes} {...listeners} className="flex-1 flex items-center gap-2 cursor-grab active:cursor-grabbing min-w-0">
         <Icon icon={session.session_type === "executive" ? "star" : session.session_type === "break" ? "coffee" : "presentation"} className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-        <p className="text-xs font-medium truncate">{session.title}</p>
+        <p className="text-xs font-medium leading-tight">{session.title}</p>
       </div>
       <Badge variant="secondary" className="text-[10px] px-1 py-0 flex-shrink-0">{dur}</Badge>
       <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex">

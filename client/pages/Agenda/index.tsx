@@ -14,7 +14,7 @@ export default function AgendaPage() {
   const [activeTab, setActiveTab] = useState<TabId>("schedule");
 
   return (
-    <div className="flex flex-col h-full w-full overflow-auto">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Header with tabs */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
         <div className="flex items-center gap-6 px-6 pt-5 pb-0">
@@ -48,7 +48,7 @@ export default function AgendaPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1">
+      <div className="flex-1 overflow-auto">
         {activeTab === "schedule" && <AgendaScheduleTab />}
         {activeTab === "speakers" && <ExecutivesTab />}
       </div>
