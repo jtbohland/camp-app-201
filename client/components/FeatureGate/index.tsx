@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
+import { useSuperblocksUser } from "@superblocksteam/library";
 
 type FeatureGateProps = {
   featureKey: string;
@@ -11,9 +12,16 @@ type FeatureGateProps = {
 };
 
 export default function FeatureGate({ featureKey, children, bypass = false }: FeatureGateProps) {
+  const user = useSuperblocksUser();
   const { data } = useApiData("GetFeatureGates", {}, { staleTime: 30_000 });
+  const { data: camperData } = useApiData("GetCurrentCamper", {
+    email: user?.email ?? "",
+  }, { enabled: !!user?.email, staleTime: 60_000 });
 
-  if (bypass) return <>{children}</>;
+  // Auto-bypass for counselors and admins
+  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+
+  if (bypass || isAdmin) return <>{children}</>;
 
   const gates = data?.gates ?? [];
   const gate = gates.find((g: { feature_key: string }) => g.feature_key === featureKey);
