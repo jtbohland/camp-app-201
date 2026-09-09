@@ -20,6 +20,8 @@ type Presentation = {
   team_name: string | null;
   day_number: number | null;
   status: string;
+  deck_template_url?: string | null;
+  is_locked?: boolean;
 };
 
 type Props = {
@@ -127,7 +129,7 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
               <OverviewSection presentation={presentation} />
             )}
             {activeSection === "resources" && (
-              <ResourcesSection resources={resources} />
+              <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} />
             )}
             {activeSection === "rubric" && (
               <RubricSection scores={scores} isAdmin={isAdmin} />
@@ -178,8 +180,10 @@ function OverviewSection({ presentation }: { presentation: Presentation }) {
   );
 }
 
-function ResourcesSection({ resources }: { resources: any[] }) {
-  if (resources.length === 0) {
+function ResourcesSection({ resources, deckTemplateUrl }: { resources: any[]; deckTemplateUrl?: string | null }) {
+  const hasContent = resources.length > 0 || !!deckTemplateUrl;
+
+  if (!hasContent) {
     return (
       <Card className="p-8 text-center">
         <Icon icon="link" className="w-10 h-10 mx-auto text-muted-foreground/20" />
@@ -189,7 +193,24 @@ function ResourcesSection({ resources }: { resources: any[] }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Deck template — featured */}
+      {deckTemplateUrl && (
+        <Card className="p-4 border-purple-400/30 bg-purple-400/5">
+          <a href={deckTemplateUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-400/20 flex items-center justify-center">
+              <Icon icon="file-down" className="w-5 h-5 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">Presentation Deck Template</p>
+              <p className="text-xs text-muted-foreground">Download or make a copy to start building your deck</p>
+            </div>
+            <Icon icon="external-link" className="w-4 h-4 text-purple-400" />
+          </a>
+        </Card>
+      )}
+
+      {/* Other resources */}
       {resources.map((r: any, i: number) => (
         <Card key={i} className="p-4 hover:border-purple-400/30 transition-colors">
           <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">

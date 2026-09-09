@@ -12,6 +12,7 @@ const SECTIONS = [
   { key: "research", label: "Account Research", icon: "🔍", description: "Customer insights & findings" },
   { key: "value_mapping", label: "Value Mapping", icon: "🗺️", description: "Mapping value to customer needs" },
   { key: "ebr", label: "EBR Prep", icon: "📊", description: "Executive Business Review materials" },
+  { key: "decks", label: "Presentation Decks", icon: "📝", description: "Your team's presentation deck links" },
 ];
 
 export default function TeamHubPage() {

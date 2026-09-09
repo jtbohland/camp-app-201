@@ -15,6 +15,9 @@ const PresentationSchema = z.object({
   day_number: z.coerce.number().nullable(),
   status: z.string(),
   sort_order: z.coerce.number(),
+  is_locked: z.boolean(),
+  rubric_template_id: z.coerce.number().nullable(),
+  deck_template_url: z.string().nullable(),
   created_at: z.string(),
   feedback_count: z.coerce.number(),
   avg_rating: z.string().nullable(),
@@ -22,7 +25,7 @@ const PresentationSchema = z.object({
 
 export default api({
   name: "GetPresentations",
-  description: "Fetches all presentations with feedback stats.",
+  description: "Fetches all presentations with feedback stats, lock state, and rubric/deck info",
   integrations: {
     camp_db: postgres(APPS_DB),
   },
@@ -36,7 +39,10 @@ export default api({
     const presentations = await ctx.integrations.camp_db.query(
       `SELECT p.id, p.title, p.description, p.instructions, p.resources,
               p.prep_time_minutes, p.present_time_minutes, p.team_id,
-              t.name AS team_name, p.day_number, p.status, p.sort_order, p.created_at,
+              t.name AS team_name, p.day_number, p.status, p.sort_order,
+              COALESCE(p.is_locked, true) AS is_locked,
+              p.rubric_template_id, p.deck_template_url,
+              p.created_at,
               COALESCE(fb.cnt, 0) AS feedback_count,
               fb.avg_rating
        FROM camp201_presentations p

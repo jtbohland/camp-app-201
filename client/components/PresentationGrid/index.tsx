@@ -9,8 +9,10 @@ type Presentation = {
   team_name: string | null;
   day_number: number | null;
   status: string;
+  is_locked: boolean;
   prep_time_minutes: number | null;
   present_time_minutes: number | null;
+  deck_template_url: string | null;
   feedback_count: number;
   avg_rating: string | null;
 };
@@ -50,16 +52,31 @@ export default function PresentationGrid({ presentations, onSelect }: Props) {
 
 function PresentationTile({ presentation, onSelect }: { presentation: Presentation; onSelect: (id: number) => void }) {
   const status = STATUS_CONFIG[presentation.status] ?? STATUS_CONFIG.upcoming;
+  const isLocked = presentation.is_locked;
 
   return (
     <Card
-      className="p-5 cursor-pointer hover:shadow-lg hover:border-purple-400/30 transition-all group relative overflow-hidden"
-      onClick={() => onSelect(presentation.id)}
+      className={`p-5 transition-all group relative overflow-hidden ${
+        isLocked
+          ? "opacity-60 cursor-not-allowed border-border bg-muted/20"
+          : "cursor-pointer hover:shadow-lg hover:border-purple-400/30"
+      }`}
+      onClick={() => !isLocked && onSelect(presentation.id)}
     >
+      {/* Lock overlay */}
+      {isLocked && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/30 backdrop-blur-[1px] z-10">
+          <div className="flex flex-col items-center gap-1">
+            <Icon icon="lock" className="w-6 h-6 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Coming Soon</span>
+          </div>
+        </div>
+      )}
+
       {/* Status badge */}
       <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${status.color}`}>
-        <Icon icon={status.icon} className="w-3 h-3" />
-        {status.label}
+        <Icon icon={isLocked ? "lock" : status.icon} className="w-3 h-3" />
+        {isLocked ? "Locked" : status.label}
       </div>
 
       {/* Title & description */}
@@ -90,10 +107,16 @@ function PresentationTile({ presentation, onSelect }: { presentation: Presentati
             {presentation.present_time_minutes}m
           </span>
         )}
+        {presentation.deck_template_url && !isLocked && (
+          <span className="flex items-center gap-1 text-purple-400">
+            <Icon icon="file-down" className="w-3 h-3" />
+            Deck
+          </span>
+        )}
       </div>
 
       {/* Feedback stats */}
-      {presentation.feedback_count > 0 && (
+      {presentation.feedback_count > 0 && !isLocked && (
         <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border text-xs">
           <span className="flex items-center gap-1 text-amber-400">
             <Icon icon="star" className="w-3 h-3" />
@@ -105,10 +128,12 @@ function PresentationTile({ presentation, onSelect }: { presentation: Presentati
         </div>
       )}
 
-      {/* Hover arrow */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Icon icon="arrow-right" className="w-4 h-4 text-purple-400" />
-      </div>
+      {/* Hover arrow (only when unlocked) */}
+      {!isLocked && (
+        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Icon icon="arrow-right" className="w-4 h-4 text-purple-400" />
+        </div>
+      )}
     </Card>
   );
 }

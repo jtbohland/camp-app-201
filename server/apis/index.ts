@@ -125,6 +125,8 @@ import UpdateCounselorProfile from './camp/update-counselor-profile.js';
 import MigrateCounselorVisibility from './camp/migrate-counselor-visibility.js';
 import ToggleCounselorVisibility from './camp/toggle-counselor-visibility.js';
 import UpdateTeamDesign from './camp/update-team-design.js';
+import MigratePresentationsV2 from './camp/migrate-presentations-v2.js';
+import UpdatePresentation from './camp/update-presentation.js';
 
 const apis = {
   SetupDatabase,
@@ -248,6 +250,8 @@ const apis = {
   MigrateCounselorVisibility,
   ToggleCounselorVisibility,
   UpdateTeamDesign,
+  MigratePresentationsV2,
+  UpdatePresentation,
 } as const;
 
 export default apis;
