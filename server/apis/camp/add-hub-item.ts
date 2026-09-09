@@ -6,6 +6,9 @@ const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 const XP_ELIGIBLE_TYPES = new Set(["note", "idea"]);
 const HUB_XP_POINTS = 3;
 const HUB_XP_DAILY_CAP = 2;
+// Minimum combined character length (title + content) to qualify for XP.
+// Short/meaningless submissions still get saved but earn nothing and don't count toward cap.
+const MIN_CHARS_FOR_XP = 30;
 
 export default api({
   name: "AddHubItem",
@@ -40,7 +43,9 @@ export default api({
     let xpAwarded = 0;
 
     // Award silent XP for notes & ideas (not resources/links/documents)
-    if (XP_ELIGIBLE_TYPES.has(item_type)) {
+    // Must meet minimum character threshold to prevent gaming
+    const combinedLength = (title.trim().length) + ((content ?? "").trim().length);
+    if (XP_ELIGIBLE_TYPES.has(item_type) && combinedLength >= MIN_CHARS_FOR_XP) {
       // Check daily cap: count hub_contribution points for this camper today
       const todayCount = await ctx.integrations.apps_database.query(
         `SELECT COUNT(*)::int AS cnt

@@ -9,6 +9,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
+import ImageUpload from "@/components/ImageUpload";
 
 export default function MemoriesTab() {
   const user = useSuperblocksUser();
@@ -119,19 +120,19 @@ function PhotoCard({ photo }: { photo: any }) {
 }
 
 function AddPhotoForm({ camperId, onSuccess }: { camperId: number; onSuccess: () => void }) {
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageData, setImageData] = useState("");
   const [caption, setCaption] = useState("");
   const [dayNumber, setDayNumber] = useState<string>("1");
   const { run: addPhoto, loading } = useApi("AddGalleryPhoto");
 
   const handleSubmit = useCallback(async () => {
-    if (!imageUrl.trim()) {
-      toast.error("Image URL is required");
+    if (!imageData) {
+      toast.error("Please upload a photo first");
       return;
     }
     try {
       const result = await addPhoto({
-        image_url: imageUrl.trim(),
+        image_url: imageData,
         caption: caption.trim() || null,
         day_number: dayNumber ? Number(dayNumber) : null,
         uploaded_by: camperId,
@@ -147,16 +148,20 @@ function AddPhotoForm({ camperId, onSuccess }: { camperId: number; onSuccess: ()
           : String(err);
       toast.error("Error: " + message);
     }
-  }, [imageUrl, caption, dayNumber, camperId, addPhoto, onSuccess]);
+  }, [imageData, caption, dayNumber, camperId, addPhoto, onSuccess]);
 
   return (
     <Card className="p-5 border-amber-700/30 bg-amber-900/10">
       <h3 className="text-sm font-semibold text-foreground mb-3">Add Photo</h3>
       <div className="grid gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Image URL</label>
-          <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." className="bg-muted/30" />
-        </div>
+        <ImageUpload
+          value={imageData}
+          onChange={setImageData}
+          label=""
+          hint="Drag & drop a photo here or click to browse (PNG, JPG, GIF, WebP — max 5MB)"
+          shape="square"
+          maxSizeMB={5}
+        />
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Caption</label>
@@ -174,7 +179,7 @@ function AddPhotoForm({ camperId, onSuccess }: { camperId: number; onSuccess: ()
             </Select>
           </div>
         </div>
-        <Button onClick={handleSubmit} disabled={loading || !imageUrl.trim()} className="bg-amber-600 hover:bg-amber-700">
+        <Button onClick={handleSubmit} disabled={loading || !imageData} className="bg-amber-600 hover:bg-amber-700">
           {loading ? "Adding..." : "Add Photo"}
         </Button>
       </div>
