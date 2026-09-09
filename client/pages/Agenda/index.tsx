@@ -10,6 +10,8 @@ import AgendaResources from "@/components/AgendaResources/index.js";
 
 const DAY_LABELS: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
 
+const LUNCH_MENU_URL = "https://docs.google.com/document/d/e/2PACX-1vQdW3jCqsmgs_Zu8ruqRkt06X10VZk1S1h2pbTlN12_LDfNqPAhzLSvK8OAYvhJpqxEbDWI7I4tD0WW/pub";
+
 const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   core:         { bg: "bg-emerald-50",  border: "border-emerald-200",  text: "text-emerald-700" },
   challenger:   { bg: "bg-blue-50",     border: "border-blue-200",     text: "text-blue-700" },
@@ -154,16 +156,29 @@ export default function AgendaPage() {
                         {items.map((item: any) => {
                           const colors = TYPE_COLORS[item.session_type] ?? TYPE_COLORS.session;
                           const isExec = item.session_type === "executive";
+                          const isLunch = item.session_type === "lunch" || (item.title?.toLowerCase().includes("lunch"));
                           return (
                             <div key={item.id} className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${colors.bg} ${colors.border}`}>
                               <div className="w-24 shrink-0 text-xs text-muted-foreground font-mono">
                                 {formatTime(item.start_time)} – {formatTime(item.end_time)}
                               </div>
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-0 flex items-center gap-2">
                                 <span className={`text-sm font-medium ${colors.text}`}>
                                   {isExec && "⭐ "}{item.title}
                                 </span>
                                 {isExec && <span className="text-[10px] text-yellow-600 ml-2 italic">Mandatory</span>}
+                                {isLunch && (
+                                  <a
+                                    href={LUNCH_MENU_URL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 hover:text-orange-700 bg-orange-100 hover:bg-orange-200 px-2 py-0.5 rounded-full transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    🍽️ Menu
+                                    <Icon icon="external-link" className="w-3 h-3" />
+                                  </a>
+                                )}
                               </div>
                               <Badge variant="outline" className={`text-[10px] ${colors.text} border-current/20`}>
                                 {item.session_type}

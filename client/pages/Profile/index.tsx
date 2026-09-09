@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreakerSection/index.js";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
+import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -288,23 +289,17 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-5">
           {/* Photo */}
           <div className="flex items-center gap-4">
-            <CamperAvatar
+            <ProfilePhotoUpload
+              currentPhotoUrl={photoUrl || camper?.photo_url || null}
               email={user?.email ?? ""}
-              photoUrl={camper?.photo_url}
               name={`${camper?.first_name ?? ""} ${camper?.last_name ?? ""}`}
-              size="lg"
+              onChange={setPhotoUrl}
             />
-            <div className="flex flex-col gap-2 flex-1">
+            <div className="flex-1">
               <p className="text-sm font-medium">Profile Photo</p>
-              <p className="text-xs text-muted-foreground">
-                We'll try your Gravatar first. Paste a URL below to override.
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Click your avatar or drag & drop to upload a photo
               </p>
-              <Input
-                placeholder="https://your-photo-url.com/photo.jpg"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                className="text-xs"
-              />
             </div>
           </div>
 

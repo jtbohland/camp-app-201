@@ -60,7 +60,34 @@ const TEAM_THEMES: Array<[string, string, string, string, string]> = [
   ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],       // Slytherin — Magic
 ];
 
+// Name-based theme lookup for specific teams, fallback to index for generic names
+const NAMED_THEMES: Record<string, [string, string, string, string, string]> = {
+  // Cohort 3
+  "Team 1":       ["🪓", "🏕️", "🔥", "from-red-100 via-orange-50 to-amber-100", "text-red-500"],
+  "Team 3":       ["🎯", "🏹", "🦊", "from-teal-100 via-emerald-50 to-green-100", "text-teal-600"],
+  "Datalicious":  ["🧪", "📊", "🍕", "from-fuchsia-100 via-pink-50 to-rose-100", "text-fuchsia-500"],
+  "Slytherin":    ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],
+};
+
 function NoLogoPlaceholder({ teamName, teamId }: { teamName: string; teamId: number }) {
+  // Check for name-based match first
+  const namedTheme = NAMED_THEMES[teamName];
+  if (namedTheme) {
+    const [center, left, right, gradient, accent] = namedTheme;
+    return (
+      <div className={`bg-gradient-to-br ${gradient} p-8 flex flex-col items-center justify-center gap-3 min-h-[140px] relative overflow-hidden`}>
+        <div className="absolute inset-0 opacity-10 text-6xl flex items-center justify-center select-none pointer-events-none">{center}</div>
+        <div className="flex items-center gap-4 relative z-10">
+          <span className="text-3xl opacity-50 -rotate-12">{left}</span>
+          <span className="text-5xl drop-shadow-sm">{center}</span>
+          <span className="text-3xl opacity-50 rotate-12">{right}</span>
+        </div>
+        <div className={`text-xs font-bold tracking-widest uppercase mt-1 ${accent} relative z-10`}>{teamName}</div>
+      </div>
+    );
+  }
+
+  // Fallback: use teamId for generic group names
   const idx = (teamId - 1) % TEAM_THEMES.length;
   const [center, left, right, gradient, accent] = TEAM_THEMES[idx];
 

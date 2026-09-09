@@ -36,7 +36,7 @@ export const router = createBrowserRouter([
       // Gated pages
       { path: "/journey", ...gatedLazy(() => import("./pages/Journey/index.js"), "journey") },
       { path: "/agenda", ...gatedLazy(() => import("./pages/Agenda/index.js"), "agenda") },
-      { path: "/teams", ...gatedLazy(() => import("./pages/Teams/index.js"), "teams") },
+      { path: "/teams", ...gatedLazy(() => import("./pages/Teams/index.js")) },
       { path: "/teams/:teamId", ...gatedLazy(() => import("./pages/TeamHub/index.js"), "teams") },
       { path: "/leaderboard", ...gatedLazy(() => import("./pages/Leaderboard/index.js"), "leaderboard") },
       { path: "/presentations", ...gatedLazy(() => import("./pages/Presentations/index.js"), "presentations") },

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
+import { useApiData } from "@/hooks/useApiData.js";
 import TeamsTab from "@/components/TeamsTab/index.js";
 import CohortTab from "@/components/CohortTab/index.js";
 import PastCampsGallery from "@/components/PastCampsGallery/index.js";
@@ -15,6 +16,11 @@ const tabs: { id: TabId; label: string; icon: string }[] = [
 
 export default function TeamsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("cohort");
+
+  // Check the "teams" gate for the Teams tab
+  const { data: gatesData } = useApiData("GetFeatureGates", {});
+  const teamsGate = (gatesData?.gates ?? []).find((g: any) => g.feature_key === "teams");
+  const teamsLocked = teamsGate ? teamsGate.is_locked : true;
 
   return (
     <div className="flex flex-col h-full w-full overflow-auto">
@@ -33,32 +39,39 @@ export default function TeamsPage() {
         </div>
         {/* Tab bar */}
         <div className="flex gap-1 px-6 mt-4">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? "border-primary text-primary bg-primary/5"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              }`}
-            >
-              <Icon icon={tab.icon as any} className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const isLocked = tab.id === "teams" && teamsLocked;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => !isLocked && setActiveTab(tab.id)}
+                disabled={isLocked}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? "border-primary text-primary bg-primary/5"
+                    : isLocked
+                      ? "border-transparent text-muted-foreground/40 cursor-not-allowed"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                <Icon icon={isLocked ? "lock" as any : tab.icon as any} className="w-4 h-4" />
+                {tab.label}
+                {isLocked && <span className="text-[10px]">(locked)</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Tab content */}
       <div className="flex-1 p-6">
         {activeTab === "cohort" && <CohortTab />}
-        {activeTab === "teams" && (
-        <>
-          <TeamCultureHero />
-          <TeamsTab />
-        </>
-      )}
+        {activeTab === "teams" && !teamsLocked && (
+          <>
+            <TeamCultureHero />
+            <TeamsTab />
+          </>
+        )}
         {activeTab === "history" && <PastCampsGallery />}
       </div>
     </div>
