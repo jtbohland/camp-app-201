@@ -5,6 +5,7 @@ import CreateTeamDialog from "@/components/CreateTeamDialog/index.js";
 import TeamCard from "@/components/TeamCard/index.js";
 import AssignMembersDialog from "@/components/AssignMembersDialog/index.js";
 import CampVPLeaderboard from "@/components/CampVPLeaderboard/index.js";
+import LogoVoting from "@/components/LogoVoting/index.js";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TeamsTab() {
@@ -16,6 +17,7 @@ export default function TeamsTab() {
   const [assignTeamId, setAssignTeamId] = useState<number | null>(null);
 
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const camperId = camperData?.camper?.id ?? 0;
   const loading = camperLoading || teamsLoading;
 
   // Sort teams by total_points descending for ranking
@@ -24,6 +26,12 @@ export default function TeamsTab() {
     teams.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
     return teams;
   }, [teamsData?.teams]);
+
+  // Collect used colors from existing teams for color lockout
+  const usedColors = useMemo(() =>
+    rankedTeams.map((t: any) => t.color).filter(Boolean),
+    [rankedTeams]
+  );
 
   if (loading) {
     return (
@@ -81,6 +89,15 @@ export default function TeamsTab() {
         )}
       </div>
 
+      {/* Logo Voting — shows when gate is open or results are final */}
+      {rankedTeams.length > 0 && camperId > 0 && (
+        <LogoVoting
+          teams={rankedTeams}
+          camperId={camperId}
+          myTeamId={camperData?.camper?.team_id ?? null}
+        />
+      )}
+
       {/* cAMP-V-P Leaderboard */}
       <CampVPLeaderboard teams={rankedTeams} />
 
@@ -92,6 +109,7 @@ export default function TeamsTab() {
             setShowCreate(false);
             refetchTeams();
           }}
+          usedColors={usedColors}
         />
       )}
       {assignTeamId !== null && (

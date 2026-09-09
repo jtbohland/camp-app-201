@@ -116,6 +116,10 @@ import GetFeatureGates from './camp/get-feature-gates.js';
 import UpdateFeatureGate from './camp/update-feature-gate.js';
 import SeedPastCohorts from './camp/seed-past-cohorts.js';
 import GetPastCohorts from './camp/get-past-cohorts.js';
+import GenerateTeamLogo from './camp/generate-team-logo.js';
+import MigrateLogoVotes from './camp/migrate-logo-votes.js';
+import GetTeamVotes from './camp/get-team-votes.js';
+import SubmitTeamVote from './camp/submit-team-vote.js';
 
 const apis = {
   SetupDatabase,
@@ -230,6 +234,10 @@ const apis = {
   UpdateFeatureGate,
   SeedPastCohorts,
   GetPastCohorts,
+  GenerateTeamLogo,
+  MigrateLogoVotes,
+  GetTeamVotes,
+  SubmitTeamVote,
 } as const;
 
 export default apis;

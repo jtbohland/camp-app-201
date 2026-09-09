@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreakerSection/index.js";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
+import ImageUpload from "@/components/ImageUpload/index.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -34,6 +35,7 @@ export default function ProfilePage() {
 
   // Absence request state
   const [absenceReason, setAbsenceReason] = useState("");
+  const [photoMethod, setPhotoMethod] = useState<"upload" | "url">("upload");
 
   // Form state
   const [bio, setBio] = useState("");
@@ -287,25 +289,67 @@ export default function ProfilePage() {
 
         <div className="flex flex-col gap-5">
           {/* Photo */}
-          <div className="flex items-center gap-4">
-            <CamperAvatar
-              email={user?.email ?? ""}
-              photoUrl={camper?.photo_url}
-              name={`${camper?.first_name ?? ""} ${camper?.last_name ?? ""}`}
-              size="lg"
-            />
-            <div className="flex flex-col gap-2 flex-1">
-              <p className="text-sm font-medium">Profile Photo</p>
-              <p className="text-xs text-muted-foreground">
-                We'll try your Gravatar first. Paste a URL below to override.
-              </p>
-              <Input
-                placeholder="https://your-photo-url.com/photo.jpg"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                className="text-xs"
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-4">
+              <CamperAvatar
+                email={user?.email ?? ""}
+                photoUrl={photoUrl || camper?.photo_url}
+                name={`${camper?.first_name ?? ""} ${camper?.last_name ?? ""}`}
+                size="lg"
               />
+              <div className="flex-1">
+                <p className="text-sm font-medium mb-1">Profile Photo</p>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPhotoMethod("upload")}
+                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                      photoMethod === "upload"
+                        ? "bg-primary/10 text-primary border border-primary/30"
+                        : "text-muted-foreground hover:bg-muted border border-transparent"
+                    }`}
+                  >
+                    <Icon icon="upload" className="w-3 h-3" />
+                    Upload
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoMethod("url")}
+                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                      photoMethod === "url"
+                        ? "bg-primary/10 text-primary border border-primary/30"
+                        : "text-muted-foreground hover:bg-muted border border-transparent"
+                    }`}
+                  >
+                    <Icon icon="link" className="w-3 h-3" />
+                    URL / Gravatar
+                  </button>
+                </div>
+              </div>
             </div>
+
+            {photoMethod === "upload" ? (
+              <ImageUpload
+                value={photoUrl.startsWith("data:") ? photoUrl : ""}
+                onChange={setPhotoUrl}
+                label=""
+                hint="Drag & drop your photo (PNG, JPG — max 2MB)"
+                shape="circle"
+                maxSizeMB={2}
+              />
+            ) : (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">
+                  We'll try your Gravatar first. Paste a URL below to override.
+                </p>
+                <Input
+                  placeholder="https://your-photo-url.com/photo.jpg"
+                  value={photoUrl.startsWith("data:") ? "" : photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            )}
           </div>
 
           {/* Bio */}
