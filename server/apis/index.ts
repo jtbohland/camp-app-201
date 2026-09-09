@@ -137,6 +137,10 @@ import ScoreTeamPresentation from './camp/score-team-presentation.js';
 import GetRubricTemplate from './camp/get-rubric-template.js';
 import GetPointsBreakdown from './camp/get-points-breakdown.js';
 import MigratePointsCategory from './camp/migrate-points-category.js';
+import MigrateCompanyAssignment from './camp/migrate-company-assignment.js';
+import AssignCompanyToTeam from './camp/assign-company-to-team.js';
+import GetTeamWorkspace from './camp/get-team-workspace.js';
+import SaveTeamWorkspace from './camp/save-team-workspace.js';
 
 const apis = {
   SetupDatabase,
@@ -272,6 +276,10 @@ const apis = {
   GetRubricTemplate,
   GetPointsBreakdown,
   MigratePointsCategory,
+  MigrateCompanyAssignment,
+  AssignCompanyToTeam,
+  GetTeamWorkspace,
+  SaveTeamWorkspace,
 } as const;
 
 export default apis;

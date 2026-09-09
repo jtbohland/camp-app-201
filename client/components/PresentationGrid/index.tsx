@@ -113,6 +113,7 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
   const isBingo = presentation.presentation_type === "bingo";
   const isTeamPres = presentation.presentation_type === "team_presentation";
+  const isTeamWorkshop = presentation.presentation_type === "team_workshop";
   const totalQuestions = hasQuestions
     ? (presentation.questions as any[]).reduce((sum: number, s: any) => sum + (s.questions?.length ?? 0), 0)
     : 0;
@@ -154,11 +155,16 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
               </span>
             )}
             {isTeamPres && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
                 🏆 Team
               </span>
             )}
-            {hasQuestions && !isBingo && !isTeamPres && (
+            {isTeamWorkshop && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                👥 Team Workshop
+              </span>
+            )}
+            {hasQuestions && !isBingo && !isTeamPres && !isTeamWorkshop && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-camp-green/10 text-camp-green border border-camp-green/20">
                 ✏️ Interactive
               </span>

@@ -16,6 +16,7 @@ const TeamSchema = z.object({
   name: z.string(),
   logo_url: z.string().nullable(),
   color: z.string().nullable(),
+  assigned_company: z.any().nullable(),
 });
 
 export default api({
@@ -31,13 +32,14 @@ export default api({
       name: z.string(),
       logo_url: z.string().nullable(),
       color: z.string().nullable(),
+      assigned_company: z.any().nullable(),
       members: z.array(TeamMemberSchema),
       total_points: z.number(),
     })),
   }),
   async run(ctx) {
     const teams = await ctx.integrations.apps_database.query(
-      `SELECT id, name, logo_url, color FROM camp201_teams ORDER BY name LIMIT 50`,
+      `SELECT id, name, logo_url, color, assigned_company FROM camp201_teams ORDER BY name LIMIT 50`,
       TeamSchema,
       undefined,
       { label: "Fetch all teams" }

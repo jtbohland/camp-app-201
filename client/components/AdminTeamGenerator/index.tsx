@@ -5,9 +5,17 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+const COMPANIES = [
+  { slug: "doordash", name: "DoorDash", emoji: "🚗", color: "#FF3008" },
+  { slug: "coursera", name: "Coursera", emoji: "🎓", color: "#0056D2" },
+  { slug: "quickbooks", name: "Intuit QuickBooks", emoji: "💰", color: "#2CA01C" },
+  { slug: "zillow", name: "Zillow", emoji: "🏠", color: "#006AFF" },
+];
+
 export default function AdminTeamGenerator() {
   const [numTeams, setNumTeams] = useState(4);
   const { run: generateTeams, loading: generating } = useApi("AutoGenerateTeams");
+  const { run: assignCompany, loading: assigning } = useApi("AssignCompanyToTeam");
   const { data: teamsData, refetch: refetchTeams } = useApiData("GetTeams", {});
   const { data: camperData } = useApiData("GetRegisteredCampers", {});
 
@@ -49,6 +57,50 @@ export default function AdminTeamGenerator() {
             {existingTeams.length} team{existingTeams.length !== 1 ? "s" : ""} already exist.
             Teams must be deleted before regenerating.
           </p>
+          {/* Company Assignment */}
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <h4 className="text-sm font-semibold text-white/80 mb-2">🏢 Assign Companies</h4>
+            <div className="space-y-2">
+              {existingTeams.map((t: any) => {
+                const currentCompany = t.assigned_company;
+                return (
+                  <div key={t.id} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                    <span className="text-sm text-white font-medium">{t.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      {currentCompany && (
+                        <span className="text-xs mr-2" style={{ color: currentCompany.color }}>
+                          {currentCompany.emoji} {currentCompany.name}
+                        </span>
+                      )}
+                      {COMPANIES.map((c) => {
+                        const taken = existingTeams.some((ot: any) => ot.id !== t.id && ot.assigned_company?.slug === c.slug);
+                        const isSelected = currentCompany?.slug === c.slug;
+                        return (
+                          <button
+                            key={c.slug}
+                            disabled={assigning || (taken && !isSelected)}
+                            onClick={async () => {
+                              try {
+                                const res = await assignCompany({ team_id: t.id, company_slug: c.slug });
+                                if (res?.success) { toast.success(res.message); refetchTeams(); }
+                              } catch (err) { toast.error(String(err)); }
+                            }}
+                            className={`text-lg p-1 rounded transition-all ${
+                              isSelected ? "ring-2 ring-white bg-white/20" :
+                              taken ? "opacity-20 cursor-not-allowed" : "hover:bg-white/10"
+                            }`}
+                            title={`${c.name}${taken ? " (taken)" : ""}`}
+                          >
+                            {c.emoji}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-4">

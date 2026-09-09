@@ -19,6 +19,7 @@ export default function PresentationsPage() {
 
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const camperId = camperData?.camper?.id ?? 0;
+  const camperTeamId = camperData?.camper?.team_id ?? 0;
 
   const { data, loading, fetching, refetch } = useApiData("GetPresentations", {
     status: null,
@@ -53,6 +54,7 @@ export default function PresentationsPage() {
       <PresentationDetail
         presentation={selectedPresentation}
         camperId={camperId}
+        camperTeamId={camperTeamId}
         isAdmin={isAdmin}
         onBack={handleBack}
         onRefresh={refetch}
