@@ -133,6 +133,10 @@ import SavePresentationResponses from './camp/save-presentation-responses.js';
 import MigrateBingo from './camp/migrate-bingo.js';
 import GetBingoCard from './camp/get-bingo-card.js';
 import SubmitBingoGuess from './camp/submit-bingo-guess.js';
+import ScoreTeamPresentation from './camp/score-team-presentation.js';
+import GetRubricTemplate from './camp/get-rubric-template.js';
+import GetPointsBreakdown from './camp/get-points-breakdown.js';
+import MigratePointsCategory from './camp/migrate-points-category.js';
 
 const apis = {
   SetupDatabase,
@@ -264,6 +268,10 @@ const apis = {
   MigrateBingo,
   GetBingoCard,
   SubmitBingoGuess,
+  ScoreTeamPresentation,
+  GetRubricTemplate,
+  GetPointsBreakdown,
+  MigratePointsCategory,
 } as const;
 
 export default apis;

@@ -112,6 +112,7 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
   const isLocked = presentation.is_locked && !isAdmin;
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
   const isBingo = presentation.presentation_type === "bingo";
+  const isTeamPres = presentation.presentation_type === "team_presentation";
   const totalQuestions = hasQuestions
     ? (presentation.questions as any[]).reduce((sum: number, s: any) => sum + (s.questions?.length ?? 0), 0)
     : 0;
@@ -152,7 +153,12 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
                 🔥 Bingo
               </span>
             )}
-            {hasQuestions && !isBingo && (
+            {isTeamPres && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                🏆 Team
+              </span>
+            )}
+            {hasQuestions && !isBingo && !isTeamPres && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-camp-green/10 text-camp-green border border-camp-green/20">
                 ✏️ Interactive
               </span>

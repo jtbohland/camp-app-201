@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import PresentationWorkspace from "@/components/PresentationWorkspace";
 import FiresideFinder from "@/components/FiresideFinder";
+import TeamScoringPanel from "@/components/TeamScoringPanel";
 
 type Presentation = {
   id: number;
@@ -26,6 +27,7 @@ type Presentation = {
   deck_template_url?: string | null;
   questions?: any[];
   presentation_type?: string | null;
+  rubric_template_id?: number | null;
   is_locked?: boolean;
 };
 
@@ -53,7 +55,7 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
   const isBingo = presentation.presentation_type === "bingo";
   const hasResources = resources.length > 0 || !!presentation.deck_template_url;
-  const hasRubric = scores.length > 0;
+  const hasRubric = scores.length > 0 || !!presentation.rubric_template_id;
   const hasFeedback = feedback.length > 0;
 
   // Only show tabs that have content
@@ -163,7 +165,16 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
               <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} />
             )}
             {activeSection === "rubric" && (
-              <RubricSection scores={scores} isAdmin={isAdmin} />
+              presentation.rubric_template_id ? (
+                <TeamScoringPanel
+                  presentationId={presentation.id}
+                  rubricTemplateId={presentation.rubric_template_id}
+                  camperId={camperId}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <RubricSection scores={scores} isAdmin={isAdmin} />
+              )
             )}
             {activeSection === "feedback" && (
               <FeedbackSection
