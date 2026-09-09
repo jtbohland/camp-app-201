@@ -63,8 +63,10 @@ const TEAM_THEMES: Array<[string, string, string, string, string]> = [
 // Name-based theme lookup for specific teams, fallback to index for generic names
 const NAMED_THEMES: Record<string, [string, string, string, string, string]> = {
   // Cohort 3
-  "Slytherin":    ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],
+  "Team 1":       ["🪓", "🏕️", "🔥", "from-red-100 via-orange-50 to-amber-100", "text-red-500"],
+  "Team 3":       ["🎯", "🏹", "🦊", "from-teal-100 via-emerald-50 to-green-100", "text-teal-600"],
   "Datalicious":  ["🧪", "📊", "🍕", "from-fuchsia-100 via-pink-50 to-rose-100", "text-fuchsia-500"],
+  "Slytherin":    ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],
 };
 
 function NoLogoPlaceholder({ teamName, teamId }: { teamName: string; teamId: number }) {
