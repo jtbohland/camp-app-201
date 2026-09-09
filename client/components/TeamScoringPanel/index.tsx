@@ -4,7 +4,6 @@ import { useApi } from "@/hooks/useApi.js";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 type Criterion = {
@@ -28,14 +27,12 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
 
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
-  const [notes, setNotes] = useState("");
 
   const template = rubricData?.template;
   const existingScores = (rubricData?.scores ?? []) as any[];
   const criteria = (template?.criteria ?? []) as Criterion[];
   const teams = (teamsData?.teams ?? []) as any[];
   const maxTotal = template?.max_total_points ?? 15;
-
   const currentTotal = Object.values(scores).reduce((sum, v) => sum + v, 0);
   const scoredTeamIds = new Set(existingScores.map((s: any) => s.team_id));
 
@@ -44,8 +41,7 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedTeam) return;
-    if (Object.keys(scores).length < criteria.length) {
+    if (!selectedTeam || Object.keys(scores).length < criteria.length) {
       toast.error("Please score all criteria before submitting");
       return;
     }
@@ -56,151 +52,144 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
         team_id: selectedTeam,
         scorer_camper_id: camperId,
         scores: JSON.stringify(scores),
-        notes: notes || null,
+        notes: null,
       });
       if (result?.success) {
         toast.success(result.message);
         setSelectedTeam(null);
         setScores({});
-        setNotes("");
         refetch();
       }
     } catch (err) {
       const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
       toast.error(msg);
     }
-  }, [selectedTeam, scores, notes, presentationId, rubricTemplateId, camperId, scoreTeam, criteria.length, refetch]);
+  }, [selectedTeam, scores, presentationId, rubricTemplateId, camperId, scoreTeam, criteria.length, refetch]);
 
   if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading rubric…</div>;
   if (!template) return <div className="p-4 text-sm text-muted-foreground">No rubric found.</div>;
 
-  // Camper view — just show rubric criteria (read-only)
-  if (!isAdmin) {
-    return (
-      <div className="space-y-4">
-        <Card className="p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 border-violet-200">
-          <h3 className="font-bold text-sm text-foreground mb-1">{template.name}</h3>
-          <p className="text-xs text-muted-foreground">Max {maxTotal} points • {criteria.length} criteria</p>
-        </Card>
+  return (
+    <div className="space-y-6">
+      {/* Section 1: Rubric criteria — everyone sees this */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Icon icon="clipboard-check" className="w-5 h-5 text-violet-500" />
+          <h3 className="font-bold text-base text-foreground">Scoring Rubric</h3>
+          <span className="text-xs text-muted-foreground ml-auto">Max {maxTotal} pts</span>
+        </div>
+
         {criteria.map((c, i) => (
           <Card key={i} className="p-4">
-            <h4 className="text-sm font-semibold text-foreground mb-2">{c.name}</h4>
-            <div className="space-y-1.5">
+            <h4 className="text-sm font-semibold text-foreground mb-2.5">{c.name}</h4>
+            <div className="grid grid-cols-3 gap-2">
               {c.levels.map((l) => (
-                <div key={l.score} className="flex gap-2 text-xs">
-                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-                    l.score === 3 ? "bg-green-100 text-green-700" : l.score === 2 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
-                  }`}>{l.score}</span>
-                  <div>
-                    <span className="font-medium text-foreground">{l.label}: </span>
-                    <span className="text-muted-foreground">{l.desc}</span>
+                <div key={l.score} className={`p-2.5 rounded-lg text-xs border ${
+                  l.score === 3 ? "border-green-200 bg-green-50/50 dark:bg-green-950/10"
+                  : l.score === 2 ? "border-amber-200 bg-amber-50/50 dark:bg-amber-950/10"
+                  : "border-red-200 bg-red-50/50 dark:bg-red-950/10"
+                }`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                      l.score === 3 ? "bg-green-200 text-green-700" : l.score === 2 ? "bg-amber-200 text-amber-700" : "bg-red-200 text-red-700"
+                    }`}>{l.score}</span>
+                    <span className="font-semibold text-foreground">{l.label}</span>
                   </div>
+                  <p className="text-muted-foreground leading-relaxed">{l.desc}</p>
                 </div>
               ))}
             </div>
           </Card>
         ))}
       </div>
-    );
-  }
 
-  // Admin view — score teams
-  return (
-    <div className="space-y-4">
-      {/* Existing scores summary */}
-      {existingScores.length > 0 && (
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Icon icon="trophy" className="w-4 h-4 text-amber-500" />
-            Scores Awarded
-          </h3>
-          <div className="space-y-2">
-            {existingScores.map((s: any) => (
-              <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border/50 last:border-0">
-                <span className="font-medium">{s.team_name}</span>
-                <span className="font-bold text-primary">{s.total_score}/{s.max_score}</span>
-              </div>
-            ))}
+      {/* Section 2: Score Teams — admin only */}
+      {isAdmin && (
+        <div className="space-y-3 pt-4 border-t-2 border-dashed border-violet-200">
+          <div className="flex items-center gap-2">
+            <Icon icon="trophy" className="w-5 h-5 text-amber-500" />
+            <h3 className="font-bold text-base text-foreground">Score Teams</h3>
+            <span className="text-[10px] text-muted-foreground bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-full font-semibold ml-1">
+              Counselors Only
+            </span>
           </div>
-        </Card>
-      )}
 
-      {/* Team selector */}
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Score a Team</h3>
-        <div className="flex flex-wrap gap-2">
-          {teams.map((t: any) => {
-            const alreadyScored = scoredTeamIds.has(t.id);
-            return (
-              <Button
-                key={t.id}
-                variant={selectedTeam === t.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => { setSelectedTeam(t.id); setScores({}); setNotes(""); }}
-                className="text-xs"
-              >
-                {t.name}
-                {alreadyScored && <Icon icon="check" className="w-3 h-3 ml-1 text-green-500" />}
-              </Button>
-            );
-          })}
-        </div>
-      </Card>
+          {/* Existing scores */}
+          {existingScores.length > 0 && (
+            <Card className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/10 dark:to-yellow-950/10 border-amber-200">
+              <h4 className="text-xs font-bold uppercase text-amber-700 mb-2">Scores Awarded</h4>
+              {existingScores.map((s: any) => (
+                <div key={s.id} className="flex items-center justify-between text-sm py-1.5 border-b border-amber-200/50 last:border-0">
+                  <span className="font-medium">{s.team_name}</span>
+                  <span className="font-bold text-amber-700">{s.total_score}/{s.max_score}</span>
+                </div>
+              ))}
+            </Card>
+          )}
 
-      {/* Rubric scoring form */}
-      {selectedTeam && (
-        <>
-          {criteria.map((c, i) => (
-            <Card key={i} className="p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-3">{c.name}</h4>
-              <div className="grid grid-cols-3 gap-2">
-                {c.levels.map((l) => {
-                  const isSelected = scores[c.name] === l.score;
-                  return (
-                    <button
-                      key={l.score}
-                      onClick={() => handleScore(c.name, l.score)}
-                      className={`p-3 rounded-lg border text-left transition-all text-xs ${
-                        isSelected
-                          ? l.score === 3 ? "border-green-500 bg-green-50 dark:bg-green-950/20 ring-2 ring-green-300"
-                            : l.score === 2 ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20 ring-2 ring-amber-300"
-                            : "border-red-500 bg-red-50 dark:bg-red-950/20 ring-2 ring-red-300"
-                          : "border-border hover:border-muted-foreground/30"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-                          l.score === 3 ? "bg-green-100 text-green-700" : l.score === 2 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
-                        }`}>{l.score}</span>
-                        <span className="font-semibold">{l.label}</span>
-                      </div>
-                      <p className="text-muted-foreground leading-relaxed">{l.desc}</p>
-                    </button>
-                  );
-                })}
+          {/* Team selector */}
+          <div className="flex flex-wrap gap-2">
+            {teams.map((t: any) => {
+              const alreadyScored = scoredTeamIds.has(t.id);
+              return (
+                <Button
+                  key={t.id}
+                  variant={selectedTeam === t.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => { setSelectedTeam(t.id); setScores({}); }}
+                  className="text-xs"
+                >
+                  {t.name}
+                  {alreadyScored && <Icon icon="check" className="w-3 h-3 ml-1 text-green-500" />}
+                </Button>
+              );
+            })}
+          </div>
+
+          {/* Inline scoring — tap score per criterion */}
+          {selectedTeam && (
+            <Card className="p-4 border-violet-200 bg-violet-50/30 dark:bg-violet-950/10">
+              <h4 className="text-sm font-semibold mb-3">
+                Scoring: {teams.find((t: any) => t.id === selectedTeam)?.name}
+              </h4>
+              <div className="space-y-3">
+                {criteria.map((c) => (
+                  <div key={c.name} className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-foreground flex-1">{c.name}</span>
+                    <div className="flex gap-1.5">
+                      {c.levels.map((l) => {
+                        const sel = scores[c.name] === l.score;
+                        return (
+                          <button
+                            key={l.score}
+                            onClick={() => handleScore(c.name, l.score)}
+                            className={`w-9 h-9 rounded-lg font-bold text-sm transition-all ${
+                              sel
+                                ? l.score === 3 ? "bg-green-500 text-white shadow-md"
+                                  : l.score === 2 ? "bg-amber-500 text-white shadow-md"
+                                  : "bg-red-500 text-white shadow-md"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                          >
+                            {l.score}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-violet-200">
+                <span className="text-sm font-bold">
+                  Total: <span className="text-xl text-primary">{currentTotal}</span>/{maxTotal}
+                </span>
+                <Button onClick={handleSubmit} disabled={scoring || Object.keys(scores).length < criteria.length} size="sm">
+                  {scoring ? "Saving…" : "Submit Score"}
+                </Button>
               </div>
             </Card>
-          ))}
-
-          {/* Notes + submit */}
-          <Card className="p-4">
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional notes for this team..."
-              rows={2}
-              className="text-sm mb-3"
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">
-                Total: <span className="text-primary text-lg">{currentTotal}</span>/{maxTotal}
-              </span>
-              <Button onClick={handleSubmit} disabled={scoring || Object.keys(scores).length < criteria.length}>
-                {scoring ? "Saving…" : "Submit Score"}
-              </Button>
-            </div>
-          </Card>
-        </>
+          )}
+        </div>
       )}
     </div>
   );
