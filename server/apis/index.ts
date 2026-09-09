@@ -127,6 +127,9 @@ import ToggleCounselorVisibility from './camp/toggle-counselor-visibility.js';
 import UpdateTeamDesign from './camp/update-team-design.js';
 import MigratePresentationsV2 from './camp/migrate-presentations-v2.js';
 import UpdatePresentation from './camp/update-presentation.js';
+import MigratePresentationWorkspace from './camp/migrate-presentation-workspace.js';
+import GetPresentationResponses from './camp/get-presentation-responses.js';
+import SavePresentationResponses from './camp/save-presentation-responses.js';
 
 const apis = {
   SetupDatabase,
@@ -252,6 +255,9 @@ const apis = {
   UpdateTeamDesign,
   MigratePresentationsV2,
   UpdatePresentation,
+  MigratePresentationWorkspace,
+  GetPresentationResponses,
+  SavePresentationResponses,
 } as const;
 
 export default apis;

@@ -9,6 +9,8 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 
+import PresentationWorkspace from "@/components/PresentationWorkspace";
+
 type Presentation = {
   id: number;
   title: string;
@@ -21,6 +23,7 @@ type Presentation = {
   day_number: number | null;
   status: string;
   deck_template_url?: string | null;
+  questions?: any[];
   is_locked?: boolean;
 };
 
@@ -43,9 +46,11 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
   const scores = (detailData?.scores ?? []) as any[];
 
   const resources = Array.isArray(presentation.resources) ? presentation.resources : [];
+  const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
 
   const sections = [
     { id: "overview", label: "Overview", icon: "file-text" },
+    ...(hasQuestions ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
     { id: "resources", label: "Resources", icon: "link" },
     { id: "rubric", label: "Rubric", icon: "clipboard-check" },
     { id: "feedback", label: `Feedback (${feedback.length})`, icon: "message-circle" },
@@ -128,6 +133,14 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
             {activeSection === "overview" && (
               <OverviewSection presentation={presentation} />
             )}
+            {activeSection === "workspace" && hasQuestions && (
+              <PresentationWorkspace
+                presentationId={presentation.id}
+                camperId={camperId}
+                questions={presentation.questions ?? []}
+              />
+            )}
+
             {activeSection === "resources" && (
               <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} />
             )}
