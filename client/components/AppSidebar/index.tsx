@@ -17,7 +17,6 @@ const camperNavItems: NavItem[] = [
   { icon: "map", label: "Journey", path: "/journey" },
   { icon: "calendar", label: "Agenda", path: "/agenda" },
   { icon: "users", label: "Teams", path: "/teams" },
-  { icon: "trophy", label: "Leaderboard", path: "/leaderboard" },
   { icon: "presentation", label: "Presentations", path: "/presentations" },
   { icon: "timer", label: "Timer", path: "/timer" },
   { icon: "clipboard-list", label: "Surveys", path: "/survey" },

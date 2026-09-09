@@ -38,7 +38,6 @@ export const router = createBrowserRouter([
       { path: "/agenda", ...gatedLazy(() => import("./pages/Agenda/index.js"), "agenda") },
       { path: "/teams", ...gatedLazy(() => import("./pages/Teams/index.js")) },
       { path: "/teams/:teamId", ...gatedLazy(() => import("./pages/TeamHub/index.js"), "teams") },
-      { path: "/leaderboard", ...gatedLazy(() => import("./pages/Leaderboard/index.js"), "leaderboard") },
       { path: "/presentations", ...gatedLazy(() => import("./pages/Presentations/index.js"), "presentations") },
       { path: "/timer", ...gatedLazy(() => import("./pages/Timer/index.js"), "timer") },
       { path: "/survey", ...gatedLazy(() => import("./pages/Survey/index.js"), "surveys") },
@@ -47,6 +46,7 @@ export const router = createBrowserRouter([
 
       // Redirects for old standalone routes
       { path: "/cohort", element: <Navigate to="/teams" replace /> },
+      { path: "/leaderboard", element: <Navigate to="/teams" replace /> },
       { path: "/team-history", element: <Navigate to="/teams" replace /> },
       { path: "/executives", element: <Navigate to="/agenda" replace /> },
       { path: "/announcements", element: <Navigate to="/" replace /> },
