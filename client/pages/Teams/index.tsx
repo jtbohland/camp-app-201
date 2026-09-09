@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import TeamsTab from "@/components/TeamsTab/index.js";
 import CohortTab from "@/components/CohortTab/index.js";
 import PastCampsGallery from "@/components/PastCampsGallery/index.js";
+import TeamCultureHero from "@/components/TeamCultureHero/index.js";
 
 type TabId = "cohort" | "teams" | "history";
 
@@ -52,7 +53,12 @@ export default function TeamsPage() {
       {/* Tab content */}
       <div className="flex-1 p-6">
         {activeTab === "cohort" && <CohortTab />}
-        {activeTab === "teams" && <TeamsTab />}
+        {activeTab === "teams" && (
+        <>
+          <TeamCultureHero />
+          <TeamsTab />
+        </>
+      )}
         {activeTab === "history" && <PastCampsGallery />}
       </div>
     </div>
