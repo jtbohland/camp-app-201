@@ -1,10 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import CreateTeamDialog from "@/components/CreateTeamDialog/index.js";
 import TeamCard from "@/components/TeamCard/index.js";
 import AssignMembersDialog from "@/components/AssignMembersDialog/index.js";
-import HubActivityTable from "@/components/HubActivityTable/index.js";
+import CampVPLeaderboard from "@/components/CampVPLeaderboard/index.js";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TeamsTab() {
@@ -18,12 +18,18 @@ export default function TeamsTab() {
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const loading = camperLoading || teamsLoading;
 
+  // Sort teams by total_points descending for ranking
+  const rankedTeams = useMemo(() => {
+    const teams = [...(teamsData?.teams ?? [])];
+    return teams.sort((a, b) => b.total_points - a.total_points);
+  }, [teamsData]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 w-full animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-48 rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
       </div>
@@ -31,12 +37,15 @@ export default function TeamsTab() {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-8 w-full">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {teamsData?.teams?.length ?? 0} team{(teamsData?.teams?.length ?? 0) !== 1 ? "s" : ""} active
-        </p>
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            {rankedTeams.length} team{rankedTeams.length !== 1 ? "s" : ""} competing
+          </p>
+          <p className="text-xs text-muted-foreground">Ranked by total XP · Updated live</p>
+        </div>
         {isAdmin && (
           <button
             onClick={() => setShowCreate(true)}
@@ -51,18 +60,20 @@ export default function TeamsTab() {
         <div className="text-xs text-muted-foreground">Updating…</div>
       )}
 
-      {/* Teams Grid */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${fetching && !loading ? "opacity-70" : ""}`}>
-        {teamsData?.teams?.map((team) => (
+      {/* Ranked Teams Grid */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-5 ${fetching && !loading ? "opacity-70" : ""}`}>
+        {rankedTeams.map((team, idx) => (
           <TeamCard
             key={team.id}
             team={team}
             isAdmin={isAdmin}
             currentCamperId={camperData?.camper?.id}
             onAssignMembers={() => setAssignTeamId(team.id)}
+            rank={idx + 1}
+            totalTeams={rankedTeams.length}
           />
         ))}
-        {teamsData?.teams?.length === 0 && (
+        {rankedTeams.length === 0 && (
           <div className="col-span-full text-center py-12 text-muted-foreground">
             <p className="text-lg">No teams created yet</p>
             {isAdmin && <p className="text-sm mt-1">Create a team to get started</p>}
@@ -70,12 +81,8 @@ export default function TeamsTab() {
         )}
       </div>
 
-      {/* Admin: Hub Activity tracking */}
-      {isAdmin && (
-        <div className="mt-4">
-          <HubActivityTable />
-        </div>
-      )}
+      {/* cAMP-V-P Individual Leaderboard */}
+      <CampVPLeaderboard />
 
       {/* Dialogs */}
       {showCreate && (

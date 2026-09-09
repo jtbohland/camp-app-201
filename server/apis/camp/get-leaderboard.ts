@@ -29,6 +29,10 @@ export default api({
   input: z.object({}),
   output: z.object({
     teams: z.array(LeaderboardTeamSchema),
+    campers: z.array(z.object({
+      id: z.number(), first_name: z.string(), last_name: z.string(), points: z.number(),
+      team_name: z.string().nullable(), team_logo_url: z.string().nullable(), team_color: z.string().nullable(),
+    })),
     topContributors: z.array(z.object({
       team_id: z.number(),
       team_name: z.string(),
@@ -85,8 +89,27 @@ export default api({
       { label: "Fetch aMpVP" }
     );
 
+    // All campers with team info for cAMP-V-P leaderboard
+    const CamperWithTeamSchema = z.object({
+      id: z.coerce.number(), first_name: z.string(), last_name: z.string(), points: z.coerce.number(),
+      team_name: z.string().nullable(), team_logo_url: z.string().nullable(), team_color: z.string().nullable(),
+    });
+    const allCampers = await ctx.integrations.apps_database.query(
+      `SELECT c.id, c.first_name, c.last_name, c.points,
+              t.name as team_name, t.logo_url as team_logo_url, t.color as team_color
+       FROM camp201_campers c
+       LEFT JOIN camp201_teams t ON c.team_id = t.id
+       WHERE c.role != 'counselor' AND c.role != 'admin'
+       ORDER BY c.points DESC
+       LIMIT 50`,
+      CamperWithTeamSchema,
+      undefined,
+      { label: "All campers for VP leaderboard" }
+    );
+
     return {
       teams,
+      campers: allCampers,
       topContributors,
       mvp: mvpResult.length > 0 ? mvpResult[0] : null,
     };
