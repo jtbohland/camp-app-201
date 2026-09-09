@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import TeamsTab from "@/components/TeamsTab/index.js";
 import CohortTab from "@/components/CohortTab/index.js";
-import TeamHistoryTab from "@/components/TeamHistoryTab/index.js";
+import PastCampsGallery from "@/components/PastCampsGallery/index.js";
 
 type TabId = "cohort" | "teams" | "history";
 
@@ -53,7 +53,7 @@ export default function TeamsPage() {
       <div className="flex-1 p-6">
         {activeTab === "cohort" && <CohortTab />}
         {activeTab === "teams" && <TeamsTab />}
-        {activeTab === "history" && <TeamHistoryTab />}
+        {activeTab === "history" && <PastCampsGallery />}
       </div>
     </div>
   );

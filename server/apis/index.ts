@@ -114,6 +114,8 @@ import GetDailySurveyResults from './camp/get-daily-survey-results.js';
 import MigrateFeatureGates from './camp/migrate-feature-gates.js';
 import GetFeatureGates from './camp/get-feature-gates.js';
 import UpdateFeatureGate from './camp/update-feature-gate.js';
+import SeedPastCohorts from './camp/seed-past-cohorts.js';
+import GetPastCohorts from './camp/get-past-cohorts.js';
 
 const apis = {
   SetupDatabase,
@@ -226,6 +228,8 @@ const apis = {
   MigrateFeatureGates,
   GetFeatureGates,
   UpdateFeatureGate,
+  SeedPastCohorts,
+  GetPastCohorts,
 } as const;
 
 export default apis;
