@@ -55,7 +55,7 @@ export default api({
          FROM camp201_presentation_feedback
          GROUP BY presentation_id
        ) fb ON fb.presentation_id = p.id
-       WHERE ($1::text IS NULL OR p.status = $1)
+       WHERE ($1::text IS NULL OR p.status = $1) AND p.day_number > 0
        ORDER BY p.sort_order, p.day_number, p.id
        LIMIT 50`,
       PresentationSchema,

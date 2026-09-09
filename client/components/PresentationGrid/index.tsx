@@ -157,7 +157,7 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
               </span>
             ) : (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200">
-                🧑 Solo
+                🧗🏻 Solo
               </span>
             )}
             {/* Activity type */}
@@ -186,9 +186,7 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
                 ✏️ Interactive
               </span>
             )}
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${status.bg} ${status.text}`}>
-              {status.label}
-            </span>
+
           </div>
         </div>
 

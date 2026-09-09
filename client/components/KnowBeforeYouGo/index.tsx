@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -92,6 +93,7 @@ export default function KnowBeforeYouGo({ isAdmin }: Props) {
 
         {TAB_META.map((tab) => (
           <TabsContent key={tab.key} value={tab.key}>
+            {tab.key === "office" && <FloorMaps />}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(itemsByTab[tab.key] ?? []).map((item) => (
                 editingId === item.id ? (
@@ -226,5 +228,93 @@ function EditCard({ item, onSave, onCancel }: { item: ContentItem; onSave: () =>
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Floor Maps Section (Office tab only) ── */
+const FLOOR_MAPS = [
+  {
+    label: "2nd Floor",
+    src: "/office/floor-2-map.webp",
+    note: null,
+  },
+  {
+    label: "3rd Floor",
+    src: "/office/floor-3-map.webp",
+    note: "We meet every day on the 3rd floor in AGENT SMITH (highlighted in red on the map).",
+  },
+] as const;
+
+function FloorMaps() {
+  const [expandedMap, setExpandedMap] = useState<typeof FLOOR_MAPS[number] | null>(null);
+
+  return (
+    <>
+      {/* Maps grid */}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Icon icon="map" className="w-4 h-4 text-camp-green" />
+          <p className="text-sm font-medium">Office Floor Maps</p>
+          <span className="text-[10px] text-muted-foreground">(click to enlarge)</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {FLOOR_MAPS.map((map) => (
+            <button
+              key={map.label}
+              onClick={() => setExpandedMap(map)}
+              className="group relative rounded-lg overflow-hidden border border-border/50 hover:border-camp-green/50 transition-all cursor-zoom-in"
+            >
+              <img
+                src={map.src}
+                alt={`${map.label} Map`}
+                className="w-full h-auto object-contain bg-white"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white rounded-full p-2">
+                  <Icon icon="maximize-2" className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
+                <span className="text-white text-xs font-medium">{map.label}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Agent Smith callout */}
+        <div className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+          <span className="text-base flex-shrink-0">📍</span>
+          <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+            <strong>Daily Meeting Room:</strong> We meet every day on the <strong>3rd floor</strong> in{" "}
+            <strong>AGENT SMITH</strong> (one of the rooms highlighted in red on the 3rd floor map).
+          </p>
+        </div>
+      </div>
+
+      {/* Lightbox dialog */}
+      <Dialog open={!!expandedMap} onOpenChange={() => setExpandedMap(null)}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-2 overflow-auto">
+          <DialogTitle className="text-sm font-semibold px-2 pt-1">
+            {expandedMap?.label} Map
+          </DialogTitle>
+          {expandedMap && (
+            <div className="flex flex-col gap-2">
+              <img
+                src={expandedMap.src}
+                alt={`${expandedMap.label} Map`}
+                className="w-full h-auto object-contain rounded bg-white"
+              />
+              {expandedMap.note && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                  <span className="text-base flex-shrink-0">📍</span>
+                  <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">{expandedMap.note}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
