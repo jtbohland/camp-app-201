@@ -36,7 +36,8 @@ type Props = {
 };
 
 export default function PresentationDetail({ presentation, camperId, isAdmin, onBack, onRefresh }: Props) {
-  const [activeSection, setActiveSection] = useState<string>("overview");
+  const initQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
+  const [activeSection, setActiveSection] = useState<string>(initQuestions ? "workspace" : "overview");
 
   const { data: detailData, loading, refetch } = useApiData("GetPresentationDetail", {
     presentation_id: presentation.id,
@@ -47,13 +48,17 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
 
   const resources = Array.isArray(presentation.resources) ? presentation.resources : [];
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
+  const hasResources = resources.length > 0 || !!presentation.deck_template_url;
+  const hasRubric = scores.length > 0;
+  const hasFeedback = feedback.length > 0;
 
+  // Only show tabs that have content (Overview + Workspace always if applicable)
   const sections = [
     { id: "overview", label: "Overview", icon: "file-text" },
     ...(hasQuestions ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
-    { id: "resources", label: "Resources", icon: "link" },
-    { id: "rubric", label: "Rubric", icon: "clipboard-check" },
-    { id: "feedback", label: `Feedback (${feedback.length})`, icon: "message-circle" },
+    ...(hasResources ? [{ id: "resources", label: "Resources", icon: "link" }] : []),
+    ...(hasRubric ? [{ id: "rubric", label: "Rubric", icon: "clipboard-check" }] : []),
+    ...(hasFeedback ? [{ id: "feedback", label: `Feedback (${feedback.length})`, icon: "message-circle" }] : []),
   ];
 
   return (
