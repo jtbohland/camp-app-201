@@ -16,10 +16,13 @@ import ManagerRegistrationForm from "@/components/ManagerRegistrationForm/index.
 import AdminSurveyResults from "@/components/AdminSurveyResults/index.js";
 import AdminFeatureGates from "@/components/AdminFeatureGates/index.js";
 import AgendaScheduleTab from "@/components/AgendaScheduleTab/index.js";
+import AdminCounselorProfile from "@/components/AdminCounselorProfile/index.js";
+import AdminTeamGenerator from "@/components/AdminTeamGenerator/index.js";
+import AdminCounselorRotation from "@/components/AdminCounselorRotation/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
-type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "schedule" | "gates" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
+type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "schedule" | "gates" | "cabin" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -245,6 +248,15 @@ export default function AdminPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => setView("cabin")}
+                  className={`text-white ${view === "cabin" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="tent" className="w-4 h-4 mr-1" />
+                  Cabin
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setView("settings")}
                   className={`text-white ${view === "settings" ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
@@ -281,6 +293,13 @@ export default function AdminPage() {
         )}
         {view === "gates" && (
           <AdminFeatureGates />
+        )}
+        {view === "cabin" && (
+          <div className="flex flex-col gap-6">
+            <AdminCounselorProfile />
+            <AdminCounselorRotation />
+            <AdminTeamGenerator />
+          </div>
         )}
         {view === "settings" && (
           <AdminPreworkSettings />
