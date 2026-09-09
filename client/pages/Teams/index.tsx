@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData.js";
+import { useSuperblocksUser } from "@superblocksteam/library";
 import TeamsTab from "@/components/TeamsTab/index.js";
 import CohortTab from "@/components/CohortTab/index.js";
 import PastCampsGallery from "@/components/PastCampsGallery/index.js";
@@ -16,11 +17,17 @@ const tabs: { id: TabId; label: string; icon: string }[] = [
 
 export default function TeamsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("cohort");
+  const user = useSuperblocksUser();
 
   // Check the "teams" gate for the Teams tab
   const { data: gatesData } = useApiData("GetFeatureGates", {});
+  const { data: camperData } = useApiData("GetCurrentCamper", {
+    email: user?.email ?? "",
+  }, { enabled: !!user?.email, staleTime: 60_000 });
+
+  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const teamsGate = (gatesData?.gates ?? []).find((g: any) => g.feature_key === "teams");
-  const teamsLocked = teamsGate ? teamsGate.is_locked : true;
+  const teamsLocked = isAdmin ? false : (teamsGate ? teamsGate.is_locked : true);
 
   return (
     <div className="flex flex-col h-full w-full overflow-auto">

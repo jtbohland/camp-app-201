@@ -9,6 +9,13 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 
+import PresentationWorkspace from "@/components/PresentationWorkspace";
+import FiresideFinder from "@/components/FiresideFinder";
+import TeamScoringPanel from "@/components/TeamScoringPanel";
+import TeamWorkspaceForm from "@/components/TeamWorkspaceForm";
+import HackathonShowcase from "@/components/HackathonShowcase";
+import ValueMapBreakdown from "@/components/ValueMapBreakdown";
+
 type Presentation = {
   id: number;
   title: string;
@@ -20,18 +27,28 @@ type Presentation = {
   team_name: string | null;
   day_number: number | null;
   status: string;
+  deck_template_url?: string | null;
+  questions?: any[];
+  presentation_type?: string | null;
+  rubric_template_id?: number | null;
+  is_locked?: boolean;
 };
 
 type Props = {
   presentation: Presentation;
   camperId: number;
+  camperTeamId?: number;
   isAdmin: boolean;
   onBack: () => void;
   onRefresh: () => void;
 };
 
-export default function PresentationDetail({ presentation, camperId, isAdmin, onBack, onRefresh }: Props) {
-  const [activeSection, setActiveSection] = useState<string>("overview");
+export default function PresentationDetail({ presentation, camperId, camperTeamId, isAdmin, onBack, onRefresh }: Props) {
+  const initBingo = presentation.presentation_type === "bingo";
+  const initTeamWorkshop = presentation.presentation_type === "team_workshop";
+  const initHackathon = presentation.presentation_type === "hackathon";
+  const initQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
+  const [activeSection, setActiveSection] = useState<string>(initBingo ? "bingo" : initTeamWorkshop ? "team_workspace" : initHackathon ? "showcase" : initQuestions ? "workspace" : "overview");
 
   const { data: detailData, loading, refetch } = useApiData("GetPresentationDetail", {
     presentation_id: presentation.id,
@@ -41,12 +58,25 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
   const scores = (detailData?.scores ?? []) as any[];
 
   const resources = Array.isArray(presentation.resources) ? presentation.resources : [];
+  const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
+  const isBingo = presentation.presentation_type === "bingo";
+  const hasResources = resources.length > 0 || !!presentation.deck_template_url;
+  const hasRubric = scores.length > 0 || !!presentation.rubric_template_id;
+  const hasFeedback = feedback.length > 0;
 
+  const isTeamWorkshop = presentation.presentation_type === "team_workshop";
+  const isHackathon = presentation.presentation_type === "hackathon";
+
+  // Only show tabs that have content
   const sections = [
     { id: "overview", label: "Overview", icon: "file-text" },
-    { id: "resources", label: "Resources", icon: "link" },
-    { id: "rubric", label: "Rubric", icon: "clipboard-check" },
-    { id: "feedback", label: `Feedback (${feedback.length})`, icon: "message-circle" },
+    ...(isBingo ? [{ id: "bingo", label: "🔥 Bingo Card", icon: "grid" }] : []),
+    ...(isTeamWorkshop && hasQuestions ? [{ id: "team_workspace", label: "👥 Team Workspace", icon: "users" }] : []),
+    ...(isHackathon ? [{ id: "showcase", label: "🚀 Showcase", icon: "rocket" }] : []),
+    ...(hasQuestions && !isBingo && !isTeamWorkshop ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
+    ...(hasResources ? [{ id: "resources", label: "Resources", icon: "link" }] : []),
+    ...(hasRubric ? [{ id: "rubric", label: "Rubric", icon: "clipboard-check" }] : []),
+    ...(hasFeedback ? [{ id: "feedback", label: `Feedback (${feedback.length})`, icon: "message-circle" }] : []),
   ];
 
   return (
@@ -126,11 +156,54 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
             {activeSection === "overview" && (
               <OverviewSection presentation={presentation} />
             )}
+            {activeSection === "bingo" && isBingo && (
+              <FiresideFinder
+                presentationId={presentation.id}
+                camperId={camperId}
+                isAdmin={isAdmin}
+              />
+            )}
+
+            {activeSection === "workspace" && hasQuestions && !isTeamWorkshop && (
+              <PresentationWorkspace
+                presentationId={presentation.id}
+                camperId={camperId}
+                questions={presentation.questions ?? []}
+              />
+            )}
+
+            {activeSection === "team_workspace" && isTeamWorkshop && hasQuestions && (
+              <TeamWorkspaceForm
+                presentationId={presentation.id}
+                teamId={camperTeamId ?? 0}
+                camperId={camperId}
+                questions={presentation.questions ?? []}
+              />
+            )}
+
+            {activeSection === "showcase" && isHackathon && (
+              <HackathonShowcase
+                presentationId={presentation.id}
+                camperId={camperId}
+                camperTeamId={camperTeamId ?? 0}
+                isAdmin={isAdmin}
+              />
+            )}
+
             {activeSection === "resources" && (
-              <ResourcesSection resources={resources} />
+              <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} presentationTitle={presentation.title} />
             )}
             {activeSection === "rubric" && (
-              <RubricSection scores={scores} isAdmin={isAdmin} />
+              presentation.rubric_template_id ? (
+                <TeamScoringPanel
+                  presentationId={presentation.id}
+                  rubricTemplateId={presentation.rubric_template_id}
+                  camperId={camperId}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <RubricSection scores={scores} isAdmin={isAdmin} />
+              )
             )}
             {activeSection === "feedback" && (
               <FeedbackSection
@@ -146,6 +219,8 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
     </div>
   );
 }
+
+import MarkdownText from "@/components/MarkdownText";
 
 function OverviewSection({ presentation }: { presentation: Presentation }) {
   return (
@@ -165,7 +240,7 @@ function OverviewSection({ presentation }: { presentation: Presentation }) {
             <Icon icon="list-checks" className="w-4 h-4 text-green-400" />
             Instructions
           </h3>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{presentation.instructions}</p>
+          <MarkdownText text={presentation.instructions} className="text-muted-foreground" />
         </Card>
       )}
       {!presentation.description && !presentation.instructions && (
@@ -178,8 +253,11 @@ function OverviewSection({ presentation }: { presentation: Presentation }) {
   );
 }
 
-function ResourcesSection({ resources }: { resources: any[] }) {
-  if (resources.length === 0) {
+function ResourcesSection({ resources, deckTemplateUrl, presentationTitle }: { resources: any[]; deckTemplateUrl?: string | null; presentationTitle?: string }) {
+  const showValueMap = presentationTitle?.toLowerCase().includes("value driver") || presentationTitle?.toLowerCase().includes("value discovery") || presentationTitle?.toLowerCase().includes("value mapping");
+  const hasContent = resources.length > 0 || !!deckTemplateUrl || showValueMap;
+
+  if (!hasContent) {
     return (
       <Card className="p-8 text-center">
         <Icon icon="link" className="w-10 h-10 mx-auto text-muted-foreground/20" />
@@ -189,7 +267,24 @@ function ResourcesSection({ resources }: { resources: any[] }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Deck template — featured */}
+      {deckTemplateUrl && (
+        <Card className="p-4 border-purple-400/30 bg-purple-400/5">
+          <a href={deckTemplateUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-400/20 flex items-center justify-center">
+              <Icon icon="file-down" className="w-5 h-5 text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">Presentation Deck Template</p>
+              <p className="text-xs text-muted-foreground">Download or make a copy to start building your deck</p>
+            </div>
+            <Icon icon="external-link" className="w-4 h-4 text-purple-400" />
+          </a>
+        </Card>
+      )}
+
+      {/* Other resources */}
       {resources.map((r: any, i: number) => (
         <Card key={i} className="p-4 hover:border-purple-400/30 transition-colors">
           <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
@@ -198,11 +293,22 @@ function ResourcesSection({ resources }: { resources: any[] }) {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">{r.label || r.url}</p>
-              <p className="text-xs text-muted-foreground truncate">{r.url}</p>
+              {r.description ? (
+                <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground truncate">{r.url}</p>
+              )}
             </div>
           </a>
         </Card>
       ))}
+
+      {/* Value Map Breakdown — inline reference for value discovery */}
+      {showValueMap && (
+        <Card className="p-5 mt-4">
+          <ValueMapBreakdown />
+        </Card>
+      )}
     </div>
   );
 }

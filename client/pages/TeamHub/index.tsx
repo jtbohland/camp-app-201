@@ -5,13 +5,15 @@ import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 import HubSection from "@/components/HubSection/index.js";
+import HubMissions from "@/components/HubMissions/index.js";
 
 const SECTIONS = [
-  { key: "pillars", label: "Amplitude 3 Pillars", icon: "🏛️", description: "Use cases & value propositions" },
-  { key: "hackathon", label: "AI Hackathon", icon: "🤖", description: "Ideas, code snippets & research" },
-  { key: "research", label: "Account Research", icon: "🔍", description: "Customer insights & findings" },
-  { key: "value_mapping", label: "Value Mapping", icon: "🗺️", description: "Mapping value to customer needs" },
-  { key: "ebr", label: "EBR Prep", icon: "📊", description: "Executive Business Review materials" },
+  { key: "missions", label: "Missions", icon: "🎯", description: "Presentations & exercises" },
+  { key: "pillars", label: "Value Pillars", icon: "🏛️", description: "Use cases & value propositions" },
+  { key: "pov_workshop", label: "PoV Workshop", icon: "🔍", description: "Customer research & commercial insights" },
+  { key: "value_mapping", label: "Value Discovery", icon: "🗺️", description: "Value Maps & mock meeting prep" },
+  { key: "hackathon", label: "AI Hackathon", icon: "🤖", description: "Ideas, prototypes & research" },
+  { key: "decks", label: "Presentation Decks", icon: "📝", description: "Your team's presentation deck links" },
 ];
 
 export default function TeamHubPage() {
@@ -24,7 +26,7 @@ export default function TeamHubPage() {
   const { data: teamsData } = useApiData("GetTeams", {});
   const { data: hubData, loading: hubLoading, fetching, refetch } = useApiData("GetTeamHub", { team_id: teamIdNum });
 
-  const [activeSection, setActiveSection] = useState(SECTIONS[0].key);
+  const [activeSection, setActiveSection] = useState("missions");
 
   const team = useMemo(() => teamsData?.teams?.find((t) => t.id === teamIdNum), [teamsData, teamIdNum]);
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
@@ -104,7 +106,17 @@ export default function TeamHubPage() {
 
       {/* Section Content */}
       <div className="flex-1 overflow-auto">
-        {hubLoading ? (
+        {activeSection === "missions" ? (
+          <div className="p-6">
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                🎯 Active Missions
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Your team's presentations and exercises — tap "Full Brief" for complete details</p>
+            </div>
+            <HubMissions teamId={teamIdNum} camperId={camperData?.camper?.id ?? 0} />
+          </div>
+        ) : hubLoading ? (
           <div className="p-6 text-center text-muted-foreground">Loading hub content…</div>
         ) : (
           <HubSection

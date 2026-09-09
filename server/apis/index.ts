@@ -125,6 +125,26 @@ import UpdateCounselorProfile from './camp/update-counselor-profile.js';
 import MigrateCounselorVisibility from './camp/migrate-counselor-visibility.js';
 import ToggleCounselorVisibility from './camp/toggle-counselor-visibility.js';
 import UpdateTeamDesign from './camp/update-team-design.js';
+import MigratePresentationsV2 from './camp/migrate-presentations-v2.js';
+import UpdatePresentation from './camp/update-presentation.js';
+import MigratePresentationWorkspace from './camp/migrate-presentation-workspace.js';
+import GetPresentationResponses from './camp/get-presentation-responses.js';
+import SavePresentationResponses from './camp/save-presentation-responses.js';
+import MigrateBingo from './camp/migrate-bingo.js';
+import GetBingoCard from './camp/get-bingo-card.js';
+import SubmitBingoGuess from './camp/submit-bingo-guess.js';
+import ScoreTeamPresentation from './camp/score-team-presentation.js';
+import GetRubricTemplate from './camp/get-rubric-template.js';
+import GetPointsBreakdown from './camp/get-points-breakdown.js';
+import MigratePointsCategory from './camp/migrate-points-category.js';
+import MigrateCompanyAssignment from './camp/migrate-company-assignment.js';
+import AssignCompanyToTeam from './camp/assign-company-to-team.js';
+import GetTeamWorkspace from './camp/get-team-workspace.js';
+import SaveTeamWorkspace from './camp/save-team-workspace.js';
+import MigrateHackathon from './camp/migrate-hackathon.js';
+import SaveHackathonSubmission from './camp/save-hackathon-submission.js';
+import GetHackathonResults from './camp/get-hackathon-results.js';
+import SubmitHackathonVote from './camp/submit-hackathon-vote.js';
 
 const apis = {
   SetupDatabase,
@@ -248,6 +268,26 @@ const apis = {
   MigrateCounselorVisibility,
   ToggleCounselorVisibility,
   UpdateTeamDesign,
+  MigratePresentationsV2,
+  UpdatePresentation,
+  MigratePresentationWorkspace,
+  GetPresentationResponses,
+  SavePresentationResponses,
+  MigrateBingo,
+  GetBingoCard,
+  SubmitBingoGuess,
+  ScoreTeamPresentation,
+  GetRubricTemplate,
+  GetPointsBreakdown,
+  MigratePointsCategory,
+  MigrateCompanyAssignment,
+  AssignCompanyToTeam,
+  GetTeamWorkspace,
+  SaveTeamWorkspace,
+  MigrateHackathon,
+  SaveHackathonSubmission,
+  GetHackathonResults,
+  SubmitHackathonVote,
 } as const;
 
 export default apis;

@@ -20,6 +20,7 @@ type Team = {
   name: string;
   logo_url: string | null;
   color: string | null;
+  assigned_company?: { slug: string; name: string; emoji: string; color: string; industry: string } | null;
   members: TeamMember[];
   total_points: number;
 };
@@ -99,6 +100,15 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTe
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-foreground text-lg">{team.name}</h3>
             <p className="text-xs text-muted-foreground">{team.members.length} member{team.members.length !== 1 ? "s" : ""}</p>
+            {team.assigned_company && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-sm">{team.assigned_company.emoji}</span>
+                <span className="text-xs font-semibold" style={{ color: team.assigned_company.color }}>
+                  {team.assigned_company.name}
+                </span>
+                <span className="text-[10px] text-muted-foreground">• {team.assigned_company.industry}</span>
+              </div>
+            )}
           </div>
           {isMyTeam && (
             <Badge className="bg-camp-green/15 text-camp-green border-camp-green/30 text-[10px]">⛺ Your Team</Badge>

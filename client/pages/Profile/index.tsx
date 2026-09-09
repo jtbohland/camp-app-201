@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreakerSection/index.js";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import ProfileXPSummary from "@/components/ProfileXPSummary/index.js";
 import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
@@ -23,6 +24,7 @@ export default function ProfilePage() {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
+  const { data: teamsData } = useApiData("GetTeams", {});
   const { run: updateProfile, loading: saving } = useApi("UpdateCamperProfile");
   const { run: toggleGoal } = useApi("ToggleGoalAchieved");
   const { run: requestAbsence, loading: requestingAbsence } = useApi("RequestAbsence");
@@ -278,6 +280,13 @@ export default function ProfilePage() {
           </div>
         </Card>
       )}
+
+      {/* XP Summary */}
+      <ProfileXPSummary
+        camperId={camper?.id ?? 0}
+        points={camper?.points ?? 0}
+        teamName={teamsData?.teams?.find((t: any) => t.id === camper?.team_id)?.name}
+      />
 
       {/* Photo & Bio Section */}
       <Card className="p-6">

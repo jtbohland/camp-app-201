@@ -19,10 +19,11 @@ import AgendaScheduleTab from "@/components/AgendaScheduleTab/index.js";
 import AdminCounselorProfile from "@/components/AdminCounselorProfile/index.js";
 import AdminTeamGenerator from "@/components/AdminTeamGenerator/index.js";
 import AdminCounselorRotation from "@/components/AdminCounselorRotation/index.js";
+import AdminPresentations from "@/components/AdminPresentations/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
-type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "schedule" | "gates" | "cabin" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
+type View = "learners" | "teams" | "flights" | "managers" | "surveys" | "presentations" | "schedule" | "gates" | "cabin" | "settings" | "camper-detail" | "demo-reg-camper" | "demo-reg-manager";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -239,6 +240,15 @@ export default function AdminPage() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => setView("presentations")}
+                  className={`text-white ${view === "presentations" ? "bg-white/20" : "hover:bg-white/10"}`}
+                >
+                  <Icon name="presentation" className="w-4 h-4 mr-1" />
+                  Presents
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setView("gates")}
                   className={`text-white ${view === "gates" ? "bg-white/20" : "hover:bg-white/10"}`}
                 >
@@ -282,6 +292,9 @@ export default function AdminPage() {
         )}
         {view === "surveys" && (
           <AdminSurveyResults />
+        )}
+        {view === "presentations" && (
+          <AdminPresentations />
         )}
         {view === "schedule" && (
           <div className="bg-background rounded-xl overflow-hidden">
