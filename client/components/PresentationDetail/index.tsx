@@ -13,6 +13,7 @@ import PresentationWorkspace from "@/components/PresentationWorkspace";
 import FiresideFinder from "@/components/FiresideFinder";
 import TeamScoringPanel from "@/components/TeamScoringPanel";
 import TeamWorkspaceForm from "@/components/TeamWorkspaceForm";
+import HackathonShowcase from "@/components/HackathonShowcase";
 
 type Presentation = {
   id: number;
@@ -44,8 +45,9 @@ type Props = {
 export default function PresentationDetail({ presentation, camperId, camperTeamId, isAdmin, onBack, onRefresh }: Props) {
   const initBingo = presentation.presentation_type === "bingo";
   const initTeamWorkshop = presentation.presentation_type === "team_workshop";
+  const initHackathon = presentation.presentation_type === "hackathon";
   const initQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
-  const [activeSection, setActiveSection] = useState<string>(initBingo ? "bingo" : initTeamWorkshop ? "team_workspace" : initQuestions ? "workspace" : "overview");
+  const [activeSection, setActiveSection] = useState<string>(initBingo ? "bingo" : initTeamWorkshop ? "team_workspace" : initHackathon ? "showcase" : initQuestions ? "workspace" : "overview");
 
   const { data: detailData, loading, refetch } = useApiData("GetPresentationDetail", {
     presentation_id: presentation.id,
@@ -62,12 +64,14 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
   const hasFeedback = feedback.length > 0;
 
   const isTeamWorkshop = presentation.presentation_type === "team_workshop";
+  const isHackathon = presentation.presentation_type === "hackathon";
 
   // Only show tabs that have content
   const sections = [
     { id: "overview", label: "Overview", icon: "file-text" },
     ...(isBingo ? [{ id: "bingo", label: "🔥 Bingo Card", icon: "grid" }] : []),
     ...(isTeamWorkshop && hasQuestions ? [{ id: "team_workspace", label: "👥 Team Workspace", icon: "users" }] : []),
+    ...(isHackathon ? [{ id: "showcase", label: "🚀 Showcase", icon: "rocket" }] : []),
     ...(hasQuestions && !isBingo && !isTeamWorkshop ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
     ...(hasResources ? [{ id: "resources", label: "Resources", icon: "link" }] : []),
     ...(hasRubric ? [{ id: "rubric", label: "Rubric", icon: "clipboard-check" }] : []),
@@ -173,6 +177,15 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
                 teamId={camperTeamId ?? 0}
                 camperId={camperId}
                 questions={presentation.questions ?? []}
+              />
+            )}
+
+            {activeSection === "showcase" && isHackathon && (
+              <HackathonShowcase
+                presentationId={presentation.id}
+                camperId={camperId}
+                camperTeamId={camperTeamId ?? 0}
+                isAdmin={isAdmin}
               />
             )}
 

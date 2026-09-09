@@ -114,6 +114,7 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
   const isBingo = presentation.presentation_type === "bingo";
   const isTeamPres = presentation.presentation_type === "team_presentation";
   const isTeamWorkshop = presentation.presentation_type === "team_workshop";
+  const isHackathon = presentation.presentation_type === "hackathon";
   const totalQuestions = hasQuestions
     ? (presentation.questions as any[]).reduce((sum: number, s: any) => sum + (s.questions?.length ?? 0), 0)
     : 0;
@@ -149,19 +150,35 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
             {orderNum}
           </div>
           <div className="flex items-center gap-2">
+            {/* Team vs Solo pill */}
+            {(isTeamPres || isTeamWorkshop || isHackathon) ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200">
+                👥 Team
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200">
+                🧑 Solo
+              </span>
+            )}
+            {/* Activity type */}
             {isBingo && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20">
                 🔥 Bingo
               </span>
             )}
             {isTeamPres && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                🏆 Team
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                🏆 Presentation
               </span>
             )}
             {isTeamWorkshop && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                👥 Team Workshop
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                📝 Workshop
+              </span>
+            )}
+            {isHackathon && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 border border-purple-500/20">
+                🤖 Hackathon
               </span>
             )}
             {hasQuestions && !isBingo && !isTeamPres && !isTeamWorkshop && (

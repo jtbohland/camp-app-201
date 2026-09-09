@@ -141,6 +141,10 @@ import MigrateCompanyAssignment from './camp/migrate-company-assignment.js';
 import AssignCompanyToTeam from './camp/assign-company-to-team.js';
 import GetTeamWorkspace from './camp/get-team-workspace.js';
 import SaveTeamWorkspace from './camp/save-team-workspace.js';
+import MigrateHackathon from './camp/migrate-hackathon.js';
+import SaveHackathonSubmission from './camp/save-hackathon-submission.js';
+import GetHackathonResults from './camp/get-hackathon-results.js';
+import SubmitHackathonVote from './camp/submit-hackathon-vote.js';
 
 const apis = {
   SetupDatabase,
@@ -280,6 +284,10 @@ const apis = {
   AssignCompanyToTeam,
   GetTeamWorkspace,
   SaveTeamWorkspace,
+  MigrateHackathon,
+  SaveHackathonSubmission,
+  GetHackathonResults,
+  SubmitHackathonVote,
 } as const;
 
 export default apis;
