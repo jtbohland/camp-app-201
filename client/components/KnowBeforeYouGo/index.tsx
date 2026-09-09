@@ -241,7 +241,7 @@ const FLOOR_MAPS = [
   {
     label: "3rd Floor",
     src: "/office/floor-3-map.webp",
-    note: "We meet every day on the 3rd floor in AGENT SMITH (highlighted in red on the map).",
+    note: "We meet every day on the 3rd floor in AGENT SMITH (the room in the upper right hand corner, highlighted in red on the map).",
   },
 ] as const;
 
@@ -287,7 +287,7 @@ function FloorMaps() {
           <span className="text-base flex-shrink-0">📍</span>
           <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
             <strong>Daily Meeting Room:</strong> We meet every day on the <strong>3rd floor</strong> in{" "}
-            <strong>AGENT SMITH</strong> (one of the rooms highlighted in red on the 3rd floor map).
+            <strong>AGENT SMITH</strong> (the room in the upper right hand corner, highlighted in red on the 3rd floor map).
           </p>
         </div>
       </div>
