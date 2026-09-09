@@ -186,7 +186,7 @@ export default function FiresideFinder({ presentationId, camperId, isAdmin = fal
       <Card className="p-3 bg-muted/30 border-dashed">
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           <strong>Rules:</strong> Approach one person at a time. Ask one question. If they match a square, tap it and select their name.
-          If wrong, move to a new person — <span className="text-red-500 font-semibold">picking the same person twice in a row = -2 pts!</span>
+          If wrong, move on to a new person. First to BINGO wins!
         </p>
       </Card>
     </div>

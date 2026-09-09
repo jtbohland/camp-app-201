@@ -180,6 +180,8 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
   );
 }
 
+import MarkdownText from "@/components/MarkdownText";
+
 function OverviewSection({ presentation }: { presentation: Presentation }) {
   return (
     <div className="space-y-4">
@@ -198,7 +200,7 @@ function OverviewSection({ presentation }: { presentation: Presentation }) {
             <Icon icon="list-checks" className="w-4 h-4 text-green-400" />
             Instructions
           </h3>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{presentation.instructions}</p>
+          <MarkdownText text={presentation.instructions} className="text-muted-foreground" />
         </Card>
       )}
       {!presentation.description && !presentation.instructions && (
