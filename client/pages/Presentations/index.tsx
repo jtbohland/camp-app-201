@@ -13,12 +13,11 @@ export default function PresentationsPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
-
   const { data: camperData } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
+  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const camperId = camperData?.camper?.id ?? 0;
 
   const { data, loading, fetching, refetch } = useApiData("GetPresentations", {
@@ -92,6 +91,7 @@ export default function PresentationsPage() {
           <PresentationGrid
             presentations={presentations}
             onSelect={setSelectedId}
+            isAdmin={isAdmin}
           />
         </div>
       </div>

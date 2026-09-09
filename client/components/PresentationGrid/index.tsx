@@ -20,6 +20,7 @@ type Presentation = {
 type Props = {
   presentations: Presentation[];
   onSelect: (id: number) => void;
+  isAdmin?: boolean;
 };
 
 const STATUS_CONFIG: Record<string, { icon: IconName; label: string; color: string }> = {
@@ -28,7 +29,7 @@ const STATUS_CONFIG: Record<string, { icon: IconName; label: string; color: stri
   completed: { icon: "check-circle", label: "Done", color: "text-muted-foreground bg-muted/30 border-border" },
 };
 
-export default function PresentationGrid({ presentations, onSelect }: Props) {
+export default function PresentationGrid({ presentations, onSelect, isAdmin = false }: Props) {
   if (presentations.length === 0) {
     return (
       <Card className="p-12 text-center">
@@ -44,15 +45,15 @@ export default function PresentationGrid({ presentations, onSelect }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {presentations.map((p) => (
-        <PresentationTile key={p.id} presentation={p} onSelect={onSelect} />
+        <PresentationTile key={p.id} presentation={p} onSelect={onSelect} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function PresentationTile({ presentation, onSelect }: { presentation: Presentation; onSelect: (id: number) => void }) {
+function PresentationTile({ presentation, onSelect, isAdmin = false }: { presentation: Presentation; onSelect: (id: number) => void; isAdmin?: boolean }) {
   const status = STATUS_CONFIG[presentation.status] ?? STATUS_CONFIG.upcoming;
-  const isLocked = presentation.is_locked;
+  const isLocked = presentation.is_locked && !isAdmin;
 
   return (
     <Card
