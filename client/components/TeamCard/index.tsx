@@ -137,13 +137,18 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTe
 
         {/* Design prompt for un-designed teams */}
         {needsDesign && !designing && (
-          <button
-            onClick={() => setDesigning(true)}
-            className="mb-3 px-3 py-2 text-sm font-medium rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors flex items-center gap-2"
+          <div className="mb-3 flex flex-col gap-1.5">
+            <button
+              onClick={() => setDesigning(true)}
+              className="px-3 py-2 text-sm font-medium rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors flex items-center gap-2"
           >
             <Icon icon="palette" className="w-4 h-4" />
             Design Your Team — Add a name, logo & color!
           </button>
+            <p className="text-[10px] text-amber-600/70 px-1 leading-tight">
+              💡 Pick one teammate to type the name, upload the logo & save — collaborate on the design together, but only one person should submit to avoid conflicts.
+            </p>
+          </div>
         )}
 
         {/* Inline design editor */}
