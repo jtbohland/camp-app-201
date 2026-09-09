@@ -14,6 +14,7 @@ type Presentation = {
   feedback_count: number;
   avg_rating: string | null;
   questions?: any[];
+  presentation_type?: string | null;
 };
 
 type Props = {
@@ -110,6 +111,7 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
   const status = STATUS_CONFIG[presentation.status] ?? STATUS_CONFIG.upcoming;
   const isLocked = presentation.is_locked && !isAdmin;
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
+  const isBingo = presentation.presentation_type === "bingo";
   const totalQuestions = hasQuestions
     ? (presentation.questions as any[]).reduce((sum: number, s: any) => sum + (s.questions?.length ?? 0), 0)
     : 0;
@@ -145,7 +147,12 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
             {orderNum}
           </div>
           <div className="flex items-center gap-2">
-            {hasQuestions && (
+            {isBingo && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20">
+                🔥 Bingo
+              </span>
+            )}
+            {hasQuestions && !isBingo && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-camp-green/10 text-camp-green border border-camp-green/20">
                 ✏️ Interactive
               </span>

@@ -130,6 +130,9 @@ import UpdatePresentation from './camp/update-presentation.js';
 import MigratePresentationWorkspace from './camp/migrate-presentation-workspace.js';
 import GetPresentationResponses from './camp/get-presentation-responses.js';
 import SavePresentationResponses from './camp/save-presentation-responses.js';
+import MigrateBingo from './camp/migrate-bingo.js';
+import GetBingoCard from './camp/get-bingo-card.js';
+import SubmitBingoGuess from './camp/submit-bingo-guess.js';
 
 const apis = {
   SetupDatabase,
@@ -258,6 +261,9 @@ const apis = {
   MigratePresentationWorkspace,
   GetPresentationResponses,
   SavePresentationResponses,
+  MigrateBingo,
+  GetBingoCard,
+  SubmitBingoGuess,
 } as const;
 
 export default apis;

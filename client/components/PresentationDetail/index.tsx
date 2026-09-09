@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 import PresentationWorkspace from "@/components/PresentationWorkspace";
+import FiresideFinder from "@/components/FiresideFinder";
 
 type Presentation = {
   id: number;
@@ -24,6 +25,7 @@ type Presentation = {
   status: string;
   deck_template_url?: string | null;
   questions?: any[];
+  presentation_type?: string | null;
   is_locked?: boolean;
 };
 
@@ -36,8 +38,9 @@ type Props = {
 };
 
 export default function PresentationDetail({ presentation, camperId, isAdmin, onBack, onRefresh }: Props) {
+  const initBingo = presentation.presentation_type === "bingo";
   const initQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
-  const [activeSection, setActiveSection] = useState<string>(initQuestions ? "workspace" : "overview");
+  const [activeSection, setActiveSection] = useState<string>(initBingo ? "bingo" : initQuestions ? "workspace" : "overview");
 
   const { data: detailData, loading, refetch } = useApiData("GetPresentationDetail", {
     presentation_id: presentation.id,
@@ -48,14 +51,16 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
 
   const resources = Array.isArray(presentation.resources) ? presentation.resources : [];
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
+  const isBingo = presentation.presentation_type === "bingo";
   const hasResources = resources.length > 0 || !!presentation.deck_template_url;
   const hasRubric = scores.length > 0;
   const hasFeedback = feedback.length > 0;
 
-  // Only show tabs that have content (Overview + Workspace always if applicable)
+  // Only show tabs that have content
   const sections = [
     { id: "overview", label: "Overview", icon: "file-text" },
-    ...(hasQuestions ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
+    ...(isBingo ? [{ id: "bingo", label: "🔥 Bingo Card", icon: "grid" }] : []),
+    ...(hasQuestions && !isBingo ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
     ...(hasResources ? [{ id: "resources", label: "Resources", icon: "link" }] : []),
     ...(hasRubric ? [{ id: "rubric", label: "Rubric", icon: "clipboard-check" }] : []),
     ...(hasFeedback ? [{ id: "feedback", label: `Feedback (${feedback.length})`, icon: "message-circle" }] : []),
@@ -138,6 +143,14 @@ export default function PresentationDetail({ presentation, camperId, isAdmin, on
             {activeSection === "overview" && (
               <OverviewSection presentation={presentation} />
             )}
+            {activeSection === "bingo" && isBingo && (
+              <FiresideFinder
+                presentationId={presentation.id}
+                camperId={camperId}
+                isAdmin={isAdmin}
+              />
+            )}
+
             {activeSection === "workspace" && hasQuestions && (
               <PresentationWorkspace
                 presentationId={presentation.id}

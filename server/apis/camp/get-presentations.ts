@@ -19,6 +19,7 @@ const PresentationSchema = z.object({
   rubric_template_id: z.coerce.number().nullable(),
   deck_template_url: z.string().nullable(),
   questions: z.any(),
+  presentation_type: z.string().nullable(),
   created_at: z.string(),
   feedback_count: z.coerce.number(),
   avg_rating: z.string().nullable(),
@@ -43,6 +44,7 @@ export default api({
               t.name AS team_name, p.day_number, p.status, p.sort_order,
               COALESCE(p.is_locked, true) AS is_locked,
               p.rubric_template_id, p.deck_template_url, COALESCE(p.questions, '[]'::jsonb) AS questions,
+              COALESCE(p.presentation_type, 'standard') AS presentation_type,
               p.created_at,
               COALESCE(fb.cnt, 0) AS feedback_count,
               fb.avg_rating
