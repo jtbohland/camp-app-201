@@ -39,33 +39,44 @@ interface Cohort {
   teams: Team[];
 }
 
-const CAMP_EMOJIS = ["🏕️", "🌲", "🔥", "⛺", "🌄", "🦌", "🎣", "🧭", "🌙", "🦅", "🐻", "🪵", "🌿", "⭐", "🏔️", "🛶"];
-const GRADIENTS = [
-  "from-emerald-100 via-teal-50 to-green-100",
-  "from-sky-100 via-blue-50 to-indigo-100",
-  "from-amber-100 via-yellow-50 to-orange-100",
-  "from-rose-100 via-pink-50 to-red-100",
-  "from-violet-100 via-purple-50 to-fuchsia-100",
-  "from-cyan-100 via-teal-50 to-emerald-100",
-  "from-lime-100 via-green-50 to-emerald-100",
-  "from-orange-100 via-amber-50 to-yellow-100",
+// Each entry: [centerEmoji, leftEmoji, rightEmoji, gradient, accentColor]
+const TEAM_THEMES: Array<[string, string, string, string, string]> = [
+  // Cohort 1 teams (indices 0-3) — Campfire & Wildlife
+  ["🔥", "🪵", "🌙", "from-orange-100 via-amber-50 to-yellow-100", "text-orange-400"],    // Group One — Campfire night
+  ["🦌", "🌲", "🍂", "from-emerald-100 via-green-50 to-lime-100", "text-emerald-500"],     // Group Two — Forest wildlife
+  ["🐻", "🫐", "🌿", "from-amber-100 via-yellow-50 to-lime-100", "text-amber-600"],        // Group Three — Bear country
+  ["🦅", "🏔️", "☁️", "from-sky-100 via-blue-50 to-indigo-100", "text-sky-500"],           // Group Four — Eagle summit
+
+  // Cohort 2 teams (indices 4-7) — Water & Adventure
+  ["🛶", "💧", "🐟", "from-cyan-100 via-sky-50 to-blue-100", "text-cyan-500"],             // Group One — Lake canoeing
+  ["🧭", "🥾", "🗺️", "from-amber-100 via-orange-50 to-red-100", "text-amber-600"],        // Group Two — Trail hiking
+  ["🏕️", "⛺", "🌄", "from-violet-100 via-purple-50 to-pink-100", "text-violet-500"],      // Group Three — Campsite sunrise
+  ["🔦", "🦉", "🌠", "from-indigo-100 via-slate-50 to-blue-100", "text-indigo-400"],       // Group Four — Night exploration
+
+  // Cohort 3 teams (indices 8-11) — Extreme & Survival
+  ["🪓", "🏕️", "🔥", "from-red-100 via-orange-50 to-amber-100", "text-red-500"],          // Team 1 — Survival camp
+  ["🧪", "📊", "🍕", "from-fuchsia-100 via-pink-50 to-rose-100", "text-fuchsia-500"],      // Datalicious — Data feast
+  ["🎯", "🏹", "🦊", "from-teal-100 via-emerald-50 to-green-100", "text-teal-600"],        // Team 3 — Target practice
+  ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],       // Slytherin — Magic
 ];
 
 function NoLogoPlaceholder({ teamName, teamId }: { teamName: string; teamId: number }) {
-  const emojiIdx = teamId % CAMP_EMOJIS.length;
-  const gradIdx = teamId % GRADIENTS.length;
-  const emoji1 = CAMP_EMOJIS[emojiIdx];
-  const emoji2 = CAMP_EMOJIS[(emojiIdx + 3) % CAMP_EMOJIS.length];
-  const emoji3 = CAMP_EMOJIS[(emojiIdx + 7) % CAMP_EMOJIS.length];
+  const idx = (teamId - 1) % TEAM_THEMES.length;
+  const [center, left, right, gradient, accent] = TEAM_THEMES[idx];
 
   return (
-    <div className={`bg-gradient-to-br ${GRADIENTS[gradIdx]} p-8 flex flex-col items-center justify-center gap-2 min-h-[140px]`}>
-      <div className="flex items-center gap-3">
-        <span className="text-3xl opacity-60">{emoji1}</span>
-        <span className="text-4xl">{emoji2}</span>
-        <span className="text-3xl opacity-60">{emoji3}</span>
+    <div className={`bg-gradient-to-br ${gradient} p-8 flex flex-col items-center justify-center gap-3 min-h-[140px] relative overflow-hidden`}>
+      {/* Background scatter */}
+      <div className="absolute inset-0 opacity-10 text-6xl flex items-center justify-center select-none pointer-events-none">
+        {center}
       </div>
-      <div className="text-sm font-bold text-foreground/40 tracking-wider uppercase mt-1">
+      {/* Main display */}
+      <div className="flex items-center gap-4 relative z-10">
+        <span className="text-3xl opacity-50 -rotate-12">{left}</span>
+        <span className="text-5xl drop-shadow-sm">{center}</span>
+        <span className="text-3xl opacity-50 rotate-12">{right}</span>
+      </div>
+      <div className={`text-xs font-bold tracking-widest uppercase mt-1 ${accent} relative z-10`}>
         {teamName}
       </div>
     </div>
