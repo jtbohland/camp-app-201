@@ -66,7 +66,6 @@ const categories: PointCategory[] = [
     title: "Team Collaboration",
     color: "bg-purple-500/10 text-purple-600",
     items: [
-      { label: "Add a resource to your Team Hub", points: "+5", positive: true },
       { label: "Complete a team challenge", points: "+15", positive: true },
       { label: "Team wins a competition", points: "+20/member", positive: true },
     ],

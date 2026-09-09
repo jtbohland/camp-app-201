@@ -9,11 +9,10 @@ import HubMissions from "@/components/HubMissions/index.js";
 
 const SECTIONS = [
   { key: "missions", label: "Missions", icon: "🎯", description: "Presentations & exercises" },
-  { key: "pillars", label: "Amplitude 3 Pillars", icon: "🏛️", description: "Use cases & value propositions" },
-  { key: "hackathon", label: "AI Hackathon", icon: "🤖", description: "Ideas, code snippets & research" },
-  { key: "research", label: "Account Research", icon: "🔍", description: "Customer insights & findings" },
-  { key: "value_mapping", label: "Value Mapping", icon: "🗺️", description: "Mapping value to customer needs" },
-  { key: "ebr", label: "EBR Prep", icon: "📊", description: "Executive Business Review materials" },
+  { key: "pillars", label: "Value Pillars", icon: "🏛️", description: "Use cases & value propositions" },
+  { key: "pov_workshop", label: "PoV Workshop", icon: "🔍", description: "Customer research & commercial insights" },
+  { key: "value_mapping", label: "Value Discovery", icon: "🗺️", description: "Value Maps & mock meeting prep" },
+  { key: "hackathon", label: "AI Hackathon", icon: "🤖", description: "Ideas, prototypes & research" },
   { key: "decks", label: "Presentation Decks", icon: "📝", description: "Your team's presentation deck links" },
 ];
 

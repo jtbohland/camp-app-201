@@ -14,6 +14,7 @@ import FiresideFinder from "@/components/FiresideFinder";
 import TeamScoringPanel from "@/components/TeamScoringPanel";
 import TeamWorkspaceForm from "@/components/TeamWorkspaceForm";
 import HackathonShowcase from "@/components/HackathonShowcase";
+import ValueMapBreakdown from "@/components/ValueMapBreakdown";
 
 type Presentation = {
   id: number;
@@ -190,7 +191,7 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
             )}
 
             {activeSection === "resources" && (
-              <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} />
+              <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} presentationTitle={presentation.title} />
             )}
             {activeSection === "rubric" && (
               presentation.rubric_template_id ? (
@@ -252,8 +253,9 @@ function OverviewSection({ presentation }: { presentation: Presentation }) {
   );
 }
 
-function ResourcesSection({ resources, deckTemplateUrl }: { resources: any[]; deckTemplateUrl?: string | null }) {
-  const hasContent = resources.length > 0 || !!deckTemplateUrl;
+function ResourcesSection({ resources, deckTemplateUrl, presentationTitle }: { resources: any[]; deckTemplateUrl?: string | null; presentationTitle?: string }) {
+  const showValueMap = presentationTitle?.toLowerCase().includes("value driver") || presentationTitle?.toLowerCase().includes("value discovery") || presentationTitle?.toLowerCase().includes("value mapping");
+  const hasContent = resources.length > 0 || !!deckTemplateUrl || showValueMap;
 
   if (!hasContent) {
     return (
@@ -291,11 +293,22 @@ function ResourcesSection({ resources, deckTemplateUrl }: { resources: any[]; de
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">{r.label || r.url}</p>
-              <p className="text-xs text-muted-foreground truncate">{r.url}</p>
+              {r.description ? (
+                <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground truncate">{r.url}</p>
+              )}
             </div>
           </a>
         </Card>
       ))}
+
+      {/* Value Map Breakdown — inline reference for value discovery */}
+      {showValueMap && (
+        <Card className="p-5 mt-4">
+          <ValueMapBreakdown />
+        </Card>
+      )}
     </div>
   );
 }
