@@ -39,6 +39,39 @@ interface Cohort {
   teams: Team[];
 }
 
+const CAMP_EMOJIS = ["🏕️", "🌲", "🔥", "⛺", "🌄", "🦌", "🎣", "🧭", "🌙", "🦅", "🐻", "🪵", "🌿", "⭐", "🏔️", "🛶"];
+const GRADIENTS = [
+  "from-emerald-100 via-teal-50 to-green-100",
+  "from-sky-100 via-blue-50 to-indigo-100",
+  "from-amber-100 via-yellow-50 to-orange-100",
+  "from-rose-100 via-pink-50 to-red-100",
+  "from-violet-100 via-purple-50 to-fuchsia-100",
+  "from-cyan-100 via-teal-50 to-emerald-100",
+  "from-lime-100 via-green-50 to-emerald-100",
+  "from-orange-100 via-amber-50 to-yellow-100",
+];
+
+function NoLogoPlaceholder({ teamName, teamId }: { teamName: string; teamId: number }) {
+  const emojiIdx = teamId % CAMP_EMOJIS.length;
+  const gradIdx = teamId % GRADIENTS.length;
+  const emoji1 = CAMP_EMOJIS[emojiIdx];
+  const emoji2 = CAMP_EMOJIS[(emojiIdx + 3) % CAMP_EMOJIS.length];
+  const emoji3 = CAMP_EMOJIS[(emojiIdx + 7) % CAMP_EMOJIS.length];
+
+  return (
+    <div className={`bg-gradient-to-br ${GRADIENTS[gradIdx]} p-8 flex flex-col items-center justify-center gap-2 min-h-[140px]`}>
+      <div className="flex items-center gap-3">
+        <span className="text-3xl opacity-60">{emoji1}</span>
+        <span className="text-4xl">{emoji2}</span>
+        <span className="text-3xl opacity-60">{emoji3}</span>
+      </div>
+      <div className="text-sm font-bold text-foreground/40 tracking-wider uppercase mt-1">
+        {teamName}
+      </div>
+    </div>
+  );
+}
+
 function TeamCard({ team, hasLogos, hasPoints }: { team: Team; hasLogos: boolean; hasPoints: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const placeInfo = team.place ? PLACE_LABELS[team.place] : null;
@@ -67,11 +100,7 @@ function TeamCard({ team, hasLogos, hasPoints }: { team: Team; hasLogos: boolean
           )}
         </div>
       ) : (
-        <div className="bg-gradient-to-br from-camp-green/10 to-camp-green/5 p-8 flex items-center justify-center">
-          <div className="text-4xl font-bold text-camp-green/30">
-            {team.team_name.charAt(0)}
-          </div>
-        </div>
+        <NoLogoPlaceholder teamName={team.team_name} teamId={team.id} />
       )}
 
       {/* Info */}

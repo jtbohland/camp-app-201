@@ -1,165 +1,182 @@
 import { useMemo } from "react";
-import { useApiData } from "@/hooks/useApiData";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 
-interface LeaderEntry {
+type TeamMember = {
   id: number;
   first_name: string;
   last_name: string;
+  email: string;
   points: number;
-  team_name: string | null;
-  team_logo_url: string | null;
-  team_color: string | null;
-}
+  photo_url: string | null;
+};
 
-export default function CampVPLeaderboard() {
-  const { data, loading, fetching } = useApiData("GetLeaderboard", {});
+type Team = {
+  id: number;
+  name: string;
+  logo_url: string | null;
+  color: string | null;
+  members: TeamMember[];
+  total_points: number;
+};
 
-  const allCampers: LeaderEntry[] = useMemo(() => {
-    return (data?.campers ?? []) as LeaderEntry[];
-  }, [data]);
+type Props = {
+  teams: Team[];
+};
 
-  const mvpId = allCampers.length > 0 ? allCampers[0].id : null;
+export default function CampVPLeaderboard({ teams }: Props) {
+  // Flatten all members with team info, sorted by individual points
+  const rankedCampers = useMemo(() => {
+    const all: Array<{
+      camperId: number;
+      firstName: string;
+      lastName: string;
+      photoUrl: string | null;
+      points: number;
+      teamName: string;
+      teamLogoUrl: string | null;
+      teamColor: string;
+    }> = [];
 
-  if (loading) {
-    return <Skeleton className="h-64" />;
-  }
+    for (const team of teams) {
+      for (const m of team.members) {
+        all.push({
+          camperId: m.id,
+          firstName: m.first_name,
+          lastName: m.last_name,
+          photoUrl: m.photo_url,
+          points: m.points,
+          teamName: team.name,
+          teamLogoUrl: team.logo_url,
+          teamColor: team.color || "#2d6a4f",
+        });
+      }
+    }
 
-  if (allCampers.length === 0) {
-    return (
-      <Card className="p-8 text-center text-muted-foreground">
-        <Icon icon="trophy" className="w-8 h-8 mx-auto mb-2 opacity-40" />
-        <p>The cAMP-V-P race begins when teams earn XP!</p>
-      </Card>
-    );
-  }
+    all.sort((a, b) => b.points - a.points);
+    return all;
+  }, [teams]);
+
+  if (rankedCampers.length === 0) return null;
+
+  const topCamper = rankedCampers[0];
 
   return (
-    <Card className="overflow-hidden border-purple-200">
+    <div className="border-2 border-purple-200 rounded-xl overflow-hidden bg-gradient-to-b from-purple-50/50 to-background">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-purple-700 px-5 py-4 text-white">
+      <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-purple-700 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-2xl">⭐</span>
           <div>
-            <h3 className="text-lg font-black tracking-tight">cAMP-V-P Race</h3>
-            <p className="text-purple-200 text-xs">Individual XP leaderboard — who's the Most Valuable cAMPer?</p>
+            <h3 className="text-white font-bold text-lg">cAMP-V-P Leaderboard</h3>
+            <p className="text-purple-200 text-xs">Individual XP race — who will be the Most Valuable cAMPer?</p>
           </div>
         </div>
+        {topCamper && topCamper.points > 0 && (
+          <Badge className="bg-yellow-400 text-yellow-900 font-bold text-sm px-3 py-1 shadow animate-pulse">
+            👑 {topCamper.firstName} {topCamper.lastName.charAt(0)}. — {topCamper.points} pts
+          </Badge>
+        )}
       </div>
 
-      {fetching && !loading && (
-        <div className="text-xs text-muted-foreground px-5 pt-2">Updating…</div>
-      )}
-
-      {/* MVP Spotlight */}
-      {allCampers.length > 0 && (
-        <div className="mx-4 mt-4 mb-2 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl border border-amber-200 p-4 flex items-center gap-4">
-          <div className="relative">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-black text-lg shadow-lg">
-              {allCampers[0].first_name.charAt(0)}{allCampers[0].last_name.charAt(0)}
-            </div>
-            <span className="absolute -top-1 -right-1 text-xl">👑</span>
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-amber-400 text-amber-900 text-[10px] font-black animate-pulse">
-                TODAY'S cAMP-V-P
-              </Badge>
-            </div>
-            <p className="text-lg font-black text-foreground mt-0.5">
-              {allCampers[0].first_name} {allCampers[0].last_name}
-            </p>
-            <div className="flex items-center gap-2 mt-0.5">
-              {allCampers[0].team_logo_url ? (
-                <img src={allCampers[0].team_logo_url} alt="" className="w-4 h-4 rounded-full" />
-              ) : (
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: allCampers[0].team_color ?? "#2d6a4f" }} />
-              )}
-              <span className="text-xs text-muted-foreground">{allCampers[0].team_name}</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-3xl font-black text-amber-600">{allCampers[0].points}</p>
-            <p className="text-[10px] text-amber-700 font-semibold">XP</p>
-          </div>
-        </div>
-      )}
-
-      {/* Leaderboard Table */}
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="text-center px-3 py-2.5 font-semibold text-muted-foreground w-12">#</th>
-              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">cAMPer</th>
-              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Team</th>
-              <th className="text-center px-3 py-2.5 font-semibold text-muted-foreground">XP</th>
-              <th className="text-center px-3 py-2.5 font-semibold text-muted-foreground w-16">Status</th>
+            <tr className="border-b border-purple-200/50 bg-purple-50/50">
+              <th className="text-center px-3 py-2.5 font-bold text-purple-700 w-16">Rank</th>
+              <th className="text-left px-3 py-2.5 font-bold text-purple-700">cAMPer</th>
+              <th className="text-left px-3 py-2.5 font-bold text-purple-700">Team</th>
+              <th className="text-center px-3 py-2.5 font-bold text-purple-700">XP</th>
+              <th className="text-center px-3 py-2.5 font-bold text-purple-700 w-28">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
-            {allCampers.map((camper, idx) => {
+          <tbody className="divide-y divide-border/50">
+            {rankedCampers.map((camper, idx) => {
               const rank = idx + 1;
-              const isMvp = camper.id === mvpId;
-              const isTop3 = rank <= 3;
-              const rankEmoji = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+              const isFirst = rank === 1 && camper.points > 0;
+              const isSecond = rank === 2 && camper.points > 0;
+              const isThird = rank === 3 && camper.points > 0;
+              const isTop3 = isFirst || isSecond || isThird;
 
               return (
                 <tr
-                  key={camper.id}
+                  key={camper.camperId}
                   className={`transition-colors ${
-                    isMvp ? "bg-amber-50/80" : isTop3 ? "bg-primary/5" : "hover:bg-muted/20"
+                    isFirst ? "bg-yellow-50/80 hover:bg-yellow-100/60" :
+                    isSecond ? "bg-gray-50/50 hover:bg-gray-100/40" :
+                    isThird ? "bg-orange-50/50 hover:bg-orange-100/40" :
+                    "hover:bg-muted/30"
                   }`}
                 >
+                  {/* Rank */}
                   <td className="text-center px-3 py-3">
-                    {rankEmoji ? (
-                      <span className="text-lg">{rankEmoji}</span>
+                    {isFirst ? (
+                      <span className="text-2xl">🥇</span>
+                    ) : isSecond ? (
+                      <span className="text-2xl">🥈</span>
+                    ) : isThird ? (
+                      <span className="text-2xl">🥉</span>
                     ) : (
-                      <span className="text-sm font-mono text-muted-foreground">{rank}</span>
+                      <span className="text-sm font-mono text-muted-foreground font-bold">#{rank}</span>
                     )}
                   </td>
+
+                  {/* Camper */}
                   <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                        isMvp ? "bg-amber-400 text-white" : "bg-muted text-foreground/70"
-                      }`}>
-                        {camper.first_name.charAt(0)}{camper.last_name.charAt(0)}
-                      </div>
-                      <span className={`font-medium ${isMvp ? "text-amber-800" : "text-foreground"}`}>
-                        {camper.first_name} {camper.last_name}
+                    <div className="flex items-center gap-2.5">
+                      {camper.photoUrl ? (
+                        <img src={camper.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-bold">
+                          {camper.firstName.charAt(0)}{camper.lastName.charAt(0)}
+                        </div>
+                      )}
+                      <span className={`font-medium ${isFirst ? "text-foreground font-bold" : "text-foreground"}`}>
+                        {camper.firstName} {camper.lastName}
                       </span>
                     </div>
                   </td>
+
+                  {/* Team with logo */}
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      {camper.team_logo_url ? (
-                        <img src={camper.team_logo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                      {camper.teamLogoUrl ? (
+                        <img src={camper.teamLogoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
                       ) : (
                         <div
-                          className="w-5 h-5 rounded-full shrink-0"
-                          style={{ backgroundColor: camper.team_color ?? "#2d6a4f" }}
-                        />
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                          style={{ backgroundColor: camper.teamColor }}
+                        >
+                          {camper.teamName.slice(0, 2).toUpperCase()}
+                        </div>
                       )}
-                      <span className="text-xs text-muted-foreground">{camper.team_name ?? "Unassigned"}</span>
+                      <span className="text-muted-foreground text-xs">{camper.teamName}</span>
                     </div>
                   </td>
+
+                  {/* XP */}
                   <td className="text-center px-3 py-3">
-                    <span className={`font-bold ${isMvp ? "text-amber-600 text-base" : isTop3 ? "text-primary" : "text-foreground"}`}>
+                    <span className={`font-bold ${isFirst ? "text-xl text-yellow-600" : isTop3 ? "text-lg text-foreground" : "text-foreground"}`}>
                       {camper.points}
                     </span>
                   </td>
+
+                  {/* Status */}
                   <td className="text-center px-3 py-3">
-                    {isMvp && (
-                      <Badge className="bg-amber-400 text-amber-900 text-[9px] font-black px-1.5">
-                        👑 MVP
+                    {isFirst && camper.points > 0 && (
+                      <Badge className="bg-gradient-to-r from-yellow-400 to-amber-500 text-yellow-900 text-[10px] font-bold px-2 py-0.5 shadow-sm animate-pulse">
+                        👑 cAMP-V-P
                       </Badge>
                     )}
-                    {!isMvp && rank <= 3 && (
-                      <Badge variant="outline" className="text-[9px] text-purple-600 border-purple-200 bg-purple-50">
-                        🔥 Hot
+                    {isSecond && camper.points > 0 && (
+                      <Badge variant="outline" className="text-[10px] border-purple-300 text-purple-700 bg-purple-50">
+                        🎯 Contender
+                      </Badge>
+                    )}
+                    {isThird && camper.points > 0 && (
+                      <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-700 bg-orange-50">
+                        🔥 Hot Streak
                       </Badge>
                     )}
                   </td>
@@ -169,6 +186,13 @@ export default function CampVPLeaderboard() {
           </tbody>
         </table>
       </div>
-    </Card>
+
+      {/* Footer */}
+      <div className="px-5 py-3 bg-purple-50/30 border-t border-purple-200/30 text-center">
+        <p className="text-xs text-muted-foreground">
+          👑 The <strong>cAMP-V-P</strong> is the individual with the most XP across all teams — defend the crown or take it!
+        </p>
+      </div>
+    </div>
   );
 }

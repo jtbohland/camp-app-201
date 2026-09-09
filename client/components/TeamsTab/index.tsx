@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import CreateTeamDialog from "@/components/CreateTeamDialog/index.js";
@@ -21,8 +21,9 @@ export default function TeamsTab() {
   // Sort teams by total_points descending for ranking
   const rankedTeams = useMemo(() => {
     const teams = [...(teamsData?.teams ?? [])];
-    return teams.sort((a, b) => b.total_points - a.total_points);
-  }, [teamsData]);
+    teams.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
+    return teams;
+  }, [teamsData?.teams]);
 
   if (loading) {
     return (
@@ -41,10 +42,9 @@ export default function TeamsTab() {
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-sm text-muted-foreground">
             {rankedTeams.length} team{rankedTeams.length !== 1 ? "s" : ""} competing
           </p>
-          <p className="text-xs text-muted-foreground">Ranked by total XP · Updated live</p>
         </div>
         {isAdmin && (
           <button
@@ -60,7 +60,7 @@ export default function TeamsTab() {
         <div className="text-xs text-muted-foreground">Updating…</div>
       )}
 
-      {/* Ranked Teams Grid */}
+      {/* Teams Grid — sorted by points, 2 columns for competitive feel */}
       <div className={`grid grid-cols-1 md:grid-cols-2 gap-5 ${fetching && !loading ? "opacity-70" : ""}`}>
         {rankedTeams.map((team, idx) => (
           <TeamCard
@@ -81,8 +81,8 @@ export default function TeamsTab() {
         )}
       </div>
 
-      {/* cAMP-V-P Individual Leaderboard */}
-      <CampVPLeaderboard />
+      {/* cAMP-V-P Leaderboard */}
+      <CampVPLeaderboard teams={rankedTeams} />
 
       {/* Dialogs */}
       {showCreate && (
