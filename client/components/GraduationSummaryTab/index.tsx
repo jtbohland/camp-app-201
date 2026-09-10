@@ -143,7 +143,7 @@ export default function GraduationSummaryTab() {
       </div>
 
       {/* Your Team */}
-      {data.team_name && (
+      {data.team_name ? (
         <Card className="p-6 overflow-hidden">
           <div className="flex items-center gap-2 mb-4">
             <Icon icon="flag" className="w-5 h-5 text-camp-green" />
@@ -180,7 +180,43 @@ export default function GraduationSummaryTab() {
             ))}
           </div>
         </Card>
-      )}
+      ) : isAdmin ? (
+        /* Admin preview — show placeholder so counselors can see the layout */
+        <Card className="p-6 border-dashed border-2 border-amber-300 bg-amber-50/30">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon icon="flag" className="w-5 h-5 text-camp-green" />
+            <h2 className="text-sm font-semibold text-foreground">Your Team</h2>
+            <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Admin Preview</span>
+          </div>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl bg-camp-green/60">
+              T
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-foreground">Team Name Here</h3>
+              <p className="text-sm text-muted-foreground">
+                Finished <span className="font-bold text-amber-600">#1</span> of 4 teams in the cAMP Champs race
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {["Alex Rivera", "Jordan Lee", "Sam Chen", "Taylor Kim", "Morgan Wu"].map((name, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-camp-green/60">
+                  {name.split(" ").map((n) => n[0]).join("")}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-foreground truncate">{name}</p>
+                  <p className="text-[10px] text-muted-foreground">{120 - i * 15} pts</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-amber-600 mt-3 italic text-center">
+            This section shows each camper's team, logo, members, and final placement. You see this preview because you're not on a team.
+          </p>
+        </Card>
+      ) : null}
 
       {/* Top moments */}
       {data.points_log_highlights.length > 0 && (
@@ -202,32 +238,37 @@ export default function GraduationSummaryTab() {
 
       {/* Closing message from counselors */}
       <Card className="p-8 bg-gradient-to-br from-camp-green/10 via-amber-50/50 to-green-50 border-camp-green/20 text-center relative overflow-hidden">
-        <div className="absolute top-3 right-4 text-4xl opacity-10">🏕️</div>
+        <div className="absolute top-3 right-4 text-4xl opacity-10">{"\u{1F3D5}\uFE0F"}</div>
         <Icon icon="heart" className="w-8 h-8 mx-auto text-camp-green mb-3" />
         <h2 className="text-xl font-extrabold text-foreground mb-3">
           From Your Counselors
         </h2>
         <div className="max-w-lg mx-auto space-y-3 text-sm text-foreground/80 leading-relaxed">
           <p>
-            We are <strong>so proud</strong> of everything you accomplished this week.
-            The discovery skills, the value mapping, the Challenger methodology, the
-            teamwork, the late-night prep, the laughs — all of it made this cAMP special.
+            Thank you for leaning in and bringing so much positive energy, creativity, and good spirit
+            to this week. Your discovery skills, value mapping, Challenger practice, teamwork, daily
+            contributions, and laughs all made this cAMP special.
           </p>
           <p>
-            You showed up, you pushed yourself, and you grew. That takes courage.
-            The skills you built here are what set great sellers apart — and you've
-            got them now.
+            We appreciate how driven and determined you were — balancing cAMP with meetings, day jobs,
+            travel, and everything else on your plates while still showing up motivated and ready to grow.
+            You supported one another, had fun, built culture, and rose to every occasion. That commitment
+            did not go unnoticed.
+          </p>
+          <p>
+            You showed up, pushed yourselves, and grew. The confidence and skills you built here are what
+            set great sellers apart — and you have them now.
           </p>
           <p className="font-medium text-foreground">
-            Go make an impact. We can't wait to see what you do next.
+            Go make an impact. We are proud of you and cannot wait to see what you do next.
           </p>
           <p className="text-xs text-muted-foreground italic mt-2">
-            Travel home safely — and remember, our doors (and DMs) are always open.
+            Travel home safely — and remember, our doors and DMs are always open.
           </p>
         </div>
         <div className="mt-5 pt-4 border-t border-camp-green/15">
           <p className="text-camp-green font-extrabold uppercase tracking-widest text-sm">
-            Once a cAMPer, always a cAMPer.
+            Keep Climbing!
           </p>
         </div>
       </Card>
