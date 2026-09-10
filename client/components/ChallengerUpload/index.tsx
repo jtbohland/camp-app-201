@@ -109,7 +109,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
     <div className="mt-3 space-y-3 p-4 rounded-lg border border-violet-200 bg-violet-50/30">
       <div className="flex items-center gap-2 mb-1">
         <Icon icon="rocket" className="w-5 h-5 text-violet-600" />
-        <h4 className="font-semibold text-sm">Verify Challenger Completion</h4>
+        <h4 className="font-semibold text-sm">Challenger Completion</h4>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -178,7 +178,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
         className="w-full bg-violet-600 hover:bg-violet-700 text-white"
         size="sm"
       >
-        {loading ? "Verifying..." : `Verify Challenger (${Object.keys(screenshots).length}/${courses.length} uploaded)`}
+        {loading ? "Submitting..." : `Mark Complete (${Object.keys(screenshots).length}/${courses.length} uploaded)`}
       </Button>
     </div>
   );

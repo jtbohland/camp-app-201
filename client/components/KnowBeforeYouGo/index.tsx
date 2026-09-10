@@ -97,7 +97,6 @@ export default function KnowBeforeYouGo({ isAdmin, camperId = 0, teamId = null }
 
         {TAB_META.map((tab) => (
           <TabsContent key={tab.key} value={tab.key}>
-            {tab.key === "office" && <FloorMaps />}
             {tab.key === "office" && (
               <>
                 <button
@@ -128,6 +127,7 @@ export default function KnowBeforeYouGo({ isAdmin, camperId = 0, teamId = null }
                 />
               </>
             )}
+            {tab.key === "office" && <FloorMaps />}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(itemsByTab[tab.key] ?? []).map((item) => (
                 editingId === item.id ? (

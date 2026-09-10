@@ -162,41 +162,39 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
-      {/* Hero: cAMP 201 Logo — BIG, front and center */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] py-8 flex items-center justify-center">
+      {/* Hero: Logo + Welcome — one combined card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-8">
         {/* Faded background watermark */}
         <img
           src="/nomnom/camp201-logo-transparent.png"
           alt=""
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] object-contain opacity-[0.05] pointer-events-none"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] object-contain opacity-[0.04] pointer-events-none"
         />
-        <img
-          src="/nomnom/camp201-logo-transparent.png"
-          alt="cAMP 201"
-          className="relative w-48 h-48 object-contain drop-shadow-2xl"
-        />
-      </div>
-
-      {/* Personal welcome card */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-camp-green/10 to-amber-50/50 border border-camp-green/20 p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Welcome back, cAMPer</p>
-            <h2 className="text-xl font-bold text-foreground mt-0.5">
-              {camper?.first_name} {camper?.last_name}
-            </h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-camp-green/10 rounded-lg px-3 py-1.5">
-              <Icon icon="flame" className="w-4 h-4 text-camp-amber" />
-              <span className="text-sm font-bold text-camp-green">{camper?.points ?? 0} pts</span>
+        <div className="relative flex flex-col items-center">
+          <img
+            src="/nomnom/camp201-logo-transparent.png"
+            alt="cAMP 201"
+            className="w-56 h-56 object-contain drop-shadow-2xl"
+          />
+          <div className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-white/50 font-medium uppercase tracking-wide">Welcome back, cAMPer</p>
+              <h2 className="text-xl font-bold text-white mt-0.5">
+                {camper?.first_name} {camper?.last_name}
+              </h2>
             </div>
-            {!camper?.profile_completed && (
-              <div className="flex items-center gap-2 bg-amber-100 rounded-lg px-3 py-1.5">
-                <Icon icon="alert-circle" className="w-4 h-4 text-amber-600" />
-                <span className="text-xs text-amber-700 font-medium">Complete profile +15 pts</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
+                <Icon icon="flame" className="w-4 h-4 text-camp-amber" />
+                <span className="text-sm font-bold text-white">{camper?.points ?? 0} pts</span>
               </div>
-            )}
+              {!camper?.profile_completed && (
+                <div className="flex items-center gap-2 bg-camp-amber/20 rounded-lg px-3 py-1.5">
+                  <Icon icon="alert-circle" className="w-4 h-4 text-camp-amber" />
+                  <span className="text-xs text-camp-amber font-medium">Complete profile +15 pts</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
