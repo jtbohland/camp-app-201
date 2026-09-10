@@ -81,6 +81,10 @@ const COMPANY_BRANDS: Record<string, CompanyBrand> = {
   "DoorDash":          { emoji: "🚗", color: "#ff3008", bg: "#fff0ec", border: "#ffc9bc" },
   "Zillow":            { emoji: "🏠", color: "#006aff", bg: "#e6f0ff", border: "#b3d4ff" },
   "Intuit QuickBooks": { emoji: "📗", color: "#2ca01c", bg: "#eafbe7", border: "#b8e6b0" },
+  "Chick-fil-A":       { emoji: "🐔", color: "#e51636", bg: "#fef2f2", border: "#fca5a5" },
+  "Intermountain Health": { emoji: "🏥", color: "#c2185b", bg: "#fce4ec", border: "#f48fb1" },
+  "NerdWallet":        { emoji: "🧠", color: "#1fa85e", bg: "#e8faf0", border: "#a7f3d0" },
+  "Coursera":          { emoji: "🎓", color: "#0056d2", bg: "#e8f0fe", border: "#93bbf5" },
 };
 
 function CompanyPill({ company }: { company: string }) {
@@ -307,8 +311,8 @@ function HallOfFameCard({
             </p>
           )}
 
-          {/* Stats row */}
-          <div className="flex items-center gap-3 mt-2.5 text-xs text-muted-foreground">
+          {/* Stats row: points → members → company pill */}
+          <div className="flex flex-wrap items-center gap-2.5 mt-2.5 text-xs text-muted-foreground">
             {hasPoints && team.points != null && (
               <span className="flex items-center gap-1 font-semibold" style={{ color: theme.accent }}>
                 <Icon icon="flame" className="w-3.5 h-3.5" />
@@ -318,13 +322,13 @@ function HallOfFameCard({
                 )}
               </span>
             )}
-            {team.presentation_company && (
-              <CompanyPill company={team.presentation_company} />
-            )}
             <span className="flex items-center gap-1">
               <Icon icon="users" className="w-3 h-3" />
               {team.members.length} members
             </span>
+            {team.presentation_company && (
+              <CompanyPill company={team.presentation_company} />
+            )}
           </div>
 
           {/* Expanded members */}
