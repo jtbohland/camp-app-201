@@ -8,6 +8,7 @@ import PresentationDetail from "@/components/PresentationDetail/index.js";
 import CreatePresentationForm from "@/components/CreatePresentationForm/index.js";
 import { Button } from "@/components/ui/button";
 import PeerFeedbackForm from "@/components/PeerFeedbackForm/index.js";
+import CampfireFeed from "@/components/CampfireFeed/index.js";
 
 export default function PresentationsPage() {
   const user = useSuperblocksUser();
@@ -101,6 +102,9 @@ export default function PresentationsPage() {
             onRefresh={refetch}
           />
         </div>
+
+        {/* Live Campfire Feed */}
+        <CampfireFeed camperId={camperId} />
       </div>
     </div>
   );

@@ -239,7 +239,7 @@ function PeerFeedbackDisplay({ sectionKey, teamId }: { sectionKey: string; teamI
         {sunshineItems.length > 0 && (
           <div>
             <p className="text-xs font-semibold flex items-center gap-1 mb-1.5">
-              <span>☀️</span> Sunshine
+              <span>☀️</span> Glow
             </p>
             <div className="space-y-1.5">
               {sunshineItems.map((f) => (
@@ -257,7 +257,7 @@ function PeerFeedbackDisplay({ sectionKey, teamId }: { sectionKey: string; teamI
         {rainItems.length > 0 && (
           <div>
             <p className="text-xs font-semibold flex items-center gap-1 mb-1.5">
-              <span>🌧️</span> Rain
+              <span>🌱</span> Grow
             </p>
             <div className="space-y-1.5">
               {rainItems.map((f) => (

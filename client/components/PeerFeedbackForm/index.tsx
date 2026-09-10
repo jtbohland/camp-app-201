@@ -42,7 +42,9 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
   // Get presentations for dropdown
   const { data: presentationsData } = useApiData("GetPresentations", { status: null });
   const presentations = useMemo(() => {
-    return ((presentationsData?.presentations ?? []) as Array<{ id: number; title: string }>)
+    const TEAM_TYPES = ["team_presentation", "team_workshop", "hackathon"];
+    return ((presentationsData?.presentations ?? []) as Array<{ id: number; title: string; presentation_type?: string }>)
+      .filter((p) => TEAM_TYPES.includes(p.presentation_type ?? ""))
       .map((p) => p.title);
   }, [presentationsData]);
 
@@ -158,7 +160,6 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="bg-camp-green/15 text-camp-green border-camp-green/30 text-xs">+5 pts</Badge>
           <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
             <Icon icon="x" className="w-4 h-4" />
           </Button>
@@ -211,10 +212,10 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
         </div>
       )}
 
-      {/* Sunshine — 3 things they loved */}
+      {/* Glow — 3 things that shined */}
       <div>
         <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
-          <span className="text-lg">☀️</span> Sunshine
+          <span className="text-lg">☀️</span> Glow
           <span className="text-xs font-normal text-muted-foreground">— 3 things that shined</span>
         </h4>
         <div className="space-y-2">
@@ -233,22 +234,22 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
         </div>
       </div>
 
-      {/* Rain — 3 areas for growth */}
+      {/* Grow — 3 areas for growth */}
       <div>
         <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
-          <span className="text-lg">🌧️</span> Rain
+          <span className="text-lg">🌱</span> Grow
           <span className="text-xs font-normal text-muted-foreground">— 3 growth opportunities</span>
         </h4>
         <div className="space-y-2">
           {rain.map((val, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-blue-400 text-xs font-bold w-4">{i + 1}.</span>
+              <span className="text-green-500 text-xs font-bold w-4">{i + 1}.</span>
               <input
                 type="text"
                 value={val}
                 onChange={(e) => updateRain(i, e.target.value)}
                 placeholder={i === 0 ? "Could tighten the value prop section..." : i === 1 ? "More eye contact with the audience..." : "Add a stronger closing CTA..."}
-                className="flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="flex-1 rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"
               />
             </div>
           ))}
@@ -277,7 +278,7 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
         className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
         size="lg"
       >
-        {submitting ? "Sending..." : "🏕️ Submit Campfire Review (+5 pts)"}
+        {submitting ? "Sending..." : "🏕️ Submit Campfire Review"}
       </Button>
     </Card>
   );
