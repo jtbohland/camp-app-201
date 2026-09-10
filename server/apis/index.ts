@@ -150,6 +150,8 @@ import GetEBRRoleAssignments from './camp/get-ebr-role-assignments.js';
 import SaveEBRRoleAssignment from './camp/save-ebr-role-assignment.js';
 import ToggleScoresRevealed from './camp/toggle-scores-revealed.js';
 import QuickAwardPoints from './camp/quick-award-points.js';
+import MigratePreworkSubmissions from './camp/migrate-prework-submissions.js';
+import SubmitPreworkValidation from './camp/submit-prework-validation.js';
 
 const apis = {
   SetupDatabase,
@@ -298,6 +300,8 @@ const apis = {
   SaveEBRRoleAssignment,
   ToggleScoresRevealed,
   QuickAwardPoints,
+  MigratePreworkSubmissions,
+  SubmitPreworkValidation,
 } as const;
 
 export default apis;

@@ -9,6 +9,8 @@ import type { IconName } from "lucide-react/dynamic";
 import { toast } from "sonner";
 import PreWorkWarningModal from "@/components/PreWorkWarningModal/index.js";
 import DeadlineCountdown from "@/components/DeadlineCountdown/index.js";
+import WheelAndDealForm from "@/components/WheelAndDealForm";
+import ChallengerUpload from "@/components/ChallengerUpload";
 
 type Link = { label: string; url: string };
 type ContentItem = {
@@ -25,13 +27,14 @@ type ContentItem = {
 type PreWorkProps = {
   userId: number;
   camperEmail: string;
+  camperRole?: string;
   completedKeys: string[];
   onComplete: () => void;
   isAdmin?: boolean;
   deadline?: string;
 };
 
-export default function PreWork({ userId, camperEmail, completedKeys, onComplete, isAdmin, deadline }: PreWorkProps) {
+export default function PreWork({ userId, camperEmail, camperRole, completedKeys, onComplete, isAdmin, deadline }: PreWorkProps) {
   const { run: completeItem, loading: completing } = useApi("CompletePreworkItem");
   const { run: trackClick } = useApi("TrackLinkClick");
   const [completingKey, setCompletingKey] = useState<string | null>(null);
@@ -179,8 +182,8 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
             const itemLinks = item.links;
 
             return (
+              <div key={item.id}>
               <div
-                key={item.id}
                 className={`flex items-start gap-4 p-4 rounded-lg border transition-all ${
                   isCompleted
                     ? "bg-camp-green/5 border-camp-green/20"
@@ -239,6 +242,8 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
                       <Icon icon="check-circle" className="w-4 h-4" />
                       Done
                     </div>
+                  ) : item.item_key === "wheel_and_deal" || item.item_key === "challenger_sales" ? (
+                    null /* Custom forms render below */
                   ) : (
                     <Button
                       size="sm"
@@ -254,6 +259,20 @@ export default function PreWork({ userId, camperEmail, completedKeys, onComplete
                     </Button>
                   )}
                 </div>
+              </div>
+
+              {/* Custom validation forms — render below the item card */}
+              {!isCompleted && item.item_key === "wheel_and_deal" && (
+                <WheelAndDealForm camperId={userId} onComplete={onComplete} />
+              )}
+              {!isCompleted && item.item_key === "challenger_sales" && (
+                <ChallengerUpload
+                  camperId={userId}
+                  camperRole={camperRole ?? ""}
+                  links={itemLinks}
+                  onComplete={onComplete}
+                />
+              )}
               </div>
             );
           })}
