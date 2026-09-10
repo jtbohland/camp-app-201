@@ -134,7 +134,7 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
         className="w-full bg-amber-600 hover:bg-amber-700 text-white"
         size="sm"
       >
-        {loading ? "Submitting..." : "🎯 Submit Result"}
+        {loading ? "Submitting..." : "Mark Complete"}
       </Button>
     </div>
   );
