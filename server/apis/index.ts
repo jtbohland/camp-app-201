@@ -154,6 +154,10 @@ import MigratePreworkSubmissions from './camp/migrate-prework-submissions.js';
 import SubmitPreworkValidation from './camp/submit-prework-validation.js';
 import TogglePresentationLock from './camp/toggle-presentation-lock.js';
 import GetHubDashboard from './camp/get-hub-dashboard.js';
+import MigrateNewHires from './camp/migrate-new-hires.js';
+import UploadNewHireList from './camp/upload-new-hire-list.js';
+import GetNewHires from './camp/get-new-hires.js';
+import UpdateNewHireStatus from './camp/update-new-hire-status.js';
 
 const apis = {
   SetupDatabase,
@@ -306,6 +310,10 @@ const apis = {
   SubmitPreworkValidation,
   TogglePresentationLock,
   GetHubDashboard,
+  MigrateNewHires,
+  UploadNewHireList,
+  GetNewHires,
+  UpdateNewHireStatus,
 } as const;
 
 export default apis;

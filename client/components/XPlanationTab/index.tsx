@@ -99,6 +99,7 @@ const categories: PointCategory[] = [
     color: "bg-orange-500/10 text-orange-600",
     items: [
       { label: "Team presentation scored by counselor rubric", points: "Up to 15", positive: true },
+      { label: "MVP — Most Valuable Presenter (counselor-awarded, optional)", points: "+10", positive: true },
       { label: "Peer feedback submitted", points: "+3", positive: true },
     ],
   },

@@ -4,6 +4,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 type Criterion = {
@@ -29,6 +30,12 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
 
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [mvpCamperId, setMvpCamperId] = useState<string>("");
+
+  // Get members of the selected team for MVP dropdown
+  const selectedTeamMembers = selectedTeam
+    ? ((teamsData as any)?.teams?.find((t: any) => t.id === selectedTeam)?.members ?? []) as { id: number; first_name: string; last_name: string }[]
+    : [];
 
   const template = rubricData?.template;
   const existingScores = (rubricData?.scores ?? []) as any[];
@@ -55,11 +62,13 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
         scorer_camper_id: camperId,
         scores: JSON.stringify(scores),
         notes: null,
+        mvp_camper_id: mvpCamperId ? Number(mvpCamperId) : null,
       });
       if (result?.success) {
-        toast.success(result.message);
+        toast.success(result.message + (mvpCamperId ? " — MVP awarded!" : ""));
         setSelectedTeam(null);
         setScores({});
+        setMvpCamperId("");
         refetch();
       }
     } catch (err) {
@@ -79,6 +88,15 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
           <Icon icon="clipboard-check" className="w-5 h-5 text-violet-500" />
           <h3 className="font-bold text-base text-foreground">Scoring Rubric</h3>
           <span className="text-xs text-muted-foreground ml-auto">Max {maxTotal} pts</span>
+        </div>
+
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-start gap-2">
+          <Icon icon="award" className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+          <p>
+            <strong>MVP — Most Valuable Presenter</strong> may be awarded if counselors feel someone
+            truly carried the team or exceeded expectations. Not guaranteed — focus on team success,
+            not outshining your teammates.
+          </p>
         </div>
 
         {criteria.map((c, i) => (
@@ -187,6 +205,34 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
                   {scoring ? "Saving…" : "Submit Score"}
                 </Button>
               </div>
+
+              {/* MVP Award — optional */}
+              {selectedTeamMembers.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-violet-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon="award" className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wide">MVP — Most Valuable Presenter</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Optional</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+                    Only select an MVP if someone truly carried the team, exceeded expectations, or delivered something exceptional.
+                    This awards <strong>+10 individual pts</strong> and a special badge. Leave blank if the team was evenly matched.
+                  </p>
+                  <Select value={mvpCamperId} onValueChange={setMvpCamperId}>
+                    <SelectTrigger className="w-full text-sm">
+                      <SelectValue placeholder="No MVP — team was evenly matched" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No MVP</SelectItem>
+                      {selectedTeamMembers.map((m) => (
+                        <SelectItem key={m.id} value={String(m.id)}>
+                          {m.first_name} {m.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </Card>
           )}
 
