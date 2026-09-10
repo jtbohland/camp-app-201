@@ -55,7 +55,7 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
         if (result.flagged) {
           toast.warning("Submitted — a counselor will review your scores.");
         } else {
-          toast.success(`🎯 Wheel & Deal submitted! +${result.points_awarded} pts`);
+          toast.success(`Wheel & Deal submitted! +${result.points_awarded} pts`);
         }
         onComplete();
       }
@@ -68,7 +68,7 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
   return (
     <div className="mt-3 space-y-3 p-4 rounded-lg border border-amber-200 bg-amber-50/30">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-lg">🎯</span>
+        <Icon icon="refresh-cw" className="w-5 h-5 text-amber-600" />
         <h4 className="font-semibold text-sm">Log Your Wheel & Deal Results</h4>
       </div>
 
@@ -76,7 +76,7 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
         href="https://app.amplitude.com/wheel-and-deal"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#1b3a2d] text-white hover:bg-[#2a5a44] transition-colors"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 border border-amber-200 text-amber-700 hover:bg-amber-200 transition-colors"
       >
         <Icon icon="external-link" className="w-3 h-3" />
         Open Wheel & Deal
