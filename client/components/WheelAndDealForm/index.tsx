@@ -12,8 +12,7 @@ const PRODUCTS = [
 ];
 
 const CHALLENGE_TYPES = [
-  "Discovery Call", "Demo", "Objection Handling", "Value Pitch",
-  "Cold Call", "Competitive Positioning",
+  "Tell Me About It", "Handle the Objection", "Scenario", "Challenger Play",
 ];
 
 type Props = {

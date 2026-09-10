@@ -76,8 +76,22 @@ export default api({
 
     let pointsAwarded = 0;
     if (result.rowCount && result.rowCount > 0) {
-      pointsAwarded = flagged ? 0 : 5; // No points if flagged
-      if (pointsAwarded > 0) {
+      if (flagged) {
+        // Deduct points for suspicious/false scores
+        pointsAwarded = -3;
+        await ctx.integrations.apps_database.execute(
+          `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+          [pointsAwarded, camper_id],
+          { label: "Deduct points for flagged submission" }
+        );
+        await ctx.integrations.apps_database.execute(
+          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
+           VALUES ($1, $2, $3, 'system', 'pre_work')`,
+          [camper_id, pointsAwarded, `Flagged submission: ${item_key} (suspicious scores)`],
+          { label: "Log flagged penalty" }
+        );
+      } else {
+        pointsAwarded = 5;
         await ctx.integrations.apps_database.execute(
           `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
           [pointsAwarded, camper_id],
