@@ -103,11 +103,44 @@ interface Cohort {
 
 // ───────────────────── NO-LOGO PLACEHOLDER ─────────────────────
 
-/** Camp-themed emojis for no-logo teams — each team gets a unique one */
-const CAMP_EMOJIS = ["🔥", "🦌", "🐻", "🦅", "🛶", "🧭", "🏕️", "🔦", "🪓", "🧪", "🎯", "🐍", "🌲", "🦊", "🐟", "⛺"];
+/** Explicit emoji per no-logo team — no repeats within or across cohorts */
+const TEAM_EMOJI_MAP: Record<string, string> = {
+  // Cohort 1
+  "Group One":   "🔥",   // Campfire night
+  "Group Two":   "🦌",   // Forest wildlife
+  "Group Three": "🐻",   // Bear country
+  "Group Four":  "🦅",   // Eagle summit
+};
 
-function NoLogoPlaceholder({ teamName, theme, teamId }: { teamName: string; theme: TeamTheme; teamId: number }) {
-  const emoji = CAMP_EMOJIS[(teamId - 1) % CAMP_EMOJIS.length];
+/** Per-cohort overrides — key is "cohort:teamName" for duplicate team names across cohorts */
+const COHORT_TEAM_EMOJI: Record<string, string> = {
+  // Cohort 2 (same generic names, different emojis)
+  "2:Group One":   "🛶",   // Lake canoeing
+  "2:Group Two":   "🧭",   // Trail hiking
+  "2:Group Three": "🏕️",  // Campsite sunrise
+  "2:Group Four":  "🔦",   // Night exploration
+  // Cohort 3
+  "3:Team 1":      "🪓",   // Survival camp
+  "3:Team 3":      "🎯",   // Target practice
+  "3:Datalicious": "🧪",   // Data feast
+  "3:Slytherin":   "🐍",   // Snake — obviously
+};
+
+/** Fallback emojis for future no-logo teams */
+const FALLBACK_EMOJIS = ["🌲", "🦊", "🐟", "⛺", "🏔️", "🌙", "🦉", "🍂", "⭐", "🌊"];
+
+function getTeamEmoji(teamName: string, cohortNumber: number, index: number): string {
+  // Check cohort-specific key first (handles duplicate names across cohorts)
+  const cohortKey = `${cohortNumber}:${teamName}`;
+  if (COHORT_TEAM_EMOJI[cohortKey]) return COHORT_TEAM_EMOJI[cohortKey];
+  // Then check global name map (cohort 1 defaults)
+  if (TEAM_EMOJI_MAP[teamName]) return TEAM_EMOJI_MAP[teamName];
+  // Fallback for future unknown teams
+  return FALLBACK_EMOJIS[index % FALLBACK_EMOJIS.length];
+}
+
+function NoLogoPlaceholder({ teamName, theme, cohortNumber, index }: { teamName: string; theme: TeamTheme; cohortNumber: number; index: number }) {
+  const emoji = getTeamEmoji(teamName, cohortNumber, index);
 
   return (
     <div
@@ -120,7 +153,7 @@ function NoLogoPlaceholder({ teamName, theme, teamId }: { teamName: string; them
         style={{ border: `3px dashed ${theme.accent}` }}
       />
       <div
-        className="w-20 h-20 rounded-full flex items-center justify-center text-3xl"
+        className="w-24 h-24 rounded-full flex items-center justify-center text-4xl"
         style={{
           background: `linear-gradient(135deg, ${theme.accent}, ${theme.glow})`,
           boxShadow: `0 4px 20px ${theme.glow}50`,
@@ -139,11 +172,13 @@ function HallOfFameCard({
   hasLogos,
   hasPoints,
   index,
+  cohortNumber,
 }: {
   team: Team;
   hasLogos: boolean;
   hasPoints: boolean;
   index: number;
+  cohortNumber: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const theme = getTheme(team.team_name, index);
@@ -197,7 +232,7 @@ function HallOfFameCard({
               />
             </div>
           ) : (
-            <NoLogoPlaceholder teamName={team.team_name} theme={theme} teamId={team.id} />
+            <NoLogoPlaceholder teamName={team.team_name} theme={theme} cohortNumber={cohortNumber} index={index} />
           )}
 
           {/* Placement badge — floats in top-right */}
@@ -342,6 +377,7 @@ function CohortSection({ cohort }: { cohort: Cohort }) {
               hasLogos={cohort.has_logos}
               hasPoints={cohort.has_points}
               index={i}
+              cohortNumber={cohort.cohort_number}
             />
           ))}
         </div>
