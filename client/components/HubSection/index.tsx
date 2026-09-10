@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useApi } from "@/hooks/useApi.js";
+import { useApiData } from "@/hooks/useApiData.js";
 import { toast } from "sonner";
 
 type HubItem = {
@@ -38,6 +39,15 @@ const ITEM_TYPES = [
   { key: "resource", label: "Resource/Link", icon: "🔗" },
   { key: "doc", label: "Document/Slides", icon: "📄" },
 ];
+
+// Map hub section keys to presentation session labels for feedback lookup
+const SECTION_TO_PRESENTATION: Record<string, string> = {
+  pillars: "Value Pillars & Use Cases",
+  pov_workshop: "PoV Workshop",
+  hackathon: "AI Hackathon",
+  value_mapping: "Discovering Value Drivers with Mapping",
+  ebr: "EBR",
+};
 
 export default function HubSection({ section, items, canContribute, teamId, camperId, onItemAdded, fetching }: HubSectionProps) {
   const [showAdd, setShowAdd] = useState(false);
@@ -187,6 +197,95 @@ export default function HubSection({ section, items, canContribute, teamId, camp
               </div>
             </div>
           ))
+        )}
+      </div>
+      {/* Campfire Reviews for this section */}
+      <PeerFeedbackDisplay sectionKey={section.key} teamId={teamId} />
+    </div>
+  );
+}
+
+/** Shows peer feedback (sunshine/rain) received for a team's presentation */
+function PeerFeedbackDisplay({ sectionKey, teamId }: { sectionKey: string; teamId: number }) {
+  const sessionLabel = SECTION_TO_PRESENTATION[sectionKey];
+  if (!sessionLabel) return null;
+
+  const { data } = useApiData("GetPeerFeedback", {
+    session_label: sessionLabel,
+    team_id: teamId,
+  });
+
+  const feedback = (data?.feedback ?? []) as Array<{
+    id: number;
+    author_name: string;
+    category: string;
+    content: string;
+    created_at: string;
+  }>;
+
+  if (feedback.length === 0) return null;
+
+  const sunshineItems = feedback.filter((f) => f.category === "sunshine");
+  const rainItems = feedback.filter((f) => f.category === "rain");
+  const trailNotes = feedback.filter((f) => f.category === "trail_notes");
+
+  return (
+    <div className="border-t border-border pt-4 mt-2">
+      <h3 className="text-sm font-bold flex items-center gap-2 mb-3">
+        🏕️ Campfire Reviews
+        <span className="text-xs font-normal text-muted-foreground">from your peers</span>
+      </h3>
+      <div className="space-y-3">
+        {sunshineItems.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold flex items-center gap-1 mb-1.5">
+              <span>☀️</span> Sunshine
+            </p>
+            <div className="space-y-1.5">
+              {sunshineItems.map((f) => (
+                <div key={f.id} className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  <span className="text-amber-400 text-xs mt-0.5">•</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground">{f.content}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{f.author_name}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {rainItems.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold flex items-center gap-1 mb-1.5">
+              <span>🌧️</span> Rain
+            </p>
+            <div className="space-y-1.5">
+              {rainItems.map((f) => (
+                <div key={f.id} className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs mt-0.5">•</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground">{f.content}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{f.author_name}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {trailNotes.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold flex items-center gap-1 mb-1.5">
+              <span>📝</span> Trail Notes
+            </p>
+            <div className="space-y-1.5">
+              {trailNotes.map((f) => (
+                <div key={f.id} className="bg-muted/50 border border-border rounded-lg px-3 py-2">
+                  <p className="text-sm text-foreground">{f.content}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{f.author_name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

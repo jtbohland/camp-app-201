@@ -7,6 +7,7 @@ import PresentationGrid from "@/components/PresentationGrid/index.js";
 import PresentationDetail from "@/components/PresentationDetail/index.js";
 import CreatePresentationForm from "@/components/CreatePresentationForm/index.js";
 import { Button } from "@/components/ui/button";
+import PeerFeedbackForm from "@/components/PeerFeedbackForm/index.js";
 
 export default function PresentationsPage() {
   const user = useSuperblocksUser();
@@ -88,6 +89,9 @@ export default function PresentationsPage() {
         {showCreate && (
           <CreatePresentationForm camperId={camperId} onCreated={handleCreated} />
         )}
+
+        {/* Peer Feedback — Campfire Review */}
+        <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
 
         <div className={fetching ? "opacity-70" : ""}>
           <PresentationGrid

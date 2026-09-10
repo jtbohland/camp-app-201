@@ -161,7 +161,7 @@ export default function HomePage() {
   const camper = data!.camper;
 
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
+    <div className="flex flex-col gap-8 p-8 max-w-6xl overflow-auto">
       {/* Hero: Logo + Welcome — one combined card */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-8">
         {/* Faded background watermark */}
@@ -199,50 +199,47 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Two column layout: Quick links + Announcements */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Links - 2 cols */}
-        <div className="lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Icon icon="compass" className="w-5 h-5 text-camp-green" />
-            Trail Guide
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {quickLinks.map((link) => (
-              <Card
-                key={link.path}
-                className="p-4 cursor-pointer hover:shadow-md transition-all hover:border-camp-green/30 group"
-                onClick={() => navigate(link.path)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 ${link.color}`}>
-                    <Icon icon={link.icon} className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm group-hover:text-primary transition-colors">{link.label}</span>
-                      {link.badge && (
-                        <span className="text-[9px] font-bold uppercase tracking-wide bg-camp-amber/15 text-camp-amber px-1.5 py-0.5 rounded-full">
-                          {link.badge}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground mt-0.5">{link.description}</span>
-                  </div>
+      {/* Trail Guide */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Icon icon="compass" className="w-5 h-5 text-camp-green" />
+          Trail Guide
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {quickLinks.map((link) => (
+            <Card
+              key={link.path}
+              className="p-4 cursor-pointer hover:shadow-md transition-all hover:border-camp-green/30 group"
+              onClick={() => navigate(link.path)}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 ${link.color}`}>
+                  <Icon icon={link.icon} className="w-5 h-5" />
                 </div>
-              </Card>
-            ))}
-          </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-sm group-hover:text-primary transition-colors">{link.label}</span>
+                    {link.badge && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide bg-camp-amber/15 text-camp-amber px-1.5 py-0.5 rounded-full">
+                        {link.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground mt-0.5">{link.description}</span>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
+      </div>
 
-        {/* Announcements - 1 col */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Icon icon="megaphone" className="w-5 h-5 text-amber-400" />
-            Announcements
-          </h2>
-          <AnnouncementsFeed />
-        </div>
+      {/* Announcements — full-width feed */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Icon icon="megaphone" className="w-5 h-5 text-amber-400" />
+          Announcements
+        </h2>
+        <AnnouncementsFeed />
       </div>
     </div>
   );

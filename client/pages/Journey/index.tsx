@@ -36,7 +36,7 @@ export default function JourneyPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-8 max-w-5xl">
+      <div className="flex flex-col gap-6 p-8 max-w-6xl">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -63,7 +63,7 @@ export default function JourneyPage() {
   const allPreworkDone = completedKeys.length >= 3;
 
   return (
-    <div className="flex flex-col gap-8 p-8 max-w-5xl">
+    <div className="flex flex-col gap-8 p-8 max-w-6xl">
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-3">

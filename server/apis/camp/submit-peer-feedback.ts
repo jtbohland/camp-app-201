@@ -12,7 +12,7 @@ export default api({
     session_label: z.string(),
     team_id: z.number().nullable(),
     author_id: z.number(),
-    category: z.enum(["liked", "went_well", "missed_opportunity", "feedback"]),
+    category: z.enum(["liked", "went_well", "missed_opportunity", "feedback", "sunshine", "rain", "trail_notes"]),
     content: z.string(),
     points_to_award: z.number(),
   }),
