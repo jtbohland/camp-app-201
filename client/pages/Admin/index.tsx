@@ -27,6 +27,7 @@ import AdminPresentations from "@/components/AdminPresentations/index.js";
 // New components
 import HubDashboard from "@/components/HubDashboard/index.js";
 import LayOfTheLand from "@/components/LayOfTheLand/index.js";
+import NewHireManager from "@/components/NewHireManager/index.js";
 
 const ADMIN_PASSWORD = "NewAchievement201";
 
@@ -333,7 +334,22 @@ export default function AdminPage() {
             </div>
           )}
           {view === "cohort" && (
-            <AdminPreworkSettings />
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Icon icon="user-plus" className="w-4 h-4 text-camp-green" />
+                  New Hire Pipeline
+                </h3>
+                <NewHireManager cohortId={selectedCohortId ?? 2} camperId={0} />
+              </div>
+              <div className="border-t pt-6">
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Icon icon="settings" className="w-4 h-4 text-muted-foreground" />
+                  Program Settings
+                </h3>
+                <AdminPreworkSettings />
+              </div>
+            </div>
           )}
           {view === "settings" && (
             <AdminPreworkSettings />

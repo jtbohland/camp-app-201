@@ -65,22 +65,22 @@ export default function AdminPreworkSettings() {
   return (
     <div className="space-y-4">
       {/* Deadline */}
-      <Card className="p-5 bg-white/5 border-white/10">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+      <Card className="p-5 bg-muted/50 border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Icon icon="timer" className="w-4 h-4 text-amber-400" />
           Pre-Work Deadline
         </h3>
-        <p className="text-xs text-white/50 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           Set the date and time all pre-work must be completed by. Campers see a countdown timer.
         </p>
         <div className="flex items-end gap-3">
           <div className="flex-1">
-            <Label className="text-xs text-white/60 mb-1 block">Deadline (datetime)</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Deadline (datetime)</Label>
             <Input
               type="datetime-local"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="bg-white/10 border-white/20 text-white"
+              className="bg-background border-border text-foreground"
             />
           </div>
         </div>
@@ -92,22 +92,22 @@ export default function AdminPreworkSettings() {
       </Card>
 
       {/* cAMP Start Date */}
-      <Card className="p-5 bg-white/5 border-white/10">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+      <Card className="p-5 bg-muted/50 border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Icon icon="calendar" className="w-4 h-4 text-camp-green" />
           cAMP Start Date
         </h3>
-        <p className="text-xs text-white/50 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           First day of cAMP. Powers the live agenda tracker, day numbering, and session lock timing.
         </p>
         <div className="flex items-end gap-3">
           <div className="flex-1">
-            <Label className="text-xs text-white/60 mb-1 block">Start Date</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Start Date</Label>
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-white/10 border-white/20 text-white"
+              className="bg-background border-border text-foreground"
             />
           </div>
         </div>
@@ -119,52 +119,52 @@ export default function AdminPreworkSettings() {
       </Card>
 
       {/* Early Bird Bonus */}
-      <Card className="p-5 bg-white/5 border-white/10">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+      <Card className="p-5 bg-muted/50 border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Icon icon="star" className="w-4 h-4 text-green-400" />
           Early Bird Bonus Points
         </h3>
-        <p className="text-xs text-white/50 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           Bonus points for completing ALL pre-work early. Only awarded if everything is done.
         </p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs text-white/60 mb-1 block">2+ days early bonus</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">2+ days early bonus</Label>
             <Input
               type="number"
               value={bonus2Day}
               onChange={(e) => setBonus2Day(e.target.value)}
-              className="bg-white/10 border-white/20 text-white"
+              className="bg-background border-border text-foreground"
             />
           </div>
           <div>
-            <Label className="text-xs text-white/60 mb-1 block">1-2 days early bonus</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">1-2 days early bonus</Label>
             <Input
               type="number"
               value={bonus1Day}
               onChange={(e) => setBonus1Day(e.target.value)}
-              className="bg-white/10 border-white/20 text-white"
+              className="bg-background border-border text-foreground"
             />
           </div>
         </div>
       </Card>
 
       {/* Penalty */}
-      <Card className="p-5 bg-white/5 border-white/10">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+      <Card className="p-5 bg-muted/50 border-border">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Icon icon="alert-triangle" className="w-4 h-4 text-red-400" />
           Missed Deadline Penalty
         </h3>
-        <p className="text-xs text-white/50 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           Negative points per incomplete item when the deadline passes.
         </p>
         <div className="w-48">
-          <Label className="text-xs text-white/60 mb-1 block">Penalty per incomplete item</Label>
+          <Label className="text-xs text-muted-foreground mb-1 block">Penalty per incomplete item</Label>
           <Input
             type="number"
             value={penaltyPerItem}
             onChange={(e) => setPenaltyPerItem(e.target.value)}
-            className="bg-white/10 border-white/20 text-white"
+            className="bg-background border-border text-foreground"
           />
         </div>
       </Card>

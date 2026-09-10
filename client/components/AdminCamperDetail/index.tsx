@@ -23,7 +23,7 @@ export default function AdminCamperDetail({ camperId }: Props) {
   }
 
   if (!data?.camper) {
-    return <p className="text-white/60 text-center py-8">Camper not found</p>;
+    return <p className="text-muted-foreground text-center py-8">Camper not found</p>;
   }
 
   const { camper, points_log, checkins } = data;
@@ -31,7 +31,7 @@ export default function AdminCamperDetail({ camperId }: Props) {
   return (
     <div className="space-y-6">
       {/* Header Card */}
-      <Card className="p-6 bg-white/95 border-0 shadow-lg">
+      <Card className="p-6 bg-card border shadow-sm">
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
@@ -82,7 +82,7 @@ export default function AdminCamperDetail({ camperId }: Props) {
       </Card>
 
       {/* Goals */}
-      <Card className="p-5 bg-white/95 border-0 shadow-lg">
+      <Card className="p-5 bg-card border shadow-sm">
         <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <Icon name="target" className="w-4 h-4 text-emerald-600" />
           Goals
@@ -109,7 +109,7 @@ export default function AdminCamperDetail({ camperId }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Points Log */}
-        <Card className="p-5 bg-white/95 border-0 shadow-lg">
+        <Card className="p-5 bg-card border shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Icon name="star" className="w-4 h-4 text-amber-500" />
             Points History
@@ -136,7 +136,7 @@ export default function AdminCamperDetail({ camperId }: Props) {
         </Card>
 
         {/* Check-in History */}
-        <Card className="p-5 bg-white/95 border-0 shadow-lg">
+        <Card className="p-5 bg-card border shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Icon name="clock" className="w-4 h-4 text-blue-500" />
             Check-in History
@@ -174,7 +174,7 @@ export default function AdminCamperDetail({ camperId }: Props) {
 
       {/* Bio/Fun Fact */}
       {(camper.bio || camper.fun_fact) && (
-        <Card className="p-5 bg-white/95 border-0 shadow-lg">
+        <Card className="p-5 bg-card border shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Icon name="circle-user" className="w-4 h-4 text-purple-500" />
             About

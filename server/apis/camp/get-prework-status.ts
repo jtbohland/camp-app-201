@@ -21,7 +21,7 @@ export default api({
   }),
   async run(ctx, { user_id }) {
     const completedItems = await ctx.integrations.apps_database.query(
-      `SELECT item, completed_at::text FROM camp201_prework WHERE user_id = $1`,
+      `SELECT item, completed_at::text FROM camp201_prework WHERE user_id = $1 AND completed = true`,
       PreworkItemSchema,
       [user_id],
       { label: "Fetch pre-work completions" }

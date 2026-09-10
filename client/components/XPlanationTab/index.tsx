@@ -24,6 +24,9 @@ const categories: PointCategory[] = [
     color: "bg-camp-amber/10 text-camp-amber",
     items: [
       { label: "Complete any pre-work item", points: "+5 each", positive: true },
+      { label: "All pre-work done 2+ days early", points: "+15 bonus", positive: true },
+      { label: "All pre-work done 1-2 days early", points: "+10 bonus", positive: true },
+      { label: "Incomplete item at deadline", points: "-10 each", positive: false },
     ],
   },
   {
@@ -62,6 +65,16 @@ const categories: PointCategory[] = [
     ],
   },
   {
+    icon: "flame",
+    title: "Fireside Finder (Bingo)",
+    color: "bg-orange-500/10 text-orange-600",
+    items: [
+      { label: "Correct bingo guess", points: "+2", positive: true },
+      { label: "Complete a full row (BINGO!)", points: "+10 bonus", positive: true },
+      { label: "Same person guessed back-to-back", points: "-2", positive: false },
+    ],
+  },
+  {
     icon: "users",
     title: "Team Collaboration",
     color: "bg-purple-500/10 text-purple-600",
@@ -82,11 +95,21 @@ const categories: PointCategory[] = [
   },
   {
     icon: "presentation",
-    title: "Presentations",
+    title: "Presentations & EBR",
     color: "bg-orange-500/10 text-orange-600",
     items: [
-      { label: "Team presentation scored by rubric", points: "Varies", positive: true },
+      { label: "Team presentation scored by counselor rubric", points: "Up to 15", positive: true },
+      { label: "MVP — Most Valuable Presenter (counselor-awarded, optional)", points: "+10", positive: true },
       { label: "Peer feedback submitted", points: "+3", positive: true },
+    ],
+  },
+  {
+    icon: "cpu",
+    title: "AI Hackathon",
+    color: "bg-violet-500/10 text-violet-600",
+    items: [
+      { label: "Submit a hackathon project", points: "+10", positive: true },
+      { label: "Win the hackathon vote", points: "+20/member", positive: true },
     ],
   },
   {
@@ -97,6 +120,7 @@ const categories: PointCategory[] = [
       { label: "Help a fellow cAMPer (counselor-awarded)", points: "+5", positive: true },
       { label: "Outstanding team spirit (counselor-awarded)", points: "+10", positive: true },
       { label: "Creative solution to a challenge", points: "+10", positive: true },
+      { label: "Hidden easter eggs throughout the app", points: "+5", positive: true },
     ],
   },
 ];

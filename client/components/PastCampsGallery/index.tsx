@@ -1,15 +1,144 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const PLACE_LABELS: Record<number, { emoji: string; label: string; color: string }> = {
-  1: { emoji: "🏆", label: "Champions", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-  2: { emoji: "🥈", label: "2nd Place", color: "bg-gray-100 text-gray-700 border-gray-300" },
-  3: { emoji: "🥉", label: "3rd Place", color: "bg-orange-100 text-orange-700 border-orange-300" },
-  4: { emoji: "4️⃣", label: "4th Place", color: "bg-slate-100 text-slate-600 border-slate-300" },
+// ───────────────────── COLOR THEMES ─────────────────────
+// Each team in cohorts 4–7 gets a color extracted from its logo.
+// Future cohorts: add an entry here keyed by team name.
+// Fallback: cycles through PALETTE for any unlisted team.
+
+interface TeamTheme {
+  /** Primary accent hex */
+  accent: string;
+  /** Lighter background tint */
+  bg: string;
+  /** Border/glow color */
+  glow: string;
+  /** Ring for winner */
+  ring: string;
+}
+
+function makeTheme(accent: string, bg: string, glow: string): TeamTheme {
+  return { accent, bg, glow, ring: glow };
+}
+
+/** Explicit color assignments pulled from each team's logo */
+const TEAM_COLOR_MAP: Record<string, TeamTheme> = {
+  // Cohort 4
+  "Value Drivers":           makeTheme("#1e3a5f", "#e8f0fe", "#3b82f6"),     // navy/blue logo
+  "Campliteers":             makeTheme("#b91c1c", "#fef2f2", "#ef4444"),     // red badge
+  "Trailblazers":            makeTheme("#0d7377", "#ecfdf5", "#14b8a6"),     // teal mountains
+
+  // Cohort 5
+  "The DataPuff Girls":      makeTheme("#c026d3", "#fdf4ff", "#e879f9"),     // pink/magenta
+  "The English Breakfast Club": makeTheme("#991b1b", "#fff1f2", "#f87171"),  // red/crimson
+  "The cAMPtastic Four":     makeTheme("#1e40af", "#eff6ff", "#60a5fa"),     // blue
+
+  // Cohort 6
+  "chAMPiones":              makeTheme("#c2410c", "#fff7ed", "#fb923c"),     // orange/amber
+  "cAMPfire Insights":       makeTheme("#0e4da4", "#eff6ff", "#3b82f6"),    // dark blue
+  "S'more Conversions":      makeTheme("#166534", "#f0fdf4", "#4ade80"),    // green
+
+  // Cohort 7
+  "Five Wavemakers":         makeTheme("#b91c1c", "#fef2f2", "#f87171"),    // red boat
+  "Wave Makers":             makeTheme("#1e3a8a", "#eff6ff", "#60a5fa"),    // blue surf
+  "K-POP Data Hunters":      makeTheme("#6d28d9", "#f5f3ff", "#a78bfa"),    // purple/violet
+  "Funnel Scouts":           makeTheme("#166534", "#f0fdf4", "#4ade80"),    // green trees
+};
+
+/** Palette for future cohorts without an explicit entry */
+const PALETTE: TeamTheme[] = [
+  makeTheme("#b91c1c", "#fef2f2", "#f87171"),   // red
+  makeTheme("#1e40af", "#eff6ff", "#60a5fa"),   // blue
+  makeTheme("#166534", "#f0fdf4", "#4ade80"),   // green
+  makeTheme("#c026d3", "#fdf4ff", "#e879f9"),   // magenta
+  makeTheme("#c2410c", "#fff7ed", "#fb923c"),   // orange
+  makeTheme("#6d28d9", "#f5f3ff", "#a78bfa"),   // violet
+  makeTheme("#0d7377", "#ecfdf5", "#14b8a6"),   // teal
+  makeTheme("#92400e", "#fffbeb", "#fbbf24"),   // gold
+];
+
+function getTheme(teamName: string, index: number): TeamTheme {
+  return TEAM_COLOR_MAP[teamName] ?? PALETTE[index % PALETTE.length];
+}
+
+// ───────────────────── BEST LOGO WINNERS ─────────────────────
+// Past cohort logo vote winners (by team ID in camp201_past_teams).
+// For the current cohort, the live voting feature determines this automatically.
+const BEST_LOGO_TEAM_IDS = new Set([11, 12, 15, 20]); // C4:Trailblazers, C5:DataPuff Girls, C6:chAMPiones, C7:K-POP Data Hunters
+
+// ───────────────────── CAMPER COUNTRIES ─────────────────────
+// [flag emoji, country name, pill bg color] — colors pulled from each flag
+const CAMPER_COUNTRIES: [string, string, string][] = [
+  ["🇦🇺", "Australia", "#dbeafe"],      // blue
+  ["🇧🇷", "Brazil", "#d1fae5"],        // green
+  ["🇫🇷", "France", "#ede9fe"],        // blue-violet
+  ["🇩🇪", "Germany", "#fef9c3"],       // gold
+  ["🇮🇳", "India", "#ffedd5"],         // saffron
+  ["🇯🇵", "Japan", "#ffe4e6"],         // red-white
+  ["🇳🇱", "Netherlands", "#fee2e2"],   // red-orange
+  ["🇸🇦", "Saudi Arabia", "#dcfce7"],  // green
+  ["🇸🇬", "Singapore", "#fce7f3"],    // red-white
+  ["🇰🇷", "South Korea", "#e0f2fe"],   // blue-red
+  ["🇦🇪", "UAE", "#d1fae5"],           // green-red
+  ["🇬🇧", "United Kingdom", "#dbeafe"], // blue
+  ["🇺🇸", "United States", "#dbeafe"],  // blue
+];
+
+// ───────────────────── COMPANY BRAND PILLS ─────────────────────
+
+interface CompanyBrand {
+  emoji: string;
+  color: string;       // text color
+  bg: string;          // pill background
+  border: string;      // pill border
+}
+
+const COMPANY_BRANDS: Record<string, CompanyBrand> = {
+  "SoFi":              { emoji: "🏦", color: "#1a1a6c", bg: "#e8e8ff", border: "#c4c4f7" },
+  "NBC":               { emoji: "🦚", color: "#0b5ed7", bg: "#e3f0ff", border: "#b3d4fc" },
+  "Peloton":           { emoji: "🚴", color: "#1a1a1a", bg: "#f0f0f0", border: "#d4d4d4" },
+  "DoorDash":          { emoji: "🚗", color: "#ff3008", bg: "#fff0ec", border: "#ffc9bc" },
+  "Zillow":            { emoji: "🏠", color: "#006aff", bg: "#e6f0ff", border: "#b3d4ff" },
+  "Intuit QuickBooks": { emoji: "📗", color: "#2ca01c", bg: "#eafbe7", border: "#b8e6b0" },
+  "Chick-fil-A":       { emoji: "🐔", color: "#e51636", bg: "#fef2f2", border: "#fca5a5" },
+  "Intermountain Health": { emoji: "🏥", color: "#c2185b", bg: "#fce4ec", border: "#f48fb1" },
+  "NerdWallet":        { emoji: "🧠", color: "#1fa85e", bg: "#e8faf0", border: "#a7f3d0" },
+  "Coursera":          { emoji: "🎓", color: "#0056d2", bg: "#e8f0fe", border: "#93bbf5" },
+};
+
+function CompanyPill({ company }: { company: string }) {
+  const brand = COMPANY_BRANDS[company];
+  if (!brand) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+        <Icon icon="briefcase" className="w-3 h-3" />
+        {company}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm"
+      style={{ color: brand.color, background: brand.bg, borderWidth: 1, borderColor: brand.border, borderStyle: "solid" }}
+    >
+      <span>{brand.emoji}</span>
+      {company}
+    </span>
+  );
+}
+
+// ───────────────────── TYPES ─────────────────────
+
+const PLACE_CONFIG: Record<number, { label: string; icon: string; class: string }> = {
+  1: { label: "Champions", icon: "🏆", class: "bg-gradient-to-r from-yellow-400 to-amber-500 text-white" },
+  2: { label: "2nd Place", icon: "🥈", class: "bg-gradient-to-r from-gray-300 to-slate-400 text-white" },
+  3: { label: "3rd Place", icon: "🥉", class: "bg-gradient-to-r from-orange-400 to-amber-600 text-white" },
+  4: { label: "4th Place", icon: "4️⃣", class: "bg-slate-200 text-slate-700" },
 };
 
 interface Team {
@@ -39,174 +168,337 @@ interface Cohort {
   teams: Team[];
 }
 
-// Each entry: [centerEmoji, leftEmoji, rightEmoji, gradient, accentColor]
-const TEAM_THEMES: Array<[string, string, string, string, string]> = [
-  // Cohort 1 teams (indices 0-3) — Campfire & Wildlife
-  ["🔥", "🪵", "🌙", "from-orange-100 via-amber-50 to-yellow-100", "text-orange-400"],    // Group One — Campfire night
-  ["🦌", "🌲", "🍂", "from-emerald-100 via-green-50 to-lime-100", "text-emerald-500"],     // Group Two — Forest wildlife
-  ["🐻", "🫐", "🌿", "from-amber-100 via-yellow-50 to-lime-100", "text-amber-600"],        // Group Three — Bear country
-  ["🦅", "🏔️", "☁️", "from-sky-100 via-blue-50 to-indigo-100", "text-sky-500"],           // Group Four — Eagle summit
+// ───────────────────── NO-LOGO PLACEHOLDER ─────────────────────
 
-  // Cohort 2 teams (indices 4-7) — Water & Adventure
-  ["🛶", "💧", "🐟", "from-cyan-100 via-sky-50 to-blue-100", "text-cyan-500"],             // Group One — Lake canoeing
-  ["🧭", "🥾", "🗺️", "from-amber-100 via-orange-50 to-red-100", "text-amber-600"],        // Group Two — Trail hiking
-  ["🏕️", "⛺", "🌄", "from-violet-100 via-purple-50 to-pink-100", "text-violet-500"],      // Group Three — Campsite sunrise
-  ["🔦", "🦉", "🌠", "from-indigo-100 via-slate-50 to-blue-100", "text-indigo-400"],       // Group Four — Night exploration
-
-  // Cohort 3 teams (indices 8-11) — Extreme & Survival
-  ["🪓", "🏕️", "🔥", "from-red-100 via-orange-50 to-amber-100", "text-red-500"],          // Team 1 — Survival camp
-  ["🧪", "📊", "🍕", "from-fuchsia-100 via-pink-50 to-rose-100", "text-fuchsia-500"],      // Datalicious — Data feast
-  ["🎯", "🏹", "🦊", "from-teal-100 via-emerald-50 to-green-100", "text-teal-600"],        // Team 3 — Target practice
-  ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],       // Slytherin — Magic
-];
-
-// Name-based theme lookup for specific teams, fallback to index for generic names
-const NAMED_THEMES: Record<string, [string, string, string, string, string]> = {
-  // Cohort 3
-  "Team 1":       ["🪓", "🏕️", "🔥", "from-red-100 via-orange-50 to-amber-100", "text-red-500"],
-  "Team 3":       ["🎯", "🏹", "🦊", "from-teal-100 via-emerald-50 to-green-100", "text-teal-600"],
-  "Datalicious":  ["🧪", "📊", "🍕", "from-fuchsia-100 via-pink-50 to-rose-100", "text-fuchsia-500"],
-  "Slytherin":    ["🐍", "🧙", "⚡", "from-green-100 via-emerald-50 to-lime-100", "text-green-600"],
+/** Explicit emoji per no-logo team — no repeats within or across cohorts */
+const TEAM_EMOJI_MAP: Record<string, string> = {
+  // Cohort 1
+  "Group One":   "🔥",   // Campfire night
+  "Group Two":   "🦌",   // Forest wildlife
+  "Group Three": "🐻",   // Bear country
+  "Group Four":  "🦅",   // Eagle summit
 };
 
-function NoLogoPlaceholder({ teamName, teamId }: { teamName: string; teamId: number }) {
-  // Check for name-based match first
-  const namedTheme = NAMED_THEMES[teamName];
-  if (namedTheme) {
-    const [center, left, right, gradient, accent] = namedTheme;
-    return (
-      <div className={`bg-gradient-to-br ${gradient} p-8 flex flex-col items-center justify-center gap-3 min-h-[140px] relative overflow-hidden`}>
-        <div className="absolute inset-0 opacity-10 text-6xl flex items-center justify-center select-none pointer-events-none">{center}</div>
-        <div className="flex items-center gap-4 relative z-10">
-          <span className="text-3xl opacity-50 -rotate-12">{left}</span>
-          <span className="text-5xl drop-shadow-sm">{center}</span>
-          <span className="text-3xl opacity-50 rotate-12">{right}</span>
-        </div>
-        <div className={`text-xs font-bold tracking-widest uppercase mt-1 ${accent} relative z-10`}>{teamName}</div>
-      </div>
-    );
-  }
+/** Per-cohort overrides — key is "cohort:teamName" for duplicate team names across cohorts */
+const COHORT_TEAM_EMOJI: Record<string, string> = {
+  // Cohort 2 (same generic names, different emojis)
+  "2:Group One":   "🛶",   // Lake canoeing
+  "2:Group Two":   "🧭",   // Trail hiking
+  "2:Group Three": "🏕️",  // Campsite sunrise
+  "2:Group Four":  "🔦",   // Night exploration
+  // Cohort 3
+  "3:Team 1":      "🪓",   // Survival camp
+  "3:Team 3":      "🎯",   // Target practice
+  "3:Datalicious": "🧪",   // Data feast
+  "3:Slytherin":   "🐍",   // Snake — obviously
+};
 
-  // Fallback: use teamId for generic group names
-  const idx = (teamId - 1) % TEAM_THEMES.length;
-  const [center, left, right, gradient, accent] = TEAM_THEMES[idx];
+/** Fallback emojis for future no-logo teams */
+const FALLBACK_EMOJIS = ["🌲", "🦊", "🐟", "⛺", "🏔️", "🌙", "🦉", "🍂", "⭐", "🌊"];
+
+function getTeamEmoji(teamName: string, cohortNumber: number, index: number): string {
+  // Check cohort-specific key first (handles duplicate names across cohorts)
+  const cohortKey = `${cohortNumber}:${teamName}`;
+  if (COHORT_TEAM_EMOJI[cohortKey]) return COHORT_TEAM_EMOJI[cohortKey];
+  // Then check global name map (cohort 1 defaults)
+  if (TEAM_EMOJI_MAP[teamName]) return TEAM_EMOJI_MAP[teamName];
+  // Fallback for future unknown teams
+  return FALLBACK_EMOJIS[index % FALLBACK_EMOJIS.length];
+}
+
+function NoLogoPlaceholder({ teamName, theme, cohortNumber, index }: { teamName: string; theme: TeamTheme; cohortNumber: number; index: number }) {
+  const emoji = getTeamEmoji(teamName, cohortNumber, index);
 
   return (
-    <div className={`bg-gradient-to-br ${gradient} p-8 flex flex-col items-center justify-center gap-3 min-h-[140px] relative overflow-hidden`}>
-      {/* Background scatter */}
-      <div className="absolute inset-0 opacity-10 text-6xl flex items-center justify-center select-none pointer-events-none">
-        {center}
-      </div>
-      {/* Main display */}
-      <div className="flex items-center gap-4 relative z-10">
-        <span className="text-3xl opacity-50 -rotate-12">{left}</span>
-        <span className="text-5xl drop-shadow-sm">{center}</span>
-        <span className="text-3xl opacity-50 rotate-12">{right}</span>
-      </div>
-      <div className={`text-xs font-bold tracking-widest uppercase mt-1 ${accent} relative z-10`}>
-        {teamName}
+    <div
+      className="aspect-square flex items-center justify-center relative overflow-hidden"
+      style={{ background: `linear-gradient(135deg, ${theme.bg} 0%, white 50%, ${theme.bg} 100%)` }}
+    >
+      {/* Radial ring decoration */}
+      <div
+        className="absolute inset-4 rounded-full opacity-10"
+        style={{ border: `3px dashed ${theme.accent}` }}
+      />
+      <div
+        className="w-24 h-24 rounded-full flex items-center justify-center text-4xl"
+        style={{
+          background: `linear-gradient(135deg, ${theme.accent}, ${theme.glow})`,
+          boxShadow: `0 4px 20px ${theme.glow}50`,
+        }}
+      >
+        {emoji}
       </div>
     </div>
   );
 }
 
-function TeamCard({ team, hasLogos, hasPoints }: { team: Team; hasLogos: boolean; hasPoints: boolean }) {
+// ───────────────────── HALL OF FAME TEAM CARD ─────────────────────
+
+function HallOfFameCard({
+  team,
+  hasLogos,
+  hasPoints,
+  index,
+  cohortNumber,
+}: {
+  team: Team;
+  hasLogos: boolean;
+  hasPoints: boolean;
+  index: number;
+  cohortNumber: number;
+}) {
   const [expanded, setExpanded] = useState(false);
-  const placeInfo = team.place ? PLACE_LABELS[team.place] : null;
+  const theme = getTheme(team.team_name, index);
+  const placeInfo = team.place ? PLACE_CONFIG[team.place] : null;
 
   return (
-    <Card
-      className={`overflow-hidden transition-all hover:shadow-lg cursor-pointer ${
-        team.is_winner ? "ring-2 ring-yellow-400 shadow-yellow-100" : ""
-      }`}
+    <div
+      className="group relative cursor-pointer isolate"
       onClick={() => setExpanded(!expanded)}
     >
-      {/* Logo area */}
-      {hasLogos && team.logo_url ? (
-        <div className="relative bg-gray-50 flex items-center justify-center p-4">
-          <img
-            src={team.logo_url}
-            alt={team.team_name}
-            className="w-full max-h-64 object-contain rounded-lg"
-          />
-          {team.is_winner && (
-            <div className="absolute top-3 right-3">
-              <Badge className="bg-yellow-400 text-yellow-900 text-sm font-bold px-3 py-1 shadow-md">
-                🏆 Champions
-              </Badge>
-            </div>
-          )}
-        </div>
-      ) : (
-        <NoLogoPlaceholder teamName={team.team_name} teamId={team.id} />
-      )}
+      {/* Outer glow on hover */}
+      <div
+        className="absolute -inset-[2px] rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"
+        style={{ background: `linear-gradient(135deg, ${theme.glow}40, ${theme.accent}30)` }}
+      />
 
-      {/* Info */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-lg font-bold text-foreground">{team.team_name}</h3>
+      <Card
+        className="relative overflow-hidden rounded-2xl transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-xl"
+        style={{
+          borderColor: team.is_winner ? theme.glow : `${theme.accent}25`,
+          borderWidth: team.is_winner ? "2px" : "1px",
+          boxShadow: team.is_winner
+            ? `0 0 20px ${theme.glow}30, 0 4px 12px rgba(0,0,0,0.08)`
+            : "0 2px 8px rgba(0,0,0,0.06)",
+        }}
+      >
+        {/* Color accent bar at top */}
+        <div
+          className="h-1.5 w-full"
+          style={{ background: `linear-gradient(90deg, ${theme.accent}, ${theme.glow}, ${theme.accent})` }}
+        />
+
+        {/* Logo area */}
+        <div className="relative overflow-hidden">
+          {hasLogos && team.logo_url ? (
+            <div
+              className="aspect-square flex items-center justify-center p-5 relative overflow-hidden"
+              style={{ background: `radial-gradient(circle at center, white 30%, ${theme.bg} 100%)` }}
+            >
+              {/* Subtle pattern rings */}
+              <div
+                className="absolute inset-0 opacity-[0.04]"
+                style={{
+                  backgroundImage: `radial-gradient(circle at center, transparent 40%, ${theme.accent} 41%, transparent 42%), radial-gradient(circle at center, transparent 60%, ${theme.accent} 61%, transparent 62%), radial-gradient(circle at center, transparent 80%, ${theme.accent} 81%, transparent 82%)`,
+                }}
+              />
+              <img
+                src={team.logo_url}
+                alt={team.team_name}
+                className="w-full h-full object-contain relative z-10 drop-shadow-md transition-transform duration-300 group-hover:scale-105"
+              />
+            </div>
+          ) : (
+            <NoLogoPlaceholder teamName={team.team_name} theme={theme} cohortNumber={cohortNumber} index={index} />
+          )}
+
+          {/* Placement badge — centered at top */}
           {placeInfo && (
-            <Badge variant="outline" className={`text-xs ${placeInfo.color}`}>
-              {placeInfo.emoji} {placeInfo.label}
-            </Badge>
+            <div className="absolute top-2.5 inset-x-0 z-20 flex justify-center">
+              <div
+                className={`${placeInfo.class} px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1`}
+              >
+                <span>{placeInfo.icon}</span>
+                <span>{placeInfo.label}</span>
+              </div>
+            </div>
           )}
-        </div>
-        {team.tagline && (
-          <p className="text-sm text-muted-foreground italic mb-2">"{team.tagline}"</p>
-        )}
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          {hasPoints && team.points != null && (
-            <span className="flex items-center gap-1">
-              <Icon icon="flame" className="w-3.5 h-3.5 text-orange-500" />
-              {team.points} pts
-              {team.points_note && <span className="text-[10px]">({team.points_note})</span>}
-            </span>
+
+          {/* Best Logo pill — bottom-right of logo area */}
+          {BEST_LOGO_TEAM_IDS.has(team.id) && (
+            <div className="absolute bottom-2.5 right-2.5 z-20">
+              <div className="bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md flex items-center gap-1">
+                <span>🎨</span>
+                <span>Best Logo</span>
+              </div>
+            </div>
           )}
-          {team.presentation_company && (
-            <span className="flex items-center gap-1">
-              <Icon icon="briefcase" className="w-3.5 h-3.5" />
-              {team.presentation_company}
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Icon icon="users" className="w-3.5 h-3.5" />
-            {team.members.length} members
-          </span>
         </div>
 
-        {/* Expanded members list */}
-        {expanded && (
-          <div className="mt-3 pt-3 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Team Members</p>
-            <div className="flex flex-wrap gap-1.5">
-              {team.members.map((m) => (
-                <Badge key={m.id} variant="secondary" className="text-xs font-normal">
-                  {m.full_name}
-                  {m.role && m.region && (
-                    <span className="text-muted-foreground ml-1">({m.role}-{m.region})</span>
-                  )}
-                </Badge>
-              ))}
-            </div>
+        {/* Info section with colored left border accent */}
+        <div
+          className="p-4 border-t"
+          style={{ borderColor: `${theme.accent}15` }}
+        >
+          {/* Team name */}
+          <h3
+            className="text-base font-extrabold tracking-tight leading-tight"
+            style={{ color: theme.accent }}
+          >
+            {team.team_name}
+          </h3>
+
+          {/* Tagline */}
+          {team.tagline && (
+            <p className="text-xs text-muted-foreground italic mt-0.5 line-clamp-1">
+              "{team.tagline}"
+            </p>
+          )}
+
+          {/* Stats row: points → members → company pill */}
+          <div className="flex flex-wrap items-center gap-2.5 mt-2.5 text-xs text-muted-foreground">
+            {hasPoints && team.points != null && (
+              <span className="flex items-center gap-1 font-semibold" style={{ color: theme.accent }}>
+                <Icon icon="flame" className="w-3.5 h-3.5" />
+                {team.points} pts
+                {team.points_note && (
+                  <span className="font-normal text-muted-foreground text-[10px]">({team.points_note})</span>
+                )}
+              </span>
+            )}
+            <span className="flex items-center gap-1">
+              <Icon icon="users" className="w-3 h-3" />
+              {team.members.length} members
+            </span>
+            {team.presentation_company && (
+              <CompanyPill company={team.presentation_company} />
+            )}
           </div>
-        )}
-      </div>
-    </Card>
+
+          {/* Expanded members */}
+          {expanded && team.members.length > 0 && (
+            <div
+              className="mt-3 pt-3"
+              style={{ borderTop: `1px solid ${theme.accent}15` }}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                Team Members
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {team.members.map((m) => (
+                  <Badge
+                    key={m.id}
+                    variant="secondary"
+                    className="text-xs font-normal"
+                    style={{
+                      background: `${theme.accent}10`,
+                      borderColor: `${theme.accent}20`,
+                      color: theme.accent,
+                    }}
+                  >
+                    {m.full_name}
+                    {m.role && m.region && (
+                      <span className="opacity-60 ml-1">({m.role}-{m.region})</span>
+                    )}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
+
+// ───────────────────── COHORT SECTION ─────────────────────
+
+function CohortSection({ cohort }: { cohort: Cohort }) {
+  // For cohorts with logos (4+), use bigger tiles
+  const hasRealContent = cohort.has_logos || cohort.has_team_names;
+
+  return (
+    <div className="relative">
+      {/* Cohort header */}
+      <div className="flex items-center gap-4 mb-5">
+        <div
+          className="flex items-center justify-center w-12 h-12 rounded-xl font-black text-sm text-white shadow-md"
+          style={{
+            background: "linear-gradient(135deg, #1b3a2d, #2d5a3f)",
+          }}
+        >
+          C{cohort.cohort_number}
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-foreground">
+            Cohort {cohort.cohort_number}
+            <span className="font-normal text-muted-foreground ml-2">— {cohort.date_label}</span>
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {cohort.teams.length > 0
+              ? `${cohort.teams.length} team${cohort.teams.length > 1 ? "s" : ""} competed`
+              : "Details coming soon"}
+            {cohort.notes && <span className="ml-1">· {cohort.notes}</span>}
+          </p>
+        </div>
+      </div>
+
+      {/* Teams grid */}
+      {cohort.teams.length > 0 ? (
+        <div
+          className={`grid gap-5 ${
+            cohort.teams.length >= 4
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+              : cohort.teams.length === 3
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2"
+          }`}
+        >
+          {cohort.teams.map((team, i) => (
+            <HallOfFameCard
+              key={team.id}
+              team={team}
+              hasLogos={cohort.has_logos}
+              hasPoints={cohort.has_points}
+              index={i}
+              cohortNumber={cohort.cohort_number}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="p-8 text-center text-muted-foreground bg-muted/30 rounded-2xl">
+          <Icon icon="clock" className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p>Cohort details coming soon</p>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────── MAIN GALLERY ─────────────────────
 
 export default function PastCampsGallery() {
   const { data, loading } = useApiData("GetPastCohorts", {});
   const cohorts: Cohort[] = data?.cohorts ?? [];
 
+  const stats = useMemo(() => {
+    let totalCampers = 0;
+    let totalTeams = 0;
+    const seen = new Set<string>();
+    for (const c of cohorts) {
+      totalTeams += c.teams.length;
+      for (const t of c.teams) {
+        for (const m of t.members) {
+          if (!seen.has(m.full_name)) {
+            seen.add(m.full_name);
+            totalCampers++;
+          }
+        }
+      }
+    }
+    return { totalCampers, totalTeams, totalCohorts: cohorts.length };
+  }, [cohorts]);
+
   if (loading) {
     return (
-      <div className="p-6 space-y-8">
+      <div className="p-6 space-y-10">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i}>
-            <Skeleton className="h-8 w-48 mb-4" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Skeleton className="h-64" /><Skeleton className="h-64" /><Skeleton className="h-64" />
+            <Skeleton className="h-10 w-56 mb-5 rounded-xl" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <Skeleton className="h-72 rounded-2xl" />
+              <Skeleton className="h-72 rounded-2xl" />
+              <Skeleton className="h-72 rounded-2xl" />
             </div>
           </div>
         ))}
@@ -215,51 +507,72 @@ export default function PastCampsGallery() {
   }
 
   return (
-    <div className="p-6 space-y-10 max-w-6xl">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-foreground">cAMP 201 Hall of Fame</h2>
-        <p className="text-muted-foreground mt-1">Every cohort, every team, every logo — get inspired for yours!</p>
+    <div className="p-6 space-y-12 max-w-7xl mx-auto">
+      {/* Hero header */}
+      <div className="text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-widest mb-3">
+          <span>🏆</span> Hall of Fame <span>🏆</span>
+        </div>
+        <h2 className="text-3xl font-black text-foreground tracking-tight">
+          cAMP 201 Legacy Wall
+        </h2>
+        <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
+          Every cohort. Every team. Every logo. These legends paved the way — now it's your turn to join the ranks.
+        </p>
+
+        {/* cAMPer Counter */}
+        {stats.totalCampers > 0 && (
+          <div className="flex items-center justify-center gap-6 mt-5">
+            <div className="text-center">
+              <div className="text-3xl font-black text-camp-green tabular-nums">{stats.totalCampers}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">cAMPers</div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="text-center">
+              <div className="text-3xl font-black text-amber-600 tabular-nums">{stats.totalTeams}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Teams</div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="text-center">
+              <div className="text-3xl font-black text-violet-600 tabular-nums">{stats.totalCohorts}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cohorts</div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-center cursor-default">
+                    <div className="text-3xl font-black text-sky-600 tabular-nums">{CAMPER_COUNTRIES.length}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Countries</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs p-3">
+                  <p className="text-xs font-bold mb-1.5">Representing {CAMPER_COUNTRIES.length} countries</p>
+                  <div className="flex flex-wrap gap-1">
+                    {CAMPER_COUNTRIES.map(([flag, name, bg]) => (
+                      <span key={name} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-gray-900" style={{ backgroundColor: bg }}>
+                        <span>{flag}</span>{name}
+                      </span>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
 
-      {cohorts.map((cohort) => (
+      {/* Cohort sections */}
+      {cohorts.map((cohort, i) => (
         <div key={cohort.id}>
-          {/* Cohort header */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-camp-green/15 text-camp-green font-bold text-sm">
-              C{cohort.cohort_number}
+          <CohortSection cohort={cohort} />
+          {/* Divider between cohorts */}
+          {i < cohorts.length - 1 && (
+            <div className="flex items-center gap-4 mt-10">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground/50 select-none">⛺</span>
+              <div className="flex-1 h-px bg-border" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">
-                Cohort {cohort.cohort_number} — {cohort.date_label}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {cohort.teams.length > 0 ? `${cohort.teams.length} teams` : "Details coming soon"}
-                {cohort.notes && ` · ${cohort.notes}`}
-              </p>
-            </div>
-          </div>
-
-          {/* Teams grid */}
-          {cohort.teams.length > 0 ? (
-            <div className={`grid gap-5 ${
-              cohort.teams.length === 4 ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" :
-              cohort.teams.length === 3 ? "grid-cols-1 md:grid-cols-3" :
-              "grid-cols-1 md:grid-cols-2"
-            }`}>
-              {cohort.teams.map((team) => (
-                <TeamCard
-                  key={team.id}
-                  team={team}
-                  hasLogos={cohort.has_logos}
-                  hasPoints={cohort.has_points}
-                />
-              ))}
-            </div>
-          ) : (
-            <Card className="p-8 text-center text-muted-foreground bg-muted/30">
-              <Icon icon="clock" className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>Cohort details coming soon</p>
-            </Card>
           )}
         </div>
       ))}

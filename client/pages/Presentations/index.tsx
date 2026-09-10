@@ -7,6 +7,8 @@ import PresentationGrid from "@/components/PresentationGrid/index.js";
 import PresentationDetail from "@/components/PresentationDetail/index.js";
 import CreatePresentationForm from "@/components/CreatePresentationForm/index.js";
 import { Button } from "@/components/ui/button";
+import PeerFeedbackForm from "@/components/PeerFeedbackForm/index.js";
+import CampfireFeed from "@/components/CampfireFeed/index.js";
 
 export default function PresentationsPage() {
   const user = useSuperblocksUser();
@@ -78,16 +80,19 @@ export default function PresentationsPage() {
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={() => setShowCreate(!showCreate)} size="sm" className="bg-purple-600 hover:bg-purple-700">
-              <Icon icon={showCreate ? "x" : "plus"} className="w-4 h-4 mr-1.5" />
-              {showCreate ? "Cancel" : "New Presentation"}
-            </Button>
-          )}
+              <Button onClick={() => setShowCreate(!showCreate)} size="sm" className="bg-purple-600 hover:bg-purple-700">
+                <Icon icon={showCreate ? "x" : "plus"} className="w-4 h-4 mr-1.5" />
+                {showCreate ? "Cancel" : "New Presentation"}
+              </Button>
+            )}
         </div>
 
         {showCreate && (
           <CreatePresentationForm camperId={camperId} onCreated={handleCreated} />
         )}
+
+        {/* Peer Feedback — Campfire Review */}
+        <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
 
         <div className={fetching ? "opacity-70" : ""}>
           <PresentationGrid
@@ -97,6 +102,9 @@ export default function PresentationsPage() {
             onRefresh={refetch}
           />
         </div>
+
+        {/* Live Campfire Feed */}
+        <CampfireFeed camperId={camperId} />
       </div>
     </div>
   );

@@ -29,25 +29,25 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick }: Props) {
     <div>
       {/* Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Card className="p-4 bg-white/10 border-white/20 text-white">
+        <Card className="p-4 bg-muted/50 border-border">
           <div className="text-2xl font-bold">{data?.total_campers ?? 0}</div>
-          <div className="text-xs text-white/70">Total Learners</div>
+          <div className="text-xs text-muted-foreground">Total Learners</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/20 text-white">
+        <Card className="p-4 bg-muted/50 border-border">
           <div className="text-2xl font-bold">{data?.total_points ?? 0}</div>
-          <div className="text-xs text-white/70">Total Points Awarded</div>
+          <div className="text-xs text-muted-foreground">Total Points Awarded</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/20 text-white">
+        <Card className="p-4 bg-muted/50 border-border">
           <div className="text-2xl font-bold">
             {campers.filter((c) => c.profile_completed).length}
           </div>
-          <div className="text-xs text-white/70">Profiles Complete</div>
+          <div className="text-xs text-muted-foreground">Profiles Complete</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/20 text-white">
+        <Card className="p-4 bg-muted/50 border-border">
           <div className="text-2xl font-bold">
             {campers.length > 0 ? Math.round(data!.total_points / campers.length) : 0}
           </div>
-          <div className="text-xs text-white/70">Avg Points/Learner</div>
+          <div className="text-xs text-muted-foreground">Avg Points/Learner</div>
         </Card>
       </div>
 
@@ -56,7 +56,7 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick }: Props) {
         {campers.map((camper) => (
           <Card
             key={camper.id}
-            className="p-4 bg-white/95 border-0 shadow-lg cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
+            className="p-4 bg-card border shadow-sm cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all"
             onClick={() => onCamperClick(camper.id)}
           >
             <div className="flex items-start justify-between mb-3">
@@ -118,7 +118,7 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick }: Props) {
       </div>
 
       {campers.length === 0 && (
-        <div className="text-center py-16 text-white/60">
+        <div className="text-center py-16 text-muted-foreground">
           <Icon name="users" className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-lg">No learners in this cohort yet</p>
         </div>

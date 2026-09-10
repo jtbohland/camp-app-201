@@ -11,9 +11,9 @@ const SECTIONS = [
   { key: "missions", label: "Missions", icon: "🎯", description: "Presentations & exercises" },
   { key: "pillars", label: "Value Pillars", icon: "🏛️", description: "Use cases & value propositions" },
   { key: "pov_workshop", label: "PoV Workshop", icon: "🔍", description: "Customer research & commercial insights" },
-  { key: "value_mapping", label: "Value Discovery", icon: "🗺️", description: "Value Maps & mock meeting prep" },
   { key: "hackathon", label: "AI Hackathon", icon: "🤖", description: "Ideas, prototypes & research" },
-  { key: "decks", label: "Presentation Decks", icon: "📝", description: "Your team's presentation deck links" },
+  { key: "value_mapping", label: "Value Mapping", icon: "🗺️", description: "Value Maps & mock meeting prep" },
+  { key: "ebr", label: "EBR", icon: "📊", description: "Executive business review prep" },
 ];
 
 export default function TeamHubPage() {

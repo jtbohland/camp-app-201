@@ -13,9 +13,10 @@ export default api({
     scorer_camper_id: z.number(),
     scores: z.string(), // JSON: {"criterion_name": score_value, ...}
     notes: z.string().nullable(),
+    mvp_camper_id: z.number().nullable().optional(), // Optional MVP award
   }),
   output: z.object({ success: z.boolean(), message: z.string(), total_score: z.number() }),
-  async run(ctx, { presentation_id, rubric_template_id, team_id, scorer_camper_id, scores, notes }) {
+  async run(ctx, { presentation_id, rubric_template_id, team_id, scorer_camper_id, scores, notes, mvp_camper_id }) {
     const parsedScores = JSON.parse(scores) as Record<string, number>;
     const totalScore = Object.values(parsedScores).reduce((sum, v) => sum + v, 0);
 
@@ -55,16 +56,11 @@ export default api({
       { label: "Insert rubric score" }
     );
 
-    // Award points to the team
-    await ctx.integrations.apps_database.execute(
-      `UPDATE camp201_teams SET total_points = total_points + $2 WHERE id = $1`,
-      [team_id, totalScore],
-      { label: "Award team points" }
-    );
-
     // Award points to each team member
     const members = await ctx.integrations.apps_database.query(
-      `SELECT id FROM camp201_campers WHERE team_id = $1 AND role NOT IN ('counselor', 'admin') LIMIT 20`,
+      `SELECT tm.user_id AS id FROM camp201_team_members tm
+       JOIN camp201_campers c ON c.id = tm.user_id
+       WHERE tm.team_id = $1 AND c.role NOT IN ('counselor', 'admin') LIMIT 20`,
       z.object({ id: z.coerce.number() }),
       [team_id],
       { label: "Get team members" }
@@ -81,6 +77,22 @@ export default api({
         `UPDATE camp201_campers SET points = points + $2 WHERE id = $1`,
         [m.id, totalScore],
         { label: `Update member ${m.id} total` }
+      );
+    }
+
+    // Award MVP if selected
+    if (mvp_camper_id) {
+      const MVP_POINTS = 10;
+      await ctx.integrations.apps_database.execute(
+        `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
+         VALUES ($1, $2, 'MVP — Most Valuable Presenter', 'presentation', 2)`,
+        [mvp_camper_id, MVP_POINTS],
+        { label: "Award MVP points" }
+      );
+      await ctx.integrations.apps_database.execute(
+        `UPDATE camp201_campers SET points = points + $2 WHERE id = $1`,
+        [mvp_camper_id, MVP_POINTS],
+        { label: "Update MVP total" }
       );
     }
 
