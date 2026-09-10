@@ -11,6 +11,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
+import EasterEggTrivia from "@/components/EasterEggTrivia/index.js";
 
 type Link = { label: string; url: string };
 type ContentItem = {
@@ -34,9 +35,10 @@ const TAB_META: { key: string; label: string; icon: IconName }[] = [
 
 type Props = {
   isAdmin?: boolean;
+  camperId?: number;
 };
 
-export default function KnowBeforeYouGo({ isAdmin }: Props) {
+export default function KnowBeforeYouGo({ isAdmin, camperId }: Props) {
   const [activeTab, setActiveTab] = useState("rules");
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -93,6 +95,7 @@ export default function KnowBeforeYouGo({ isAdmin }: Props) {
 
         {TAB_META.map((tab) => (
           <TabsContent key={tab.key} value={tab.key}>
+            {tab.key === "office" && camperId && <EasterEggTrivia camperId={camperId} />}
             {tab.key === "office" && <FloorMaps />}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(itemsByTab[tab.key] ?? []).map((item) => (

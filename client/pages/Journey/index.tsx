@@ -101,7 +101,7 @@ export default function JourneyPage() {
       </div>
 
       {/* Know Before You Go */}
-      <KnowBeforeYouGo isAdmin={isAdmin} />
+      <KnowBeforeYouGo isAdmin={isAdmin} camperId={camper?.id} />
     </div>
   );
 }
