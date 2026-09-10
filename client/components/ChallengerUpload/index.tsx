@@ -39,7 +39,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
         submission_data: { auto_completed: true, reason: `Role: ${camperRole} (exempt — already completed Challenger)`, screenshots: ["auto"] },
       });
       if (result?.success) {
-        toast.success("✅ Challenger auto-completed (already done in your role)");
+        toast.success("Challenger auto-completed (already done in your role)");
         onComplete();
       }
     } catch (err) {
@@ -75,7 +75,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
         },
       });
       if (result?.success) {
-        toast.success(`🚀 Challenger verified! +${result.points_awarded} pts`);
+        toast.success(`Challenger verified! +${result.points_awarded} pts`);
         onComplete();
       }
     } catch (err) {
@@ -98,7 +98,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
             </p>
           </div>
           <Button size="sm" onClick={handleAutoComplete} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
-            {loading ? "..." : "✅ Confirm Complete"}
+            {loading ? "..." : "Confirm Complete"}
           </Button>
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
   return (
     <div className="mt-3 space-y-3 p-4 rounded-lg border border-violet-200 bg-violet-50/30">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-lg">🚀</span>
+        <Icon icon="rocket" className="w-5 h-5 text-violet-600" />
         <h4 className="font-semibold text-sm">Verify Challenger Completion</h4>
       </div>
 
@@ -142,7 +142,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
               {screenshots[course.name] ? (
                 <Icon icon="check-circle" className="w-3.5 h-3.5 text-green-500" />
               ) : (
-                <Icon icon="upload" className="w-3.5 h-3.5" />
+                <Icon icon="camera" className="w-3.5 h-3.5" />
               )}
               {course.name}
             </label>
@@ -165,7 +165,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
               <ImageUpload
                 value=""
                 onChange={(base64: string) => handleScreenshot(course.name, base64)}
-                label="📷 Upload"
+                label="Upload"
               />
             )}
           </div>
@@ -178,7 +178,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
         className="w-full bg-violet-600 hover:bg-violet-700 text-white"
         size="sm"
       >
-        {loading ? "Verifying..." : `🚀 Verify Challenger (${Object.keys(screenshots).length}/${courses.length} uploaded)`}
+        {loading ? "Verifying..." : `Verify Challenger (${Object.keys(screenshots).length}/${courses.length} uploaded)`}
       </Button>
     </div>
   );

@@ -87,10 +87,10 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
   // Only show tabs that have content
   const sections = [
     { id: "overview", label: "Overview", icon: "file-text" },
-    ...(isBingo ? [{ id: "bingo", label: "🔥 Bingo Card", icon: "grid" }] : []),
-    ...(isTeamWorkshop && hasQuestions ? [{ id: "team_workspace", label: "👥 Team Workspace", icon: "users" }] : []),
-    ...(isHackathon ? [{ id: "showcase", label: "🚀 Showcase", icon: "rocket" }] : []),
-    ...(isEBR && camperTeamId ? [{ id: "role_play", label: "🎭 Role Play", icon: "theater" }] : []),
+    ...(isBingo ? [{ id: "bingo", label: "Bingo Card", icon: "grid" }] : []),
+    ...(isTeamWorkshop && hasQuestions ? [{ id: "team_workspace", label: "Team Workspace", icon: "users" }] : []),
+    ...(isHackathon ? [{ id: "showcase", label: "Showcase", icon: "rocket" }] : []),
+    ...(isEBR && camperTeamId ? [{ id: "role_play", label: "Role Play", icon: "theater" }] : []),
     ...(hasQuestions && !isBingo && !isTeamWorkshop ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
     ...(hasResources ? [{ id: "resources", label: "Resources", icon: "link" }] : []),
     ...(hasRubric ? [{ id: "rubric", label: "Rubric", icon: "clipboard-check" }] : []),

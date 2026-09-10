@@ -1,24 +1,27 @@
 import { useState, useCallback } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 const CORRECT_ANSWER = "nomnom";
 const POINTS = 5;
+const EASTER_EGG_REASON = "Easter egg: Named the Amplitude mascot";
 
 type Props = {
   camperId: number;
-  alreadyAnswered?: boolean;
+  teamId: number | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
-export default function EasterEggTrivia({ camperId, alreadyAnswered = false }: Props) {
-  const [expanded, setExpanded] = useState(!alreadyAnswered);
+export default function EasterEggTrivia({ camperId, teamId, open, onOpenChange }: Props) {
   const [answer, setAnswer] = useState("");
-  const [submitted, setSubmitted] = useState(alreadyAnswered);
   const [correct, setCorrect] = useState<boolean | null>(null);
+  const [alreadyFound, setAlreadyFound] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { run: awardPoints } = useApi("QuickAwardPoints");
 
   const handleSubmit = useCallback(async () => {
@@ -29,105 +32,122 @@ export default function EasterEggTrivia({ camperId, alreadyAnswered = false }: P
 
     if (isCorrect) {
       try {
-        await awardPoints({
+        const result = await awardPoints({
           camper_id: camperId,
           points: POINTS,
-          reason: "🥚 Easter egg: Named the Amplitude mascot!",
+          reason: EASTER_EGG_REASON,
           awarded_by: camperId,
           category: "bonus",
+          team_unique: true,
         });
-        toast.success(`🥚 +${POINTS} hidden points earned!`);
+        if (result?.already_found) {
+          setAlreadyFound(true);
+        } else {
+          toast.success(`+${POINTS} hidden points earned!`);
+        }
       } catch {
-        // Already answered or error
+        // Error — still show correct UI
       }
-    } else {
-      toast("Not quite! But nice try 🏕️");
     }
   }, [answer, camperId, awardPoints]);
 
-  if (submitted && !expanded) {
-    return (
-      <button
-        onClick={() => setExpanded(true)}
-        className="flex items-center gap-2 text-xs text-camp-amber/70 hover:text-camp-amber transition-colors mb-3"
-      >
-        <span className="text-sm">🥚</span>
-        {correct ? "You found the easter egg!" : "Easter egg trivia"}
-      </button>
-    );
-  }
-
   return (
-    <Card className="overflow-hidden border-camp-amber/20 bg-gradient-to-br from-amber-50/50 to-orange-50/30 mb-4">
-      {/* Hero image with fun fact */}
-      <div className="relative h-48 overflow-hidden">
-        <img
-          src="/office/201-building.jpg"
-          alt="201 3rd Street — Amplitude HQ"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <div className="absolute bottom-3 left-4 right-4">
-          <p className="text-white/80 text-xs font-medium">📍 201 3rd Street, San Francisco</p>
-          <p className="text-white text-sm font-bold mt-0.5">
-            Did you know? cAMP 201 is named after our office building — it&apos;s literally where you level up! 🏔️
-          </p>
-        </div>
-      </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        <DialogTitle className="sr-only">Hidden Challenge</DialogTitle>
 
-      {/* Trivia section */}
-      {!submitted ? (
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-full bg-camp-amber/15 flex items-center justify-center">
-              <span className="text-xs">🥚</span>
-            </div>
-            <p className="text-sm font-semibold text-foreground">Hidden Trivia Challenge</p>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-camp-amber/10 text-camp-amber font-semibold">+{POINTS} pts</span>
+        {/* Hero image */}
+        <div className="relative h-40 overflow-hidden">
+          <img
+            src="/office/201-building.jpg"
+            alt="201 3rd Street"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4">
+            <p className="text-white/70 text-xs font-medium">201 3rd Street, San Francisco</p>
+            <p className="text-white text-sm font-bold mt-0.5">
+              You found something hidden...
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground mb-3">
-            You may have noticed a friendly little monster hanging around your cAMP 201 app. What&apos;s the name of Amplitude&apos;s beloved mascot?
-          </p>
-          <div className="flex gap-2">
-            <Input
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Type the mascot's name..."
-              className="max-w-xs"
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            />
+        </div>
+
+        {!submitted ? (
+          <div className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Icon icon="search" className="w-4 h-4 text-amber-600" />
+              <p className="text-sm font-bold text-foreground">Hidden Trivia Challenge</p>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">+{POINTS} pts</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-1">
+              You may have noticed a friendly little monster hanging around your cAMP 201 app.
+            </p>
+            <p className="text-sm text-foreground font-medium mb-3">
+              What's the name of Amplitude's beloved mascot?
+            </p>
+            {teamId && (
+              <p className="text-[10px] text-muted-foreground/60 mb-3 italic">
+                Only the first person on your team to answer correctly earns the points.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder="Type the mascot's name..."
+                className="flex-1"
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                autoFocus
+              />
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={!answer.trim()}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                Submit
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5">
+            {correct && alreadyFound ? (
+              /* Teammate already found it */
+              <div className="flex items-start gap-3 rounded-lg p-3 bg-blue-50 border border-blue-200">
+                <Icon icon="info" className="w-5 h-5 mt-0.5 text-blue-500" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-700">Your teammate already found this!</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    That's NomNom — great answer! But a teammate already discovered this easter egg, so the +{POINTS} pts were already awarded to your team.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className={`flex items-start gap-3 rounded-lg p-3 ${correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+                <Icon icon={correct ? "check-circle" : "x-circle"} className={`w-5 h-5 mt-0.5 ${correct ? "text-green-600" : "text-red-500"}`} />
+                <div>
+                  <p className={`text-sm font-semibold ${correct ? "text-green-700" : "text-red-700"}`}>
+                    {correct ? `Correct! +${POINTS} hidden points` : "Not quite!"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {correct
+                      ? "That's NomNom! You'll see this little monster camping, hiking, and cheering you on throughout cAMP 201."
+                      : "The answer is NomNom — Amplitude's monster mascot! Better luck next time."}
+                  </p>
+                </div>
+              </div>
+            )}
             <Button
+              variant="outline"
               size="sm"
-              onClick={handleSubmit}
-              disabled={!answer.trim()}
-              className="bg-camp-amber hover:bg-camp-amber/90 text-white"
+              onClick={() => onOpenChange(false)}
+              className="mt-3 w-full"
             >
-              Submit
+              Close
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="p-4">
-          <div className={`flex items-start gap-3 rounded-lg p-3 ${correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
-            <div className="text-lg mt-0.5">{correct ? "🎉" : "😅"}</div>
-            <div>
-              <p className={`text-sm font-semibold ${correct ? "text-green-700" : "text-red-700"}`}>
-                {correct ? `Correct! +${POINTS} hidden points` : "Not quite!"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {correct
-                  ? "That's NomNom! You'll see this little monster camping, hiking, and cheering you on throughout cAMP 201 🏕️"
-                  : "The answer is NomNom — Amplitude's monster mascot! You'll see this little creature camping, hiking, and cheering you on throughout the app 🏕️"}
-              </p>
-            </div>
-          </div>
-          {expanded && submitted && (
-            <button onClick={() => setExpanded(false)} className="text-xs text-muted-foreground mt-2 hover:text-foreground">
-              Collapse
-            </button>
-          )}
-        </div>
-      )}
-    </Card>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import RegistrationForm from "@/components/RegistrationForm";
 import ManagerRegistrationForm from "@/components/ManagerRegistrationForm";
 import AnnouncementsFeed from "@/components/AnnouncementsFeed/index.js";
+import EasterEggTrivia from "@/components/EasterEggTrivia/index.js";
 import type { IconName } from "lucide-react/dynamic";
 
 type QuickLink = {
@@ -159,14 +160,20 @@ export default function HomePage() {
   }
 
   const camper = data!.camper;
+  const [easterEggOpen, setEasterEggOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
-      {/* Welcome Banner */}
+      {/* Welcome Banner — clicking the mountain icon triggers the easter egg */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/90 to-primary p-8 text-primary-foreground">
-        <div className="absolute top-0 right-0 opacity-10">
+        <button
+          onClick={() => setEasterEggOpen(true)}
+          className="absolute top-0 right-0 opacity-10 hover:opacity-20 transition-opacity cursor-default"
+          title=""
+          aria-label=""
+        >
           <Icon icon="mountain" className="w-48 h-48 -mt-8 -mr-8" />
-        </div>
+        </button>
         <div className="relative">
           <p className="text-sm opacity-80 mb-1">Welcome back, cAMPer</p>
           <h1 className="text-3xl font-bold">
@@ -232,6 +239,14 @@ export default function HomePage() {
           <AnnouncementsFeed />
         </div>
       </div>
+
+      {/* Easter egg trivia — triggered by clicking the mountain icon on the banner */}
+      <EasterEggTrivia
+        camperId={camper?.id ?? 0}
+        teamId={camper?.team_id ?? null}
+        open={easterEggOpen}
+        onOpenChange={setEasterEggOpen}
+      />
     </div>
   );
 }
