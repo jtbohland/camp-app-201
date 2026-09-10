@@ -43,7 +43,6 @@ export default function TeamsPage() {
               Your fellow cAMPers, teams, and past cohort inspiration
             </p>
           </div>
-          <img src="/nomnom/flag.png" alt="" className="w-14 h-14 object-contain opacity-60" />
         </div>
         {/* Tab bar */}
         <div className="flex gap-1 px-6 mt-4">

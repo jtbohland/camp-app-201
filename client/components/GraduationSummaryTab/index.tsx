@@ -92,8 +92,6 @@ export default function GraduationSummaryTab() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 via-yellow-50 to-green-50 border-2 border-amber-200 p-8 text-center">
         {/* Animated camping confetti */}
         <CampConfetti />
-        {/* High-five NomNom — bottom right */}
-        <img src="/nomnom/highfive.png" alt="" className="absolute -bottom-4 -right-4 w-36 h-36 object-contain opacity-15 pointer-events-none" />
 
         <div className="relative">
           <img src="/nomnom/camp201-logo.png" alt="cAMP 201" className="w-20 h-20 mx-auto mb-3 rounded-full shadow-lg object-cover" />

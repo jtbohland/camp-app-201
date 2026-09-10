@@ -164,33 +164,48 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/90 to-primary p-8 text-primary-foreground">
-        {/* cAMP 201 Logo — prominent top-left */}
-        <img src="/nomnom/camp201-logo.png" alt="cAMP 201" className="absolute top-3 left-3 w-16 h-16 rounded-full shadow-lg border-2 border-white/20 object-cover" />
-        {/* Hiker NomNom — easter egg trigger (looks decorative, secretly clickable) */}
-        <button
-          onClick={() => setEasterEggOpen(true)}
-          className="absolute -bottom-2 right-4 opacity-20 hover:opacity-40 transition-opacity cursor-default"
-          title=""
-          aria-label=""
-        >
-          <img src="/nomnom/hiker.png" alt="" className="w-32 h-32 object-contain" />
-        </button>
-        <div className="relative">
-          <p className="text-sm opacity-80 mb-1">Welcome back, cAMPer</p>
-          <h1 className="text-3xl font-bold">
-            {camper?.first_name} {camper?.last_name}
-          </h1>
-          <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
+      {/* Hero: cAMP 201 Logo + Tagline */}
+      <button
+        onClick={() => setEasterEggOpen(true)}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-6 cursor-default group"
+      >
+        <div className="flex items-center gap-5">
+          <img
+            src="/nomnom/camp201-logo.png"
+            alt="cAMP 201"
+            className="w-24 h-24 rounded-2xl shadow-xl object-cover ring-2 ring-white/20 flex-shrink-0"
+          />
+          <div className="text-left">
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">cAMP 201</h1>
+            <p className="text-sm text-white/70 font-medium mt-0.5">The Next Level Has an Address</p>
+          </div>
+        </div>
+        {/* Hiker NomNom — subtle, decorative, secretly the easter egg trigger */}
+        <img
+          src="/nomnom/hiker.png"
+          alt=""
+          className="absolute -bottom-3 right-6 w-28 h-28 object-contain opacity-15 group-hover:opacity-30 transition-opacity pointer-events-none"
+        />
+      </button>
+
+      {/* Personal welcome card */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-camp-green/10 to-amber-50/50 border border-camp-green/20 p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Welcome back, cAMPer</p>
+            <h2 className="text-xl font-bold text-foreground mt-0.5">
+              {camper?.first_name} {camper?.last_name}
+            </h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-camp-green/10 rounded-lg px-3 py-1.5">
               <Icon icon="flame" className="w-4 h-4 text-camp-amber" />
-              <span className="text-sm font-semibold">{camper?.points ?? 0} points</span>
+              <span className="text-sm font-bold text-camp-green">{camper?.points ?? 0} pts</span>
             </div>
             {!camper?.profile_completed && (
-              <div className="flex items-center gap-2 bg-camp-amber/20 rounded-lg px-3 py-1.5">
-                <Icon icon="alert-circle" className="w-4 h-4" />
-                <span className="text-sm">Complete your profile to earn +15 pts</span>
+              <div className="flex items-center gap-2 bg-amber-100 rounded-lg px-3 py-1.5">
+                <Icon icon="alert-circle" className="w-4 h-4 text-amber-600" />
+                <span className="text-xs text-amber-700 font-medium">Complete profile +15 pts</span>
               </div>
             )}
           </div>

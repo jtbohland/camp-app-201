@@ -77,15 +77,12 @@ export default function PresentationsPage() {
               Group presentations with rubrics and peer feedback
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <img src="/nomnom/laptop.png" alt="" className="w-12 h-12 object-contain opacity-50" />
-            {isAdmin && (
+          {isAdmin && (
               <Button onClick={() => setShowCreate(!showCreate)} size="sm" className="bg-purple-600 hover:bg-purple-700">
                 <Icon icon={showCreate ? "x" : "plus"} className="w-4 h-4 mr-1.5" />
                 {showCreate ? "Cancel" : "New Presentation"}
               </Button>
             )}
-          </div>
         </div>
 
         {showCreate && (
