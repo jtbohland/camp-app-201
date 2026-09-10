@@ -94,6 +94,7 @@ export default function PresentationsPage() {
             presentations={presentations}
             onSelect={setSelectedId}
             isAdmin={isAdmin}
+            onRefresh={refetch}
           />
         </div>
       </div>

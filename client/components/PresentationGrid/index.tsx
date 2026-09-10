@@ -1,5 +1,8 @@
+import { useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { useApi } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 type Presentation = {
   id: number;
@@ -21,6 +24,7 @@ type Props = {
   presentations: Presentation[];
   onSelect: (id: number) => void;
   isAdmin?: boolean;
+  onRefresh?: () => void;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: string }> = {
@@ -40,7 +44,37 @@ const DAY_THEMES: Record<number, { label: string; gradient: string; accent: stri
 
 const DEFAULT_THEME = { label: "General", gradient: "from-stone-600 to-stone-400", accent: "border-l-stone-500", icon: "📋" };
 
-export default function PresentationGrid({ presentations, onSelect, isAdmin = false }: Props) {
+function AdminLockToggle({ presentationId, isLocked, onRefresh }: { presentationId: number; isLocked: boolean; onRefresh?: () => void }) {
+  const { run: toggleLock, loading } = useApi("TogglePresentationLock");
+  const handleToggle = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await toggleLock({ presentation_id: presentationId, is_locked: !isLocked });
+      toast.success(isLocked ? "🔓 Unlocked for campers" : "🔒 Locked for campers");
+      onRefresh?.();
+    } catch {
+      toast.error("Failed to toggle lock");
+    }
+  }, [presentationId, isLocked, toggleLock, onRefresh]);
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={loading}
+      className={`absolute top-3 right-3 z-20 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+        isLocked
+          ? "bg-red-100 text-red-700 hover:bg-red-200 border border-red-200"
+          : "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200"
+      }`}
+      title={isLocked ? "Click to unlock for campers" : "Click to lock for campers"}
+    >
+      <Icon icon={isLocked ? "lock" : "lock-open"} className="w-3 h-3" />
+      {loading ? "..." : isLocked ? "Locked" : "Open"}
+    </button>
+  );
+}
+
+export default function PresentationGrid({ presentations, onSelect, isAdmin = false, onRefresh }: Props) {
   if (presentations.length === 0) {
     return (
       <Card className="p-12 text-center border-dashed">
@@ -91,6 +125,7 @@ export default function PresentationGrid({ presentations, onSelect, isAdmin = fa
                   isAdmin={isAdmin}
                   orderNum={idx + 1}
                   dayTheme={theme}
+                  onRefresh={onRefresh}
                 />
               ))}
             </div>
@@ -101,12 +136,13 @@ export default function PresentationGrid({ presentations, onSelect, isAdmin = fa
   );
 }
 
-function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme }: {
+function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme, onRefresh }: {
   presentation: Presentation;
   onSelect: (id: number) => void;
   isAdmin: boolean;
   orderNum: number;
   dayTheme: { accent: string; gradient: string };
+  onRefresh?: () => void;
 }) {
   const status = STATUS_CONFIG[presentation.status] ?? STATUS_CONFIG.upcoming;
   const isLocked = presentation.is_locked && !isAdmin;
@@ -128,6 +164,11 @@ function PresentationTile({ presentation, onSelect, isAdmin, orderNum, dayTheme 
       }`}
       onClick={isLocked ? undefined : () => onSelect(presentation.id)}
     >
+      {/* Admin lock toggle */}
+      {isAdmin && (
+        <AdminLockToggle presentationId={presentation.id} isLocked={presentation.is_locked} onRefresh={onRefresh} />
+      )}
+
       {/* Lock overlay */}
       {isLocked && (
         <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] z-10 flex items-center justify-center">
