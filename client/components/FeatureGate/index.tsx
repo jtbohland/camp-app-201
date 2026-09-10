@@ -1,8 +1,11 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
+import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { toast } from "sonner";
 
 type FeatureGateProps = {
   featureKey: string;
@@ -13,26 +16,67 @@ type FeatureGateProps = {
 
 export default function FeatureGate({ featureKey, children, bypass = false }: FeatureGateProps) {
   const user = useSuperblocksUser();
-  const { data } = useApiData("GetFeatureGates", {}, { staleTime: 30_000 });
+  const { data, refetch } = useApiData("GetFeatureGates", {}, { staleTime: 30_000 });
   const { data: camperData } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
   }, { enabled: !!user?.email, staleTime: 60_000 });
+  const { run: updateGate, loading: toggling } = useApi("UpdateFeatureGate");
 
-  // Auto-bypass for counselors and admins
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
-
-  if (bypass || isAdmin) return <>{children}</>;
 
   const gates = data?.gates ?? [];
   const gate = gates.find((g: { feature_key: string }) => g.feature_key === featureKey);
+  const isLocked = gate?.is_locked ?? false;
 
-  // If gates haven't loaded yet, show children (avoid blocking on initial load)
+  const handleToggle = useCallback(async () => {
+    try {
+      await updateGate({
+        feature_key: featureKey,
+        is_locked: !isLocked,
+        unlock_at: null,
+      });
+      toast.success(isLocked ? `🔓 Unlocked: ${featureKey}` : `🔒 Locked: ${featureKey}`);
+      refetch();
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
+      toast.error("Failed: " + msg);
+    }
+  }, [featureKey, isLocked, updateGate, refetch]);
+
+  // Admin toggle button — small pill
+  const AdminToggle = isAdmin ? (
+    <button
+      onClick={handleToggle}
+      disabled={toggling}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+        isLocked
+          ? "bg-red-100 text-red-700 hover:bg-red-200 border border-red-200"
+          : "bg-green-100 text-green-700 hover:bg-green-200 border border-green-200"
+      }`}
+      title={isLocked ? "Click to unlock for all campers" : "Click to lock for campers"}
+    >
+      <Icon icon={isLocked ? "lock" : "lock-open"} className="w-3 h-3" />
+      {toggling ? "..." : isLocked ? "Locked" : "Unlocked"}
+    </button>
+  ) : null;
+
+  if (bypass || isAdmin) {
+    return (
+      <div className="relative">
+        {isAdmin && gate && (
+          <div className="absolute top-2 right-2 z-10">
+            {AdminToggle}
+          </div>
+        )}
+        {children}
+      </div>
+    );
+  }
+
   if (!data) return <>{children}</>;
-
-  // If gate doesn't exist, show children (no gate = no restriction)
   if (!gate) return <>{children}</>;
 
-  if (gate.is_locked) {
+  if (isLocked) {
     return (
       <div className="flex items-center justify-center h-full p-8">
         <Card className="p-8 text-center max-w-md border-camp-amber/20">

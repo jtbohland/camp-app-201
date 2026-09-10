@@ -97,8 +97,28 @@ export default api({
       }
     }
 
-    // === LINK-BASED VALIDATION (for non-registration items) ===
-    if (item !== "complete_registration" && content_id && content_id > 0) {
+    // === SUBMISSION-GATED ITEMS (Wheel & Deal, Challenger) ===
+    const SUBMISSION_GATED = ["wheel_and_deal", "challenger_sales"];
+    let submissionFlagged = false;
+    if (SUBMISSION_GATED.includes(item)) {
+      const submissions = await ctx.integrations.apps_database.query(
+        `SELECT flagged FROM camp201_prework_submissions WHERE camper_id = $1 AND item_key = $2 LIMIT 1`,
+        z.object({ flagged: z.boolean() }),
+        [user_id, item],
+        { label: "Check prework submission" }
+      );
+      if (submissions.length === 0) {
+        return {
+          success: false, pointsAwarded: 0, warning: true,
+          missing_links: [], missing_profile_fields: [item === "wheel_and_deal" ? "Submit your Wheel & Deal results first" : "Upload your Challenger course screenshots first"],
+          penalty_applied: false,
+        };
+      }
+      submissionFlagged = submissions[0].flagged;
+    }
+
+    // === LINK-BASED VALIDATION (for non-registration, non-submission-gated items) ===
+    if (item !== "complete_registration" && !SUBMISSION_GATED.includes(item) && content_id && content_id > 0) {
       // Get the content item's links
       const contentRows = await ctx.integrations.apps_database.query(
         "SELECT links FROM camp201_journey_content WHERE id = $1 LIMIT 1",
@@ -186,18 +206,35 @@ export default api({
     // Award points if new completion
     let pointsAwarded = 0;
     if (result.rowCount && result.rowCount > 0) {
-      pointsAwarded = 5;
-      await ctx.integrations.apps_database.execute(
-        `UPDATE camp201_campers SET points = points + 5 WHERE id = $1`,
-        [user_id],
-        { label: "Award pre-work points" }
-      );
-      await ctx.integrations.apps_database.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-         VALUES ($1, 5, $2, 'system')`,
-        [user_id, `Pre-work completed: ${item}`],
-        { label: "Log pre-work points" }
-      );
+      if (submissionFlagged) {
+        // Flagged submission — deduct points
+        pointsAwarded = PENALTY_POINTS;
+        await ctx.integrations.apps_database.execute(
+          `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+          [PENALTY_POINTS, user_id],
+          { label: "Deduct flagged submission penalty" }
+        );
+        await ctx.integrations.apps_database.execute(
+          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
+           VALUES ($1, $2, $3, 'system')`,
+          [user_id, PENALTY_POINTS, `Flagged pre-work submission: ${item}`],
+          { label: "Log flagged penalty" }
+        );
+        penalty_applied = true;
+      } else {
+        pointsAwarded = 5;
+        await ctx.integrations.apps_database.execute(
+          `UPDATE camp201_campers SET points = points + 5 WHERE id = $1`,
+          [user_id],
+          { label: "Award pre-work points" }
+        );
+        await ctx.integrations.apps_database.execute(
+          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
+           VALUES ($1, 5, $2, 'system')`,
+          [user_id, `Pre-work completed: ${item}`],
+          { label: "Log pre-work points" }
+        );
+      }
     }
 
     const netPoints = pointsAwarded + (penalty_applied ? PENALTY_POINTS : 0);

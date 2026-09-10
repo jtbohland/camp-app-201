@@ -92,6 +92,7 @@ export default function JourneyPage() {
         <PreWork
           userId={camperId}
           camperEmail={user?.email ?? ""}
+          camperRole={camper?.role ?? ""}
           completedKeys={completedKeys}
           onComplete={refetchPrework}
           isAdmin={isAdmin}

@@ -16,9 +16,11 @@ type Props = {
   rubricTemplateId: number;
   camperId: number;
   isAdmin: boolean;
+  scoresRevealed?: boolean;
+  onRevealToggle?: () => void;
 };
 
-export default function TeamScoringPanel({ presentationId, rubricTemplateId, camperId, isAdmin }: Props) {
+export default function TeamScoringPanel({ presentationId, rubricTemplateId, camperId, isAdmin, scoresRevealed, onRevealToggle }: Props) {
   const { data: rubricData, loading, refetch } = useApiData("GetRubricTemplate", {
     rubric_template_id: rubricTemplateId,
   });
@@ -83,15 +85,15 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
           <Card key={i} className="p-4">
             <h4 className="text-sm font-semibold text-foreground mb-2.5">{c.name}</h4>
             <div className="grid grid-cols-3 gap-2">
-              {c.levels.map((l) => (
+              {c.levels.map((l, li) => (
                 <div key={l.score} className={`p-2.5 rounded-lg text-xs border ${
-                  l.score === 3 ? "border-green-200 bg-green-50/50 dark:bg-green-950/10"
-                  : l.score === 2 ? "border-amber-200 bg-amber-50/50 dark:bg-amber-950/10"
+                  li === c.levels.length - 1 ? "border-green-200 bg-green-50/50 dark:bg-green-950/10"
+                  : li === Math.floor(c.levels.length / 2) ? "border-amber-200 bg-amber-50/50 dark:bg-amber-950/10"
                   : "border-red-200 bg-red-50/50 dark:bg-red-950/10"
                 }`}>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-                      l.score === 3 ? "bg-green-200 text-green-700" : l.score === 2 ? "bg-amber-200 text-amber-700" : "bg-red-200 text-red-700"
+                      li === c.levels.length - 1 ? "bg-green-200 text-green-700" : li === Math.floor(c.levels.length / 2) ? "bg-amber-200 text-amber-700" : "bg-red-200 text-red-700"
                     }`}>{l.score}</span>
                     <span className="font-semibold text-foreground">{l.label}</span>
                   </div>
@@ -165,9 +167,7 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
                             onClick={() => handleScore(c.name, l.score)}
                             className={`w-9 h-9 rounded-lg font-bold text-sm transition-all ${
                               sel
-                                ? l.score === 3 ? "bg-green-500 text-white shadow-md"
-                                  : l.score === 2 ? "bg-amber-500 text-white shadow-md"
-                                  : "bg-red-500 text-white shadow-md"
+                                ? "bg-primary text-white shadow-md"
                                 : "bg-muted text-muted-foreground hover:bg-muted/80"
                             }`}
                           >
@@ -185,6 +185,40 @@ export default function TeamScoringPanel({ presentationId, rubricTemplateId, cam
                 </span>
                 <Button onClick={handleSubmit} disabled={scoring || Object.keys(scores).length < criteria.length} size="sm">
                   {scoring ? "Saving…" : "Submit Score"}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Score Reveal Toggle — for EBR / capstone presentations */}
+          {onRevealToggle && existingScores.length > 0 && (
+            <Card className={`p-4 border-2 ${
+              scoresRevealed
+                ? "border-green-400 bg-green-50/50"
+                : "border-amber-400 bg-amber-50/50"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{scoresRevealed ? "🏆" : "🔒"}</span>
+                  <div>
+                    <h4 className="font-bold text-sm">
+                      {scoresRevealed ? "Scores Revealed!" : "Scores Locked"}
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      {scoresRevealed
+                        ? "All EBR scores are visible on the leaderboard"
+                        : `${existingScores.length} score(s) submitted — reveal when all teams have presented`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant={scoresRevealed ? "outline" : "default"}
+                  onClick={onRevealToggle}
+                  className={scoresRevealed ? "" : "bg-amber-600 hover:bg-amber-700"}
+                >
+                  {scoresRevealed ? "Re-lock Scores" : "🏆 Reveal Scores"}
                 </Button>
               </div>
             </Card>

@@ -1,7 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router";
 
-import { PageNotFound, RouteLoadError } from "@superblocksteam/library";
-
 import RegisteredApp from "./App.js";
 import FeatureGate from "./components/FeatureGate/index.js";
 
@@ -25,7 +23,6 @@ function gatedLazy(importFn: () => Promise<{ default: React.ComponentType }>, ga
 export const router = createBrowserRouter([
   {
     Component: RegisteredApp,
-    errorElement: <RouteLoadError />,
     children: [
       // No gate — always accessible
       { path: "/", index: true, ...gatedLazy(() => import("./pages/Home/index.js")) },
@@ -53,31 +50,9 @@ export const router = createBrowserRouter([
       { path: "/xplanation", element: <Navigate to="/badges" replace /> },
       { path: "/feedback", element: <Navigate to="/presentations" replace /> },
       { path: "/rubric", element: <Navigate to="/presentations" replace /> },
-      {
-        path: "*",
-        Component: () => {
-          const currentPath = window.location.pathname;
-          return (
-            <PageNotFound
-              title="Page not found"
-              errorMessage={
-                currentPath === "/" ? (
-                  <span>
-                    The <strong>/</strong> route has been deleted from this
-                    application. Please try another URL or contact your
-                    developer for assistance.
-                  </span>
-                ) : (
-                  "Content not found"
-                )
-              }
-              hideActions={currentPath === "/"}
-              buttonPath={"/"}
-              buttonText={"Return to Base Camp"}
-            />
-          );
-        },
-      },
+
+      // Catch-all: redirect unknown routes to home
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
 ]);

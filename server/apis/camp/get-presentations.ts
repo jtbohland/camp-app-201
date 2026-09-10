@@ -20,6 +20,7 @@ const PresentationSchema = z.object({
   deck_template_url: z.string().nullable(),
   questions: z.any(),
   presentation_type: z.string().nullable(),
+  scores_revealed: z.boolean(),
   created_at: z.string(),
   feedback_count: z.coerce.number(),
   avg_rating: z.string().nullable(),
@@ -41,26 +42,30 @@ export default api({
     const presentations = await ctx.integrations.camp_db.query(
       `SELECT p.id, p.title, p.description, p.instructions, p.resources,
               p.prep_time_minutes, p.present_time_minutes, p.team_id,
-              t.name AS team_name, p.day_number, p.status, p.sort_order,
+              t.name AS team_name,
+              COALESCE(a.day_number, p.day_number) AS day_number,
+              p.status, p.sort_order,
               COALESCE(p.is_locked, true) AS is_locked,
               p.rubric_template_id, p.deck_template_url, COALESCE(p.questions, '[]'::jsonb) AS questions,
               COALESCE(p.presentation_type, 'standard') AS presentation_type,
+              COALESCE(p.scores_revealed, false) AS scores_revealed,
               p.created_at,
               COALESCE(fb.cnt, 0) AS feedback_count,
               fb.avg_rating
        FROM camp201_presentations p
        LEFT JOIN camp201_teams t ON t.id = p.team_id
+       LEFT JOIN camp201_agenda a ON a.session_bank_id = p.session_bank_id AND p.session_bank_id IS NOT NULL
        LEFT JOIN (
          SELECT presentation_id, COUNT(*) AS cnt, ROUND(AVG(rating), 1)::text AS avg_rating
          FROM camp201_presentation_feedback
          GROUP BY presentation_id
        ) fb ON fb.presentation_id = p.id
-       WHERE ($1::text IS NULL OR p.status = $1) AND p.day_number > 0
-       ORDER BY p.sort_order, p.day_number, p.id
+       WHERE ($1::text IS NULL OR p.status = $1) AND COALESCE(a.day_number, p.day_number) > 0
+       ORDER BY COALESCE(a.day_number, p.day_number), p.sort_order, p.id
        LIMIT 50`,
       PresentationSchema,
       [status],
-      { label: "Get all presentations" }
+      { label: "Get all presentations (agenda-synced days)" }
     );
 
     return { presentations };
