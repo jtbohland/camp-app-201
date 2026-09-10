@@ -153,6 +153,7 @@ import QuickAwardPoints from './camp/quick-award-points.js';
 import MigratePreworkSubmissions from './camp/migrate-prework-submissions.js';
 import SubmitPreworkValidation from './camp/submit-prework-validation.js';
 import TogglePresentationLock from './camp/toggle-presentation-lock.js';
+import GetHubDashboard from './camp/get-hub-dashboard.js';
 
 const apis = {
   SetupDatabase,
@@ -304,6 +305,7 @@ const apis = {
   MigratePreworkSubmissions,
   SubmitPreworkValidation,
   TogglePresentationLock,
+  GetHubDashboard,
 } as const;
 
 export default apis;
