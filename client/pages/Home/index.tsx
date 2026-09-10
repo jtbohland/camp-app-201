@@ -164,29 +164,24 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
-      {/* Hero: cAMP 201 Logo + Tagline */}
-      <button
-        onClick={() => setEasterEggOpen(true)}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-6 cursor-default group"
-      >
-        <div className="flex items-center gap-5">
+      {/* Hero: cAMP 201 Logo — BIG, front and center */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-10 text-center">
+        {/* Faded logo background */}
+        <img
+          src="/nomnom/camp201-logo.png"
+          alt=""
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] object-contain opacity-[0.06] pointer-events-none"
+        />
+        <div className="relative">
           <img
             src="/nomnom/camp201-logo.png"
             alt="cAMP 201"
-            className="w-24 h-24 rounded-2xl shadow-xl object-cover ring-2 ring-white/20 flex-shrink-0"
+            className="w-32 h-32 mx-auto rounded-2xl shadow-2xl object-cover ring-2 ring-white/20"
           />
-          <div className="text-left">
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">cAMP 201</h1>
-            <p className="text-sm text-white/70 font-medium mt-0.5">The Next Level Has an Address</p>
-          </div>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight mt-4">cAMP 201</h1>
+          <p className="text-sm text-white/60 font-medium mt-1">The Next Level Has an Address</p>
         </div>
-        {/* Hiker NomNom — subtle, decorative, secretly the easter egg trigger */}
-        <img
-          src="/nomnom/hiker.png"
-          alt=""
-          className="absolute -bottom-3 right-6 w-28 h-28 object-contain opacity-15 group-hover:opacity-30 transition-opacity pointer-events-none"
-        />
-      </button>
+      </div>
 
       {/* Personal welcome card */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-camp-green/10 to-amber-50/50 border border-camp-green/20 p-5">
@@ -258,7 +253,29 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Easter egg trivia — triggered by clicking the mountain icon on the banner */}
+      {/* 201 Building — Easter Egg hidden here */}
+      <button
+        onClick={() => setEasterEggOpen(true)}
+        className="relative overflow-hidden rounded-xl cursor-default group"
+      >
+        <img
+          src="/office/201-building.jpg"
+          alt="201 3rd Street, San Francisco"
+          className="w-full h-48 object-cover rounded-xl"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent rounded-xl" />
+        <div className="absolute bottom-4 left-5 right-5">
+          <p className="text-white/70 text-xs font-medium flex items-center gap-1">
+            <Icon icon="map-pin" className="w-3 h-3" />
+            201 3rd Street, San Francisco
+          </p>
+          <p className="text-white text-sm font-bold mt-1">
+            Did you know? cAMP 201 is named after our office building — it's literally where you level up!
+          </p>
+        </div>
+      </button>
+
+      {/* Easter egg trivia — triggered by clicking the office photo */}
       <EasterEggTrivia
         camperId={camper?.id ?? 0}
         teamId={camper?.team_id ?? null}
