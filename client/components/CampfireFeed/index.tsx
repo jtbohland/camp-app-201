@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/useApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
-const REACTION_EMOJIS = ["👍", "☀️", "❤️", "🏆", "🔥"];
+const REACTION_EMOJIS = ["👏🏻", "⚡", "🏔️", "🚀", "🦋", "🦅"];
 
 type FeedbackItem = {
   id: number;
@@ -87,7 +87,7 @@ export default function CampfireFeed({ camperId }: { camperId: number }) {
       {/* Header + filter */}
       <div className="flex items-center justify-between">
         <h3 className="text-base font-bold flex items-center gap-2">
-          🏕️ Campfire Feed
+          🏕️ cAMPfire Feed
           {fetching && <span className="text-xs font-normal text-muted-foreground animate-pulse">updating…</span>}
         </h3>
         {sessions.length > 1 && (

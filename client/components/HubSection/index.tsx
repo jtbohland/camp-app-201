@@ -232,7 +232,7 @@ function PeerFeedbackDisplay({ sectionKey, teamId }: { sectionKey: string; teamI
   return (
     <div className="border-t border-border pt-4 mt-2">
       <h3 className="text-sm font-bold flex items-center gap-2 mb-3">
-        🏕️ Campfire Reviews
+        🏕️ cAMPfire Feedback
         <span className="text-xs font-normal text-muted-foreground">from your peers</span>
       </h3>
       <div className="space-y-3">

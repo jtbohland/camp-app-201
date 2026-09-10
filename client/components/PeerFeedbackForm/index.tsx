@@ -112,7 +112,7 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
         });
       }
 
-      toast.success("🏕️ Campfire Review submitted! +5 pts");
+      toast.success("🏕️ cAMPfire Feedback submitted!");
 
       // Reset form
       setSunshine(["", "", ""]);
@@ -142,7 +142,7 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
         className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md"
       >
         <Icon icon="message-circle" className="w-4 h-4 mr-2" />
-        🏕️ Give Campfire Review
+        🏕️ Give cAMPfire Feedback
       </Button>
     );
   }
@@ -153,7 +153,7 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold flex items-center gap-2">
-            🏕️ Campfire Review
+            🏕️ cAMPfire Feedback
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Share thoughtful feedback to help your peers level up
@@ -278,7 +278,7 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
         className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
         size="lg"
       >
-        {submitting ? "Sending..." : "🏕️ Submit Campfire Review"}
+        {submitting ? "Sending..." : "🏕️ Submit cAMPfire Feedback"}
       </Button>
     </Card>
   );
