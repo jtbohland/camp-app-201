@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/useApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
-const REACTION_EMOJIS = ["👏🏻", "⚡", "🏔️", "🚀", "🦋", "🦅"];
+const REACTION_EMOJIS = ["👍", "☀️", "❤️", "🏆", "🔥", "👏🏻", "⚡", "🏔️", "🚀", "🦋", "🦅"];
 
 type FeedbackItem = {
   id: number;
