@@ -65,6 +65,45 @@ function getTheme(teamName: string, index: number): TeamTheme {
   return TEAM_COLOR_MAP[teamName] ?? PALETTE[index % PALETTE.length];
 }
 
+// ───────────────────── COMPANY BRAND PILLS ─────────────────────
+
+interface CompanyBrand {
+  emoji: string;
+  color: string;       // text color
+  bg: string;          // pill background
+  border: string;      // pill border
+}
+
+const COMPANY_BRANDS: Record<string, CompanyBrand> = {
+  "SoFi":              { emoji: "🏦", color: "#1a1a6c", bg: "#e8e8ff", border: "#c4c4f7" },
+  "NBC":               { emoji: "🦚", color: "#0b5ed7", bg: "#e3f0ff", border: "#b3d4fc" },
+  "Peloton":           { emoji: "🚴", color: "#1a1a1a", bg: "#f0f0f0", border: "#d4d4d4" },
+  "DoorDash":          { emoji: "🚗", color: "#ff3008", bg: "#fff0ec", border: "#ffc9bc" },
+  "Zillow":            { emoji: "🏠", color: "#006aff", bg: "#e6f0ff", border: "#b3d4ff" },
+  "Intuit QuickBooks": { emoji: "📗", color: "#2ca01c", bg: "#eafbe7", border: "#b8e6b0" },
+};
+
+function CompanyPill({ company }: { company: string }) {
+  const brand = COMPANY_BRANDS[company];
+  if (!brand) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
+        <Icon icon="briefcase" className="w-3 h-3" />
+        {company}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm"
+      style={{ color: brand.color, background: brand.bg, borderWidth: 1, borderColor: brand.border, borderStyle: "solid" }}
+    >
+      <span>{brand.emoji}</span>
+      {company}
+    </span>
+  );
+}
+
 // ───────────────────── TYPES ─────────────────────
 
 const PLACE_CONFIG: Record<number, { label: string; icon: string; class: string }> = {
@@ -280,10 +319,7 @@ function HallOfFameCard({
               </span>
             )}
             {team.presentation_company && (
-              <span className="flex items-center gap-1">
-                <Icon icon="briefcase" className="w-3 h-3" />
-                {team.presentation_company}
-              </span>
+              <CompanyPill company={team.presentation_company} />
             )}
             <span className="flex items-center gap-1">
               <Icon icon="users" className="w-3 h-3" />
