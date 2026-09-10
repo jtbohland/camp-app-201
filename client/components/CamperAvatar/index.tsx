@@ -17,7 +17,7 @@ function simpleHash(str: string): string {
 
 function getGravatarUrl(email: string, size: number = 200): string {
   const hash = simpleHash(email.trim().toLowerCase());
-  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=404`;
+  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=blank`;
 }
 
 type Props = {
