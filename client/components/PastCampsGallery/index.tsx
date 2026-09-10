@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ───────────────────── COLOR THEMES ─────────────────────
 // Each team in cohorts 4–7 gets a color extracted from its logo.
@@ -69,6 +70,24 @@ function getTheme(teamName: string, index: number): TeamTheme {
 // Past cohort logo vote winners (by team ID in camp201_past_teams).
 // For the current cohort, the live voting feature determines this automatically.
 const BEST_LOGO_TEAM_IDS = new Set([11, 12, 15, 20]); // C4:Trailblazers, C5:DataPuff Girls, C6:chAMPiones, C7:K-POP Data Hunters
+
+// ───────────────────── CAMPER COUNTRIES ─────────────────────
+// [flag emoji, country name] — sorted alphabetically
+const CAMPER_COUNTRIES: [string, string][] = [
+  ["🇦🇺", "Australia"],
+  ["🇧🇷", "Brazil"],
+  ["🇫🇷", "France"],
+  ["🇩🇪", "Germany"],
+  ["🇮🇳", "India"],
+  ["🇯🇵", "Japan"],
+  ["🇳🇱", "Netherlands"],
+  ["🇸🇦", "Saudi Arabia"],
+  ["🇸🇬", "Singapore"],
+  ["🇰🇷", "South Korea"],
+  ["🇦🇪", "UAE"],
+  ["🇬🇧", "United Kingdom"],
+  ["🇺🇸", "United States"],
+];
 
 // ───────────────────── COMPANY BRAND PILLS ─────────────────────
 
@@ -518,6 +537,27 @@ export default function PastCampsGallery() {
               <div className="text-3xl font-black text-violet-600 tabular-nums">{stats.totalCohorts}</div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cohorts</div>
             </div>
+            <div className="w-px h-10 bg-border" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-center cursor-default">
+                    <div className="text-3xl font-black text-sky-600 tabular-nums">{CAMPER_COUNTRIES.length}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Countries</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs p-3">
+                  <p className="text-xs font-bold mb-1.5">Representing {CAMPER_COUNTRIES.length} countries</p>
+                  <div className="flex flex-wrap gap-1">
+                    {CAMPER_COUNTRIES.map(([flag, name]) => (
+                      <span key={name} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[11px]">
+                        <span>{flag}</span>{name}
+                      </span>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
       </div>
