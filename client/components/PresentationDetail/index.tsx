@@ -15,6 +15,7 @@ import TeamScoringPanel from "@/components/TeamScoringPanel";
 import TeamWorkspaceForm from "@/components/TeamWorkspaceForm";
 import HackathonShowcase from "@/components/HackathonShowcase";
 import ValueMapBreakdown from "@/components/ValueMapBreakdown";
+import CounselorRoleAssignment from "@/components/CounselorRoleAssignment";
 
 type Presentation = {
   id: number;
@@ -32,6 +33,7 @@ type Presentation = {
   presentation_type?: string | null;
   rubric_template_id?: number | null;
   is_locked?: boolean;
+  scores_revealed?: boolean;
 };
 
 type Props = {
@@ -57,6 +59,20 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
   const feedback = (detailData?.feedback ?? []) as any[];
   const scores = (detailData?.scores ?? []) as any[];
 
+  const { run: toggleReveal } = useApi("ToggleScoresRevealed");
+
+  const handleRevealToggle = useCallback(async () => {
+    const newState = !presentation.scores_revealed;
+    try {
+      await toggleReveal({ presentation_id: presentation.id, revealed: newState });
+      toast.success(newState ? "🏆 Scores revealed! Leaderboard updated." : "Scores locked again.");
+      onRefresh();
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
+      toast.error("Failed: " + msg);
+    }
+  }, [presentation.id, presentation.scores_revealed, toggleReveal, onRefresh]);
+
   const resources = Array.isArray(presentation.resources) ? presentation.resources : [];
   const hasQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
   const isBingo = presentation.presentation_type === "bingo";
@@ -66,6 +82,7 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
 
   const isTeamWorkshop = presentation.presentation_type === "team_workshop";
   const isHackathon = presentation.presentation_type === "hackathon";
+  const isEBR = presentation.title.toLowerCase().includes("ebr");
 
   // Only show tabs that have content
   const sections = [
@@ -73,6 +90,7 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
     ...(isBingo ? [{ id: "bingo", label: "🔥 Bingo Card", icon: "grid" }] : []),
     ...(isTeamWorkshop && hasQuestions ? [{ id: "team_workspace", label: "👥 Team Workspace", icon: "users" }] : []),
     ...(isHackathon ? [{ id: "showcase", label: "🚀 Showcase", icon: "rocket" }] : []),
+    ...(isEBR && camperTeamId ? [{ id: "role_play", label: "🎭 Role Play", icon: "theater" }] : []),
     ...(hasQuestions && !isBingo && !isTeamWorkshop ? [{ id: "workspace", label: "Workspace", icon: "edit-3" }] : []),
     ...(hasResources ? [{ id: "resources", label: "Resources", icon: "link" }] : []),
     ...(hasRubric ? [{ id: "rubric", label: "Rubric", icon: "clipboard-check" }] : []),
@@ -190,6 +208,14 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
               />
             )}
 
+            {activeSection === "role_play" && isEBR && camperTeamId && (
+              <CounselorRoleAssignment
+                presentationId={presentation.id}
+                teamId={camperTeamId}
+                camperId={camperId}
+              />
+            )}
+
             {activeSection === "resources" && (
               <ResourcesSection resources={resources} deckTemplateUrl={presentation.deck_template_url} presentationTitle={presentation.title} />
             )}
@@ -200,6 +226,8 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
                   rubricTemplateId={presentation.rubric_template_id}
                   camperId={camperId}
                   isAdmin={isAdmin}
+                  scoresRevealed={presentation.scores_revealed}
+                  onRevealToggle={isAdmin && isEBR ? handleRevealToggle : undefined}
                 />
               ) : (
                 <RubricSection scores={scores} isAdmin={isAdmin} />

@@ -145,6 +145,11 @@ import MigrateHackathon from './camp/migrate-hackathon.js';
 import SaveHackathonSubmission from './camp/save-hackathon-submission.js';
 import GetHackathonResults from './camp/get-hackathon-results.js';
 import SubmitHackathonVote from './camp/submit-hackathon-vote.js';
+import MigrateEBR from './camp/migrate-ebr.js';
+import GetEBRRoleAssignments from './camp/get-ebr-role-assignments.js';
+import SaveEBRRoleAssignment from './camp/save-ebr-role-assignment.js';
+import ToggleScoresRevealed from './camp/toggle-scores-revealed.js';
+import QuickAwardPoints from './camp/quick-award-points.js';
 
 const apis = {
   SetupDatabase,
@@ -288,6 +293,11 @@ const apis = {
   SaveHackathonSubmission,
   GetHackathonResults,
   SubmitHackathonVote,
+  MigrateEBR,
+  GetEBRRoleAssignments,
+  SaveEBRRoleAssignment,
+  ToggleScoresRevealed,
+  QuickAwardPoints,
 } as const;
 
 export default apis;
