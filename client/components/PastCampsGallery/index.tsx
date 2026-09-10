@@ -283,11 +283,11 @@ function HallOfFameCard({
             <NoLogoPlaceholder teamName={team.team_name} theme={theme} cohortNumber={cohortNumber} index={index} />
           )}
 
-          {/* Placement badge — floats in top-right */}
+          {/* Placement badge — centered at top */}
           {placeInfo && (
-            <div className="absolute top-3 right-3 z-20">
+            <div className="absolute top-2.5 inset-x-0 z-20 flex justify-center">
               <div
-                className={`${placeInfo.class} px-2.5 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1`}
+                className={`${placeInfo.class} px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1`}
               >
                 <span>{placeInfo.icon}</span>
                 <span>{placeInfo.label}</span>
@@ -295,10 +295,10 @@ function HallOfFameCard({
             </div>
           )}
 
-          {/* Best Logo badge — floats in top-left */}
+          {/* Best Logo pill — bottom-right of logo area */}
           {BEST_LOGO_TEAM_IDS.has(team.id) && (
-            <div className="absolute top-3 left-3 z-20">
-              <div className="bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+            <div className="absolute bottom-2.5 right-2.5 z-20">
+              <div className="bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md flex items-center gap-1">
                 <span>🎨</span>
                 <span>Best Logo</span>
               </div>
