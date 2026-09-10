@@ -41,6 +41,7 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
   const [warningItem, setWarningItem] = useState<ContentItem | null>(null);
   const [missingLinks, setMissingLinks] = useState<Link[]>([]);
   const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);
+  const [submittedForms, setSubmittedForms] = useState<Set<string>>(new Set());
 
   const { data, loading } = useApiData("GetJourneyContent", {
     section: "prework",
@@ -242,8 +243,24 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
                       <Icon icon="check-circle" className="w-4 h-4" />
                       Done
                     </div>
-                  ) : item.item_key === "wheel_and_deal" || item.item_key === "challenger_sales" ? (
-                    null /* Custom forms render below */
+                  ) : (item.item_key === "wheel_and_deal" || item.item_key === "challenger_sales") ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`text-xs ${submittedForms.has(item.item_key)
+                        ? "border-camp-green/30 text-camp-green hover:bg-camp-green hover:text-white"
+                        : "border-muted text-muted-foreground cursor-not-allowed opacity-50"
+                      }`}
+                      onClick={() => handleComplete(item, false)}
+                      disabled={!submittedForms.has(item.item_key) || (completing && isCompletingThis)}
+                    >
+                      {isCompletingThis ? (
+                        <Icon icon="loader" className="w-3 h-3 animate-spin mr-1" />
+                      ) : !submittedForms.has(item.item_key) ? (
+                        <Icon icon="lock" className="w-3 h-3 mr-1" />
+                      ) : null}
+                      Mark Complete
+                    </Button>
                   ) : (
                     <Button
                       size="sm"
@@ -263,14 +280,19 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
 
               {/* Custom validation forms — render below the item card */}
               {!isCompleted && item.item_key === "wheel_and_deal" && (
-                <WheelAndDealForm camperId={userId} onComplete={onComplete} />
+                <WheelAndDealForm camperId={userId} onComplete={() => {
+                  setSubmittedForms(prev => new Set(prev).add("wheel_and_deal"));
+                }} />
               )}
               {!isCompleted && item.item_key === "challenger_sales" && (
                 <ChallengerUpload
                   camperId={userId}
                   camperRole={camperRole ?? ""}
                   links={itemLinks}
-                  onComplete={onComplete}
+                  onComplete={() => {
+                    setSubmittedForms(prev => new Set(prev).add("challenger_sales"));
+                    onComplete(); // For auto-complete (exempt roles), also refresh
+                  }}
                 />
               )}
               </div>

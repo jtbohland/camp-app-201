@@ -55,7 +55,7 @@ export default api({
       }
     }
 
-    // Save submission
+    // Save submission (does NOT auto-complete — camper must click Mark Complete)
     await ctx.integrations.apps_database.execute(
       `INSERT INTO camp201_prework_submissions (camper_id, item_key, submission_data, flagged)
        VALUES ($1, $2, $3::jsonb, $4)
@@ -65,55 +65,14 @@ export default api({
       { label: `Save ${item_key} submission` }
     );
 
-    // Auto-complete the prework item
-    const result = await ctx.integrations.apps_database.execute(
-      `INSERT INTO camp201_prework (user_id, item, completed)
-       VALUES ($1, $2, true)
-       ON CONFLICT (user_id, item) DO NOTHING`,
-      [camper_id, item_key],
-      { label: "Mark prework complete" }
-    );
-
-    let pointsAwarded = 0;
-    if (result.rowCount && result.rowCount > 0) {
-      if (flagged) {
-        // Deduct points for suspicious/false scores
-        pointsAwarded = -3;
-        await ctx.integrations.apps_database.execute(
-          `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-          [pointsAwarded, camper_id],
-          { label: "Deduct points for flagged submission" }
-        );
-        await ctx.integrations.apps_database.execute(
-          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-           VALUES ($1, $2, $3, 'system', 'pre_work')`,
-          [camper_id, pointsAwarded, `Flagged submission: ${item_key} (suspicious scores)`],
-          { label: "Log flagged penalty" }
-        );
-      } else {
-        pointsAwarded = 5;
-        await ctx.integrations.apps_database.execute(
-          `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-          [pointsAwarded, camper_id],
-          { label: "Award prework points" }
-        );
-        await ctx.integrations.apps_database.execute(
-          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-           VALUES ($1, $2, $3, 'system', 'pre_work')`,
-          [camper_id, pointsAwarded, `Pre-work submitted: ${item_key}`],
-          { label: "Log prework points" }
-        );
-      }
-    }
-
     return {
       success: true,
       flagged,
       message: flagged
         ? "Submitted — but your scores look off. A counselor will review."
-        : "Submitted successfully!",
+        : "Submitted! Now click Mark Complete to finish.",
       auto_completed: false,
-      points_awarded: pointsAwarded,
+      points_awarded: 0,
     };
   },
 });
