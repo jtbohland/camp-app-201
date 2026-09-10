@@ -34,7 +34,7 @@ export default function AdminTeamView({ cohortId, onCamperClick }: Props) {
       {teams.map((team, index) => {
         const teamMembers = campers.filter((c) => c.team_name === team.name);
         return (
-          <Card key={team.id} className="p-5 bg-white/95 border-0 shadow-lg">
+          <Card key={team.id} className="p-5 bg-card border shadow-sm">
             {/* Team Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -105,7 +105,7 @@ export default function AdminTeamView({ cohortId, onCamperClick }: Props) {
       })}
 
       {teams.length === 0 && (
-        <div className="col-span-full text-center py-16 text-white/60">
+        <div className="col-span-full text-center py-16 text-muted-foreground">
           <Icon name="flag" className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="text-lg">No teams in this cohort yet</p>
         </div>
