@@ -174,7 +174,7 @@ export default function HomePage() {
           <img
             src="/nomnom/camp201-logo-transparent.png"
             alt="cAMP 201"
-            className="w-56 h-56 object-contain drop-shadow-2xl"
+            className="w-64 h-64 object-contain drop-shadow-2xl"
           />
           <div className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
             <div>

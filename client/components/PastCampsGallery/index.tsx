@@ -72,21 +72,21 @@ function getTheme(teamName: string, index: number): TeamTheme {
 const BEST_LOGO_TEAM_IDS = new Set([11, 12, 15, 20]); // C4:Trailblazers, C5:DataPuff Girls, C6:chAMPiones, C7:K-POP Data Hunters
 
 // ───────────────────── CAMPER COUNTRIES ─────────────────────
-// [flag emoji, country name] — sorted alphabetically
-const CAMPER_COUNTRIES: [string, string][] = [
-  ["🇦🇺", "Australia"],
-  ["🇧🇷", "Brazil"],
-  ["🇫🇷", "France"],
-  ["🇩🇪", "Germany"],
-  ["🇮🇳", "India"],
-  ["🇯🇵", "Japan"],
-  ["🇳🇱", "Netherlands"],
-  ["🇸🇦", "Saudi Arabia"],
-  ["🇸🇬", "Singapore"],
-  ["🇰🇷", "South Korea"],
-  ["🇦🇪", "UAE"],
-  ["🇬🇧", "United Kingdom"],
-  ["🇺🇸", "United States"],
+// [flag emoji, country name, pill bg color] — colors pulled from each flag
+const CAMPER_COUNTRIES: [string, string, string][] = [
+  ["🇦🇺", "Australia", "#dbeafe"],      // blue
+  ["🇧🇷", "Brazil", "#d1fae5"],        // green
+  ["🇫🇷", "France", "#ede9fe"],        // blue-violet
+  ["🇩🇪", "Germany", "#fef9c3"],       // gold
+  ["🇮🇳", "India", "#ffedd5"],         // saffron
+  ["🇯🇵", "Japan", "#ffe4e6"],         // red-white
+  ["🇳🇱", "Netherlands", "#fee2e2"],   // red-orange
+  ["🇸🇦", "Saudi Arabia", "#dcfce7"],  // green
+  ["🇸🇬", "Singapore", "#fce7f3"],    // red-white
+  ["🇰🇷", "South Korea", "#e0f2fe"],   // blue-red
+  ["🇦🇪", "UAE", "#d1fae5"],           // green-red
+  ["🇬🇧", "United Kingdom", "#dbeafe"], // blue
+  ["🇺🇸", "United States", "#dbeafe"],  // blue
 ];
 
 // ───────────────────── COMPANY BRAND PILLS ─────────────────────
@@ -549,8 +549,8 @@ export default function PastCampsGallery() {
                 <TooltipContent side="bottom" className="max-w-xs p-3">
                   <p className="text-xs font-bold mb-1.5">Representing {CAMPER_COUNTRIES.length} countries</p>
                   <div className="flex flex-wrap gap-1">
-                    {CAMPER_COUNTRIES.map(([flag, name]) => (
-                      <span key={name} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[11px]">
+                    {CAMPER_COUNTRIES.map(([flag, name, bg]) => (
+                      <span key={name} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-gray-900" style={{ backgroundColor: bg }}>
                         <span>{flag}</span>{name}
                       </span>
                     ))}
