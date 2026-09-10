@@ -276,9 +276,8 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
                     </Button>
                   )}
                 </div>
-              </div>
 
-              {/* Validation forms — render below the item card */}
+              {/* Validation forms — inside the tile */}
               {!isCompleted && item.item_key === "wheel_and_deal" && (
                 <WheelAndDealForm camperId={userId} onComplete={() => {
                   setSubmittedForms(prev => new Set(prev).add("wheel_and_deal"));
@@ -295,6 +294,7 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
                   }}
                 />
               )}
+              </div>
               </div>
             );
           })}
