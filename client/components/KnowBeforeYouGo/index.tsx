@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import EasterEggTrivia from "@/components/EasterEggTrivia/index.js";
 import type { IconName } from "lucide-react/dynamic";
 
 type Link = { label: string; url: string };
@@ -34,11 +35,14 @@ const TAB_META: { key: string; label: string; icon: IconName }[] = [
 
 type Props = {
   isAdmin?: boolean;
+  camperId?: number;
+  teamId?: number | null;
 };
 
-export default function KnowBeforeYouGo({ isAdmin }: Props) {
+export default function KnowBeforeYouGo({ isAdmin, camperId = 0, teamId = null }: Props) {
   const [activeTab, setActiveTab] = useState("rules");
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [easterEggOpen, setEasterEggOpen] = useState(false);
 
   const { data, loading, refetch } = useApiData("GetJourneyContent", {
     section: "know_before_you_go",
@@ -94,6 +98,36 @@ export default function KnowBeforeYouGo({ isAdmin }: Props) {
         {TAB_META.map((tab) => (
           <TabsContent key={tab.key} value={tab.key}>
             {tab.key === "office" && <FloorMaps />}
+            {tab.key === "office" && (
+              <>
+                <button
+                  onClick={() => setEasterEggOpen(true)}
+                  className="relative overflow-hidden rounded-xl cursor-default group mb-3 w-full"
+                >
+                  <img
+                    src="/office/201-building.jpg"
+                    alt="201 3rd Street, San Francisco"
+                    className="w-full h-48 object-cover rounded-xl"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent rounded-xl" />
+                  <div className="absolute bottom-4 left-5 right-5 text-left">
+                    <p className="text-white/70 text-xs font-medium flex items-center gap-1">
+                      <Icon icon="map-pin" className="w-3 h-3" />
+                      201 3rd Street, San Francisco
+                    </p>
+                    <p className="text-white text-sm font-bold mt-1">
+                      Did you know? cAMP 201 is named after our office building — it's literally where you level up!
+                    </p>
+                  </div>
+                </button>
+                <EasterEggTrivia
+                  camperId={camperId}
+                  teamId={teamId}
+                  open={easterEggOpen}
+                  onOpenChange={setEasterEggOpen}
+                />
+              </>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(itemsByTab[tab.key] ?? []).map((item) => (
                 editingId === item.id ? (

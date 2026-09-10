@@ -8,7 +8,6 @@ import { Icon } from "@/components/ui/icon";
 import RegistrationForm from "@/components/RegistrationForm";
 import ManagerRegistrationForm from "@/components/ManagerRegistrationForm";
 import AnnouncementsFeed from "@/components/AnnouncementsFeed/index.js";
-import EasterEggTrivia from "@/components/EasterEggTrivia/index.js";
 import type { IconName } from "lucide-react/dynamic";
 
 type QuickLink = {
@@ -160,27 +159,22 @@ export default function HomePage() {
   }
 
   const camper = data!.camper;
-  const [easterEggOpen, setEasterEggOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
       {/* Hero: cAMP 201 Logo — BIG, front and center */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-10 text-center">
-        {/* Faded logo background */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] py-8 flex items-center justify-center">
+        {/* Faded background watermark */}
         <img
-          src="/nomnom/camp201-logo.png"
+          src="/nomnom/camp201-logo-transparent.png"
           alt=""
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] object-contain opacity-[0.06] pointer-events-none"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] object-contain opacity-[0.05] pointer-events-none"
         />
-        <div className="relative">
-          <img
-            src="/nomnom/camp201-logo.png"
-            alt="cAMP 201"
-            className="w-32 h-32 mx-auto rounded-2xl shadow-2xl object-cover ring-2 ring-white/20"
-          />
-          <h1 className="text-3xl font-extrabold text-white tracking-tight mt-4">cAMP 201</h1>
-          <p className="text-sm text-white/60 font-medium mt-1">The Next Level Has an Address</p>
-        </div>
+        <img
+          src="/nomnom/camp201-logo-transparent.png"
+          alt="cAMP 201"
+          className="relative w-48 h-48 object-contain drop-shadow-2xl"
+        />
       </div>
 
       {/* Personal welcome card */}
@@ -252,36 +246,6 @@ export default function HomePage() {
           <AnnouncementsFeed />
         </div>
       </div>
-
-      {/* 201 Building — Easter Egg hidden here */}
-      <button
-        onClick={() => setEasterEggOpen(true)}
-        className="relative overflow-hidden rounded-xl cursor-default group"
-      >
-        <img
-          src="/office/201-building.jpg"
-          alt="201 3rd Street, San Francisco"
-          className="w-full h-48 object-cover rounded-xl"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent rounded-xl" />
-        <div className="absolute bottom-4 left-5 right-5">
-          <p className="text-white/70 text-xs font-medium flex items-center gap-1">
-            <Icon icon="map-pin" className="w-3 h-3" />
-            201 3rd Street, San Francisco
-          </p>
-          <p className="text-white text-sm font-bold mt-1">
-            Did you know? cAMP 201 is named after our office building — it's literally where you level up!
-          </p>
-        </div>
-      </button>
-
-      {/* Easter egg trivia — triggered by clicking the office photo */}
-      <EasterEggTrivia
-        camperId={camper?.id ?? 0}
-        teamId={camper?.team_id ?? null}
-        open={easterEggOpen}
-        onOpenChange={setEasterEggOpen}
-      />
     </div>
   );
 }
