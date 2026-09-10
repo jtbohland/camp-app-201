@@ -65,6 +65,11 @@ function getTheme(teamName: string, index: number): TeamTheme {
   return TEAM_COLOR_MAP[teamName] ?? PALETTE[index % PALETTE.length];
 }
 
+// ───────────────────── BEST LOGO WINNERS ─────────────────────
+// Past cohort logo vote winners (by team ID in camp201_past_teams).
+// For the current cohort, the live voting feature determines this automatically.
+const BEST_LOGO_TEAM_IDS = new Set([11, 12, 15, 20]); // C4:Trailblazers, C5:DataPuff Girls, C6:chAMPiones, C7:K-POP Data Hunters
+
 // ───────────────────── COMPANY BRAND PILLS ─────────────────────
 
 interface CompanyBrand {
@@ -286,6 +291,16 @@ function HallOfFameCard({
               >
                 <span>{placeInfo.icon}</span>
                 <span>{placeInfo.label}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Best Logo badge — floats in top-left */}
+          {BEST_LOGO_TEAM_IDS.has(team.id) && (
+            <div className="absolute top-3 left-3 z-20">
+              <div className="bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+                <span>🎨</span>
+                <span>Best Logo</span>
               </div>
             </div>
           )}
