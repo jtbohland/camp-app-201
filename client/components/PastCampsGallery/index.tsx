@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -452,6 +452,24 @@ export default function PastCampsGallery() {
   const { data, loading } = useApiData("GetPastCohorts", {});
   const cohorts: Cohort[] = data?.cohorts ?? [];
 
+  const stats = useMemo(() => {
+    let totalCampers = 0;
+    let totalTeams = 0;
+    const seen = new Set<string>();
+    for (const c of cohorts) {
+      totalTeams += c.teams.length;
+      for (const t of c.teams) {
+        for (const m of t.members) {
+          if (!seen.has(m.full_name)) {
+            seen.add(m.full_name);
+            totalCampers++;
+          }
+        }
+      }
+    }
+    return { totalCampers, totalTeams, totalCohorts: cohorts.length };
+  }, [cohorts]);
+
   if (loading) {
     return (
       <div className="p-6 space-y-10">
@@ -482,6 +500,26 @@ export default function PastCampsGallery() {
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
           Every cohort. Every team. Every logo. These legends paved the way — now it's your turn to join the ranks.
         </p>
+
+        {/* cAMPer Counter */}
+        {stats.totalCampers > 0 && (
+          <div className="flex items-center justify-center gap-6 mt-5">
+            <div className="text-center">
+              <div className="text-3xl font-black text-camp-green tabular-nums">{stats.totalCampers}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">cAMPers</div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="text-center">
+              <div className="text-3xl font-black text-amber-600 tabular-nums">{stats.totalTeams}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Teams</div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="text-center">
+              <div className="text-3xl font-black text-violet-600 tabular-nums">{stats.totalCohorts}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cohorts</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cohort sections */}
