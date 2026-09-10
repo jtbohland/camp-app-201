@@ -71,7 +71,7 @@ const PLACE_CONFIG: Record<number, { label: string; icon: string; class: string 
   1: { label: "Champions", icon: "🏆", class: "bg-gradient-to-r from-yellow-400 to-amber-500 text-white" },
   2: { label: "2nd Place", icon: "🥈", class: "bg-gradient-to-r from-gray-300 to-slate-400 text-white" },
   3: { label: "3rd Place", icon: "🥉", class: "bg-gradient-to-r from-orange-400 to-amber-600 text-white" },
-  4: { label: "4th Place", icon: "4", class: "bg-slate-200 text-slate-700" },
+  4: { label: "4th Place", icon: "4️⃣", class: "bg-slate-200 text-slate-700" },
 };
 
 interface Team {
@@ -103,13 +103,11 @@ interface Cohort {
 
 // ───────────────────── NO-LOGO PLACEHOLDER ─────────────────────
 
-function NoLogoPlaceholder({ teamName, theme }: { teamName: string; theme: TeamTheme }) {
-  const initials = teamName
-    .replace(/^The\s+/i, "")
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
+/** Camp-themed emojis for no-logo teams — each team gets a unique one */
+const CAMP_EMOJIS = ["🔥", "🦌", "🐻", "🦅", "🛶", "🧭", "🏕️", "🔦", "🪓", "🧪", "🎯", "🐍", "🌲", "🦊", "🐟", "⛺"];
+
+function NoLogoPlaceholder({ teamName, theme, teamId }: { teamName: string; theme: TeamTheme; teamId: number }) {
+  const emoji = CAMP_EMOJIS[(teamId - 1) % CAMP_EMOJIS.length];
 
   return (
     <div
@@ -122,14 +120,13 @@ function NoLogoPlaceholder({ teamName, theme }: { teamName: string; theme: TeamT
         style={{ border: `3px dashed ${theme.accent}` }}
       />
       <div
-        className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black tracking-wider"
+        className="w-20 h-20 rounded-full flex items-center justify-center text-3xl"
         style={{
           background: `linear-gradient(135deg, ${theme.accent}, ${theme.glow})`,
-          color: "white",
           boxShadow: `0 4px 20px ${theme.glow}50`,
         }}
       >
-        {initials}
+        {emoji}
       </div>
     </div>
   );
@@ -154,7 +151,7 @@ function HallOfFameCard({
 
   return (
     <div
-      className="group relative cursor-pointer"
+      className="group relative cursor-pointer isolate"
       onClick={() => setExpanded(!expanded)}
     >
       {/* Outer glow on hover */}
@@ -180,7 +177,7 @@ function HallOfFameCard({
         />
 
         {/* Logo area */}
-        <div className="relative">
+        <div className="relative overflow-hidden">
           {hasLogos && team.logo_url ? (
             <div
               className="aspect-square flex items-center justify-center p-5 relative overflow-hidden"
@@ -200,7 +197,7 @@ function HallOfFameCard({
               />
             </div>
           ) : (
-            <NoLogoPlaceholder teamName={team.team_name} theme={theme} />
+            <NoLogoPlaceholder teamName={team.team_name} theme={theme} teamId={team.id} />
           )}
 
           {/* Placement badge — floats in top-right */}
