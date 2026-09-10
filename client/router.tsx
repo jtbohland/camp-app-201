@@ -46,7 +46,6 @@ export const router = createBrowserRouter([
 
       // Redirects for old standalone routes
       { path: "/cohort", element: <Navigate to="/teams" replace /> },
-      { path: "/leaderboard", element: <Navigate to="/teams" replace /> },
       { path: "/team-history", element: <Navigate to="/teams" replace /> },
       { path: "/executives", element: <Navigate to="/agenda" replace /> },
       { path: "/announcements", element: <Navigate to="/" replace /> },
