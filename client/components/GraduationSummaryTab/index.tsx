@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useMemo } from "react";
 import type { IconName } from "lucide-react/dynamic";
 
 export default function GraduationSummaryTab() {
@@ -89,16 +90,8 @@ export default function GraduationSummaryTab() {
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Confetti Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 via-yellow-50 to-green-50 border-2 border-amber-200 p-8 text-center">
-        {/* Decorative confetti dots */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[
-            "top-2 left-6 bg-amber-400", "top-8 right-10 bg-green-400", "bottom-4 left-12 bg-purple-400",
-            "top-3 right-20 bg-pink-400", "bottom-8 right-6 bg-blue-400", "top-12 left-[30%] bg-yellow-400",
-            "bottom-3 left-[60%] bg-red-400", "top-5 left-[50%] bg-indigo-400",
-          ].map((cls, i) => (
-            <div key={i} className={`absolute w-2 h-2 rounded-full opacity-60 ${cls}`} />
-          ))}
-        </div>
+        {/* Animated camping confetti */}
+        <CampConfetti />
 
         <div className="relative">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -238,7 +231,16 @@ export default function GraduationSummaryTab() {
 
       {/* Closing message from counselors */}
       <Card className="p-8 bg-gradient-to-br from-camp-green/10 via-amber-50/50 to-green-50 border-camp-green/20 text-center relative overflow-hidden">
-        <div className="absolute top-3 right-4 text-4xl opacity-10">{"\u{1F3D5}\uFE0F"}</div>
+        {/* Big faint tent + tree background illustration */}
+        <div className="absolute right-2 bottom-0 opacity-[0.06] pointer-events-none flex items-end gap-1">
+          <Icon icon="tree-pine" className="w-28 h-28 text-camp-green" />
+          <svg viewBox="0 0 120 100" className="w-36 h-36 text-camp-green" fill="currentColor">
+            <polygon points="60,8 10,90 110,90" />
+            <rect x="50" y="90" width="20" height="10" />
+            <rect x="25" y="60" width="70" height="2" opacity="0.3" />
+          </svg>
+          <Icon icon="tree-pine" className="w-20 h-20 text-camp-green" />
+        </div>
         <Icon icon="heart" className="w-8 h-8 mx-auto text-camp-green mb-3" />
         <h2 className="text-xl font-extrabold text-foreground mb-3">
           From Your Counselors
@@ -273,5 +275,49 @@ export default function GraduationSummaryTab() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/* Animated camping confetti — falls within the banner only */
+const CONFETTI_EMOJIS = ["\u2B50", "\u26FA", "\ud83c\udf32", "\ud83d\udd25", "\ud83c\udfc6", "\ud83c\udf1f", "\ud83c\udfd5\uFE0F", "\ud83c\udf3f"];
+
+function CampConfetti() {
+  const particles = useMemo(() =>
+    Array.from({ length: 18 }, (_, i) => ({
+      emoji: CONFETTI_EMOJIS[i % CONFETTI_EMOJIS.length],
+      left: `${(i * 37 + 11) % 100}%`,
+      delay: `${(i * 0.7) % 5}s`,
+      duration: `${4 + (i % 4) * 1.2}s`,
+      size: 12 + (i % 3) * 4,
+    })), []
+  );
+
+  return (
+    <>
+      <style>{`
+        @keyframes confettiFall {
+          0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
+          10% { opacity: 0.7; }
+          90% { opacity: 0.5; }
+          100% { transform: translateY(250px) rotate(360deg); opacity: 0; }
+        }
+      `}</style>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {particles.map((p, i) => (
+          <span
+            key={i}
+            className="absolute"
+            style={{
+              left: p.left,
+              top: -20,
+              fontSize: p.size,
+              animation: `confettiFall ${p.duration} ${p.delay} infinite ease-in`,
+            }}
+          >
+            {p.emoji}
+          </span>
+        ))}
+      </div>
+    </>
   );
 }
