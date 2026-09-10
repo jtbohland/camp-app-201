@@ -92,11 +92,11 @@ export default function GraduationSummaryTab() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 via-yellow-50 to-green-50 border-2 border-amber-200 p-8 text-center">
         {/* Animated camping confetti */}
         <CampConfetti />
+        {/* High-five NomNom — bottom right */}
+        <img src="/nomnom/highfive.png" alt="" className="absolute -bottom-4 -right-4 w-36 h-36 object-contain opacity-15 pointer-events-none" />
 
         <div className="relative">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Icon icon="graduation-cap" className="w-8 h-8 text-white" />
-          </div>
+          <img src="/nomnom/camp201-logo.png" alt="cAMP 201" className="w-20 h-20 mx-auto mb-3 rounded-full shadow-lg object-cover" />
           <h2 className="text-3xl font-extrabold text-gray-900 mb-1">
             Congratulations, {data.camper_name.split(" ")[0]}!
           </h2>
@@ -231,16 +231,8 @@ export default function GraduationSummaryTab() {
 
       {/* Closing message from counselors */}
       <Card className="p-8 bg-gradient-to-br from-camp-green/10 via-amber-50/50 to-green-50 border-camp-green/20 text-center relative overflow-hidden">
-        {/* Big faint tent + tree background illustration */}
-        <div className="absolute right-2 bottom-0 opacity-[0.06] pointer-events-none flex items-end gap-1">
-          <Icon icon="tree-pine" className="w-28 h-28 text-camp-green" />
-          <svg viewBox="0 0 120 100" className="w-36 h-36 text-camp-green" fill="currentColor">
-            <polygon points="60,8 10,90 110,90" />
-            <rect x="50" y="90" width="20" height="10" />
-            <rect x="25" y="60" width="70" height="2" opacity="0.3" />
-          </svg>
-          <Icon icon="tree-pine" className="w-20 h-20 text-camp-green" />
-        </div>
+        {/* Campfire NomNom — background illustration */}
+        <img src="/nomnom/campfire.png" alt="" className="absolute -bottom-6 -right-2 w-44 h-44 object-contain opacity-[0.08] pointer-events-none" />
         <Icon icon="heart" className="w-8 h-8 mx-auto text-camp-green mb-3" />
         <h2 className="text-xl font-extrabold text-foreground mb-3">
           From Your Counselors

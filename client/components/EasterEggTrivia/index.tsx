@@ -56,17 +56,11 @@ export default function EasterEggTrivia({ camperId, teamId, open, onOpenChange }
       <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogTitle className="sr-only">Hidden Challenge</DialogTitle>
 
-        {/* Hero image */}
-        <div className="relative h-40 overflow-hidden">
-          <img
-            src="/office/201-building.jpg"
-            alt="201 3rd Street"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-          <div className="absolute bottom-3 left-4 right-4">
-            <p className="text-white/70 text-xs font-medium">201 3rd Street, San Francisco</p>
-            <p className="text-white text-sm font-bold mt-0.5">
+        {/* Hero with detective NomNom */}
+        <div className="relative h-40 overflow-hidden bg-gradient-to-br from-amber-100 to-yellow-50 flex items-center justify-center">
+          <img src="/nomnom/detective.png" alt="NomNom" className="h-32 object-contain" />
+          <div className="absolute bottom-3 left-4 right-4 text-center">
+            <p className="text-amber-800 text-sm font-bold">
               You found something hidden...
             </p>
           </div>

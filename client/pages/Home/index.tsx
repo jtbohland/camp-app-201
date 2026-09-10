@@ -164,15 +164,18 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl overflow-auto">
-      {/* Welcome Banner — clicking the mountain icon triggers the easter egg */}
+      {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/90 to-primary p-8 text-primary-foreground">
+        {/* cAMP 201 Logo — prominent top-left */}
+        <img src="/nomnom/camp201-logo.png" alt="cAMP 201" className="absolute top-3 left-3 w-16 h-16 rounded-full shadow-lg border-2 border-white/20 object-cover" />
+        {/* Hiker NomNom — easter egg trigger (looks decorative, secretly clickable) */}
         <button
           onClick={() => setEasterEggOpen(true)}
-          className="absolute top-0 right-0 opacity-10 hover:opacity-20 transition-opacity cursor-default"
+          className="absolute -bottom-2 right-4 opacity-20 hover:opacity-40 transition-opacity cursor-default"
           title=""
           aria-label=""
         >
-          <Icon icon="mountain" className="w-48 h-48 -mt-8 -mr-8" />
+          <img src="/nomnom/hiker.png" alt="" className="w-32 h-32 object-contain" />
         </button>
         <div className="relative">
           <p className="text-sm opacity-80 mb-1">Welcome back, cAMPer</p>

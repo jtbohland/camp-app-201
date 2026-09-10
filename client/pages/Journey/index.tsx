@@ -65,14 +65,17 @@ export default function JourneyPage() {
   return (
     <div className="flex flex-col gap-8 p-8 max-w-5xl">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-3">
-          <Icon icon="map" className="w-6 h-6 text-camp-amber" />
-          Your cAMP Journey
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Track your progress from base camp to the summit.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-3">
+            <Icon icon="map" className="w-6 h-6 text-camp-amber" />
+            Your cAMP Journey
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track your progress from base camp to the summit.
+          </p>
+        </div>
+        <img src="/nomnom/coffee.png" alt="" className="w-14 h-14 object-contain opacity-50" />
       </div>
 
       {/* Journey Path */}
