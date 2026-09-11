@@ -296,11 +296,18 @@ export function generateChallenge(product: WheelProduct): Challenge {
 
 // ── Scoring ──────────────────────────────────────────────
 export const SCORING_CATEGORIES = [
-  { key: "clarity", icon: "💬", label: "Clarity", selfQuestion: "Were you concise and easy to follow?", coachQuestion: "Were they concise and easy to follow?" },
-  { key: "tone", icon: "🗣️", label: "Conversational Tone", selfQuestion: "Did it feel natural, not scripted?", coachQuestion: "Did it feel natural, not scripted?" },
-  { key: "credibility", icon: "🎓", label: "Credibility", selfQuestion: "Did you speak about the product correctly?", coachQuestion: "Did they speak about the product correctly?" },
-  { key: "close", icon: "🤝", label: "Close", selfQuestion: "Did you end with a compelling ask?", coachQuestion: "Did they end with a compelling ask?" },
+  { key: "clarity", icon: "💬", label: "Clarity", subtext: "Clear & easy to follow", selfQuestion: "Were you concise and easy to follow?", coachQuestion: "Were they concise and easy to follow?" },
+  { key: "tone", icon: "🗣️", label: "Tone", subtext: "Natural & conversational", selfQuestion: "Did it feel natural, not scripted?", coachQuestion: "Did it feel natural, not scripted?" },
+  { key: "credibility", icon: "🎓", label: "Credibility", subtext: "Knows the product", selfQuestion: "Did you speak about the product correctly?", coachQuestion: "Did they speak about the product correctly?" },
+  { key: "close", icon: "🤝", label: "Close", subtext: "Ends with a next step", selfQuestion: "Did you end with a compelling ask?", coachQuestion: "Did they end with a compelling ask?" },
 ] as const;
+
+export const COMPLETION_CATEGORY = {
+  key: "completion",
+  icon: "⚡",
+  label: "Completion",
+  subtext: "Submitted on time",
+} as const;
 
 export const SCORE_LABELS: Record<number, string> = {
   1: "Needs Work",

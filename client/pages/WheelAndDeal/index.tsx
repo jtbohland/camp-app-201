@@ -6,7 +6,7 @@ import SpinWheel from "@/components/SpinWheel/index.js";
 import ChallengeCard from "@/components/ChallengeCard/index.js";
 import PitchTimer from "@/components/PitchTimer/index.js";
 import ScoringCard, { calcCompletionScore } from "@/components/ScoringCard/index.js";
-import { generateChallenge, SCORING_CATEGORIES, SCORE_LABELS, type WheelProduct, type Challenge } from "@/lib/wheelData.js";
+import { generateChallenge, SCORING_CATEGORIES, COMPLETION_CATEGORY, SCORE_LABELS, type WheelProduct, type Challenge } from "@/lib/wheelData.js";
 
 type Phase = "spin" | "challenge" | "timer" | "selfEval" | "coachEval" | "results";
 
@@ -64,7 +64,7 @@ export default function WheelAndDealPage() {
   }, []);
 
   const selfTotal = Object.values(selfScores).reduce((s, v) => s + v, 0) + completionScore;
-  const coachTotal = Object.values(coachScores).reduce((s, v) => s + v, 0);
+  const coachTotal = Object.values(coachScores).reduce((s, v) => s + v, 0) + completionScore;
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -99,19 +99,27 @@ export default function WheelAndDealPage() {
               </ol>
             </div>
             <div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-blue-800 mb-3">📋 How to Score</h3>
-              <div className="space-y-1.5 text-sm">
-                {SCORING_CATEGORIES.map((c) => (
-                  <div key={c.key} className="flex items-center gap-2">
-                    <span>{c.icon}</span>
-                    <span className="font-medium">{c.label}</span>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-blue-800 mb-3">🏆 How You're Scored</h3>
+              {/* Category cards */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[...SCORING_CATEGORIES, COMPLETION_CATEGORY].map((c) => (
+                  <div key={c.key} className="flex flex-col items-center text-center px-3 py-2 rounded-lg border border-blue-200 bg-white flex-1 min-w-[80px]">
+                    <span className="text-lg mb-0.5">{c.icon}</span>
+                    <span className="text-xs font-bold text-foreground">{c.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{c.subtext}</span>
                   </div>
                 ))}
-                <div className="mt-3 pt-3 border-t border-blue-200 space-y-1 text-xs text-muted-foreground">
-                  <div>Scale: <strong>1</strong> = {SCORE_LABELS[1]} · <strong>2</strong> = {SCORE_LABELS[2]} · <strong>3</strong> = {SCORE_LABELS[3]}</div>
-                  <div>Self-Eval: <strong>/12</strong> · Coach Eval: <strong>/12</strong></div>
-                  <div>Both scores shown side by side after coach submits.</div>
+              </div>
+              {/* Scale + totals */}
+              <div className="space-y-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-foreground">1–3 scale</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">1 Needs Work</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">2 Getting There</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold">3 Nailed It</span>
                 </div>
+                <div><span className="font-semibold text-orange-600">/15 total</span> — 5 categories x 3 points max = 15 possible</div>
+                <div><span className="font-semibold text-blue-600">AUTO</span> — Completion is auto-scored: 3 = 30+ sec left, 2 = under 30 sec, 1 = timer ran out</div>
               </div>
             </div>
           </div>
@@ -153,7 +161,7 @@ export default function WheelAndDealPage() {
             <span className="mx-2">·</span>
             <span>Self-Eval: <strong>{selfTotal}/15</strong></span>
           </div>
-          <ScoringCard mode="coach" onSubmit={handleCoachSubmit} />
+          <ScoringCard mode="coach" onSubmit={handleCoachSubmit} completionScore={completionScore} />
         </div>
       )}
 
@@ -208,7 +216,7 @@ export default function WheelAndDealPage() {
                 );
               })}
 
-              {/* Completion row — self-eval only */}
+              {/* Completion row — auto-filled for both */}
               <div className="contents">
                 <div className="flex items-center gap-2 text-sm">
                   <span>⚡</span>
@@ -221,8 +229,8 @@ export default function WheelAndDealPage() {
                   </span>
                 </div>
                 <div className="text-center">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-muted text-muted-foreground font-bold text-sm">
-                    —
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 text-purple-700 font-bold text-sm">
+                    {completionScore}
                   </span>
                 </div>
               </div>
@@ -241,7 +249,7 @@ export default function WheelAndDealPage() {
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-purple-100 text-purple-800 font-bold text-lg">
                   {coachTotal}
                 </span>
-                <div className="text-[10px] text-muted-foreground mt-0.5">/12</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">/15</div>
               </div>
             </div>
           </Card>

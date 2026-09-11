@@ -37,8 +37,8 @@ export default function ScoringCard({ mode, onSubmit, completionScore }: Props) 
   const manualTotal = useMemo(() => Object.values(scores).reduce((s, v) => s + v, 0), [scores]);
   const allRated = SCORING_CATEGORIES.every((c) => scores[c.key] > 0);
 
-  // Self-eval: 4 manual + 1 auto completion = /15. Coach: 4 manual = /12.
-  const hasCompletion = mode === "self" && completionScore != null;
+  // Both self-eval and coach get completion auto-filled → /15 each
+  const hasCompletion = completionScore != null && completionScore > 0;
   const maxScore = hasCompletion ? 15 : 12;
   const displayTotal = hasCompletion ? manualTotal + completionScore : manualTotal;
 
@@ -58,11 +58,11 @@ export default function ScoringCard({ mode, onSubmit, completionScore }: Props) 
 
           return (
             <div key={cat.key}>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-1">
                 <span>{cat.icon}</span>
                 <span className="text-sm font-semibold text-foreground">{cat.label}</span>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">{question}</p>
+              <p className="text-[11px] text-muted-foreground mb-2">{cat.subtext} — {question}</p>
               <div className="flex gap-2">
                 {SCORE_OPTIONS.map((val) => (
                   <button
