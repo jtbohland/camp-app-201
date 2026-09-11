@@ -74,17 +74,6 @@ export default function PresentationOrderStrip({ isAdmin, cohortId }: Props) {
             <Icon icon="shuffle" className="w-3.5 h-3.5 mr-1.5" />
             {shuffling ? "Shuffling..." : "🎲 Randomize Order"}
           </Button>
-          {isActive && (
-            <Button
-              onClick={handleClear}
-              variant="outline"
-              size="sm"
-              className="text-muted-foreground"
-            >
-              <Icon icon="x" className="w-3.5 h-3.5 mr-1" />
-              Clear Order
-            </Button>
-          )}
         </div>
       )}
 
@@ -92,7 +81,7 @@ export default function PresentationOrderStrip({ isAdmin, cohortId }: Props) {
       {isActive && order.length > 0 && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200">
           <span className="text-sm font-bold text-indigo-800 mr-1">🎤 Presenting:</span>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap flex-1">
             {order.map((item, idx) => (
               <Badge
                 key={item.team_id}
@@ -102,6 +91,17 @@ export default function PresentationOrderStrip({ isAdmin, cohortId }: Props) {
               </Badge>
             ))}
           </div>
+          {isAdmin && (
+            <Button
+              onClick={handleClear}
+              variant="ghost"
+              size="sm"
+              className="text-indigo-400 hover:text-red-500 hover:bg-red-50 ml-auto shrink-0"
+            >
+              <Icon icon="x" className="w-3.5 h-3.5 mr-1" />
+              Clear
+            </Button>
+          )}
         </div>
       )}
     </div>
