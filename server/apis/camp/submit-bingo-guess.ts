@@ -6,6 +6,7 @@ const POINTS_PER_SQUARE = 2;
 const BINGO_BONUSES = [15, 10, 7, 3, 3, 3, 3, 3, 3, 3, 3, 3];
 const BLACKOUT_BONUS = 20;
 const CHEAT_PENALTY = -2;
+const FIRESIDE_FINDER_BADGE_ID = 67;
 
 // All possible bingo lines (rows, cols, diags) on a 5x5 grid
 const BINGO_LINES = [
@@ -140,6 +141,23 @@ export default api({
     }
 
     const newScore = row.score + pointsDelta;
+
+    // Auto-award Fireside Finder badge to the FIRST camper who ever gets a bingo
+    if (newBingos.length > 0) {
+      const alreadyAwarded = await ctx.integrations.apps_database.query(
+        `SELECT COUNT(*)::int as count FROM camp201_camper_badges WHERE badge_id = $1 LIMIT 1`,
+        z.object({ count: z.coerce.number() }),
+        [FIRESIDE_FINDER_BADGE_ID],
+        { label: "Check if Fireside Finder badge already awarded" }
+      );
+      if (alreadyAwarded[0].count === 0) {
+        await ctx.integrations.apps_database.execute(
+          `INSERT INTO camp201_camper_badges (camper_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [camper_id, FIRESIDE_FINDER_BADGE_ID],
+          { label: "Award Fireside Finder badge" }
+        );
+      }
+    }
 
     // Update card
     await ctx.integrations.apps_database.execute(
