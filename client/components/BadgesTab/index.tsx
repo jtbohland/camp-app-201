@@ -268,7 +268,7 @@ function BadgeCard({
       <h3 className={`text-xs font-bold ${earned ? "text-foreground" : "text-muted-foreground"}`}>
         {name}
       </h3>
-      <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{description}</p>
+      <p className="text-[10px] text-muted-foreground mt-0.5">{description}</p>
       {pointsReward != null && pointsReward > 0 && (
         <span className="text-[10px] text-amber-400 mt-1 block">+{pointsReward} pts</span>
       )}
