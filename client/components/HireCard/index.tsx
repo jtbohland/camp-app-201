@@ -88,6 +88,12 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
 
   const { run: addComment, loading: addingComment } = useApi("AddManagerComment");
 
+  // Wheel & Deal data — shared between name pill and W&D section
+  const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
+  const wdLeaders = wdData?.leaders ?? [];
+  const topDealerId = (wdLeaders as any[])[0]?.camper_id ?? null;
+  const isTopDealer = hire.camper.id === topDealerId;
+
   const completedPrework = hire.prework.filter(p => p.completed).length;
   const totalPrework = hire.prework.length;
   const preworkPct = totalPrework > 0 ? Math.round((completedPrework / totalPrework) * 100) : 0;
@@ -139,6 +145,11 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold">{hire.camper.first_name} {hire.camper.last_name}</h3>
+              {isTopDealer && (
+                <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-bold px-1.5 py-0">
+                  🎡 Top Dealer
+                </Badge>
+              )}
               {isBottomQuartile && (
                 <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px]">
                   <Icon icon="alert-triangle" className="w-3 h-3 mr-0.5" />

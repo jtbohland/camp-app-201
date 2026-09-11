@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
+import { useApiData } from "@/hooks/useApiData";
 
 type TeamMember = {
   id: number;
@@ -25,6 +26,10 @@ type Props = {
 };
 
 export default function CampVPLeaderboard({ teams }: Props) {
+  // Get Top Dealer (dynamic W&D leader)
+  const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
+  const topDealerId = (wdData?.leaders ?? [])[0]?.camper_id ?? null;
+
   // Flatten all members with team info, sorted by individual points
   const rankedCampers = useMemo(() => {
     const all: Array<{
@@ -135,6 +140,11 @@ export default function CampVPLeaderboard({ teams }: Props) {
                       <span className={`font-medium ${isFirst ? "text-foreground font-bold" : "text-foreground"}`}>
                         {camper.firstName} {camper.lastName}
                       </span>
+                      {camper.camperId === topDealerId && (
+                        <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-bold px-1.5 py-0 ml-1">
+                          🎡 Top Dealer
+                        </Badge>
+                      )}
                     </div>
                   </td>
 
