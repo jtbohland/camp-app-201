@@ -1,13 +1,13 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRepeatableBadge } from "../../lib/award-badge.js";
+import { BADGE_IDS } from "../../lib/accelerator.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
 // Item types that earn silent XP (notes & ideas — not resources/links/documents)
 const XP_ELIGIBLE_TYPES = new Set(["note", "idea"]);
-const HUB_XP_POINTS = 3;
 const HUB_XP_DAILY_CAP = 2;
 // Minimum combined character length (title + content) to qualify for XP.
-// Short/meaningless submissions still get saved but earn nothing and don't count toward cap.
 const MIN_CHARS_FOR_XP = 30;
 
 export default api({
@@ -59,14 +59,13 @@ export default api({
       );
 
       if (todayCount[0].cnt < HUB_XP_DAILY_CAP) {
-        await ctx.integrations.apps_database.query(
-          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-           VALUES ($1, $2, $3, 'system', 'hub_contribution')`,
-          z.object({}),
-          [author_id, HUB_XP_POINTS, `Hub ${item_type}: ${title.slice(0, 50)}`],
-          { label: "Award hub contribution XP" }
+        const badgeResult = await awardRepeatableBadge(
+          ctx.integrations.apps_database,
+          author_id,
+          BADGE_IDS.HUB_POST,
+          `Hub ${item_type}: ${title.slice(0, 50)}`,
         );
-        xpAwarded = HUB_XP_POINTS;
+        xpAwarded = badgeResult.points;
       }
     }
 

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -56,29 +57,23 @@ export default api({
       { label: "Insert rubric score" }
     );
 
-    // Award points to each team member
-    const members = await ctx.integrations.apps_database.query(
-      `SELECT tm.user_id AS id FROM camp201_team_members tm
-       JOIN camp201_campers c ON c.id = tm.user_id
-       WHERE tm.team_id = $1 AND c.role NOT IN ('counselor', 'admin') LIMIT 20`,
-      z.object({ id: z.coerce.number() }),
-      [team_id],
-      { label: "Get team members" }
+    // Award rubric score to TEAM points (not individual members)
+    await ctx.integrations.apps_database.execute(
+      `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
+      [totalScore, team_id],
+      { label: "Award rubric score to team_points" }
+    );
+    await ctx.integrations.apps_database.execute(
+      `INSERT INTO camp201_team_points_log (team_id, points, reason, cohort_id)
+       VALUES ($1, $2, $3, 2)`,
+      [team_id, totalScore, `Presentation rubric: ${totalScore}/${maxScore}`],
+      { label: "Log rubric team points" }
     );
 
-    for (const m of members) {
-      await ctx.integrations.apps_database.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
-         VALUES ($1, $2, $3, 'presentation', 2)`,
-        [m.id, totalScore, `Value Pillars presentation: team scored ${totalScore}/${maxScore}`],
-        { label: `Award points to member ${m.id}` }
-      );
-      await ctx.integrations.apps_database.execute(
-        `UPDATE camp201_campers SET points = points + $2 WHERE id = $1`,
-        [m.id, totalScore],
-        { label: `Update member ${m.id} total` }
-      );
-    }
+    // Check for improvement bonus
+    const improvement = await awardRubricImprovementBonus(
+      ctx.integrations.apps_database, team_id, totalScore, maxScore, 2
+    );
 
     // Award MVP if selected
     if (mvp_camper_id) {
@@ -96,6 +91,7 @@ export default api({
       );
     }
 
-    return { success: true, message: `Team scored ${totalScore}/${maxScore}! Points awarded to all ${members.length} members.`, total_score: totalScore };
+    const improvementMsg = improvement.reasons.length > 0 ? ` 🔥 ${improvement.reasons.join('. ')}` : "";
+    return { success: true, message: `Team scored ${totalScore}/${maxScore}! +${totalScore} team points awarded.${improvementMsg}`, total_score: totalScore };
   },
 });

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -67,28 +68,23 @@ export default api({
       { label: "Insert rubric score" }
     );
 
-    // Award points to all team members
-    const MembersSchema = z.object({ id: z.coerce.number() });
-    const members = await ctx.integrations.apps_database.query(
-      `SELECT id FROM camp201_campers WHERE team_id = $1 AND role != 'counselor'`,
-      MembersSchema,
-      [team_id],
-      { label: "Get team members for points" }
+    // Award points to TEAM (not individual members)
+    await ctx.integrations.apps_database.execute(
+      `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
+      [pointsAwarded, team_id],
+      { label: "Award rubric score to team_points" }
+    );
+    await ctx.integrations.apps_database.execute(
+      `INSERT INTO camp201_team_points_log (team_id, points, reason, cohort_id)
+       VALUES ($1, $2, $3, $4)`,
+      [team_id, pointsAwarded, `Presentation rubric: ${totalScore}/${template.max_total_points}`, cohortId],
+      { label: "Log rubric team points" }
     );
 
-    for (const member of members) {
-      await ctx.integrations.apps_database.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [pointsAwarded, member.id],
-        { label: `Award ${pointsAwarded} pts to camper ${member.id}` }
-      );
-      await ctx.integrations.apps_database.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [member.id, pointsAwarded, `Presentation rubric score: ${totalScore}/${template.max_total_points}`, `counselor:${scored_by}`, cohortId],
-        { label: `Log points for camper ${member.id}` }
-      );
-    }
+    // Check for improvement bonus
+    await awardRubricImprovementBonus(
+      ctx.integrations.apps_database, team_id, totalScore, template.max_total_points, cohortId
+    );
 
     return {
       success: true,

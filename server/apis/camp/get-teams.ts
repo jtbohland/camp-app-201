@@ -39,8 +39,8 @@ export default api({
   }),
   async run(ctx) {
     const teams = await ctx.integrations.apps_database.query(
-      `SELECT id, name, logo_url, color, assigned_company FROM camp201_teams ORDER BY name LIMIT 50`,
-      TeamSchema,
+      `SELECT id, name, logo_url, color, assigned_company, COALESCE(team_points, 0) as team_points FROM camp201_teams ORDER BY name LIMIT 50`,
+      TeamSchema.extend({ team_points: z.coerce.number() }),
       undefined,
       { label: "Fetch all teams" }
     );
@@ -54,7 +54,7 @@ export default api({
         [team.id],
         { label: `Fetch members for team ${team.name}` }
       );
-      const total_points = members.reduce((sum, m) => sum + m.points, 0);
+      const total_points = members.reduce((sum, m) => sum + m.points, 0) + (team as any).team_points;
       result.push({ ...team, members, total_points });
     }
 

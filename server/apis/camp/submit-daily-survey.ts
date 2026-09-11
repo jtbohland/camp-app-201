@@ -1,9 +1,10 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { getSurveyPoints, BADGE_IDS } from "../../lib/accelerator.js";
+import { awardRepeatableBadge } from "../../lib/award-badge.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
-const SURVEY_POINTS = 5;
 const LATE_PENALTY = -3;
-const TEAM_RACE_REWARDS = [15, 10, 5, 3]; // 1st, 2nd, 3rd, 4th
+const TEAM_RACE_REWARDS = [5, 3, 1, 0]; // 1st=+5, 2nd=+3, 3rd=+1, 4th+=0 (flat to team_points)
 
 export default api({
   name: "SubmitDailySurvey",
@@ -88,7 +89,7 @@ export default api({
       }
     }
 
-    const pointsAwarded = onTime ? SURVEY_POINTS : 0;
+    const pointsAwarded = onTime ? getSurveyPoints(input.day_number) : 0;
     const latePenalty = late ? LATE_PENALTY : 0;
 
     // Insert submission
@@ -151,18 +152,44 @@ export default api({
 
     // Award/deduct individual points
     const netPoints = pointsAwarded + latePenalty;
-    if (netPoints !== 0) {
+
+// Award Survey Complete badge (earn_count only, no accelerator points — surveys use escalating)
+if (onTime) {
+  // Just increment the badge earn count, don't award accelerator points
+  await ctx.integrations.apps_database.execute(
+    `INSERT INTO camp201_camper_badges (camper_id, badge_id, earn_count)
+     VALUES ($1, $2, 1)
+     ON CONFLICT (camper_id, badge_id) DO UPDATE SET earn_count = camp201_camper_badges.earn_count + 1`,
+    [input.camper_id, BADGE_IDS.SURVEY],
+    { label: "Increment Survey badge earn count" }
+  );
+}
+
+// For surveys, award escalating points directly (Day 1=2, Day 2=4, etc.)
+if (pointsAwarded > 0) {
       await ctx.integrations.apps_database.execute(
         `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [netPoints, input.camper_id], { label: "Update camper points" }
+        [pointsAwarded, input.camper_id], { label: "Award escalating survey points" }
       );
-      const reason = onTime
-        ? `Day ${input.day_number} survey completed (on time)`
-        : `Day ${input.day_number} survey submitted late (-3 penalty)`;
       await ctx.integrations.apps_database.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
          VALUES ($1, $2, $3, 'system', $4)`,
-        [input.camper_id, netPoints, reason, cohortId], { label: "Log survey points" }
+        [input.camper_id, pointsAwarded, `Day ${input.day_number} survey completed (on time)`, cohortId],
+        { label: "Log survey points" }
+      );
+    }
+
+    // Apply late penalty separately
+    if (latePenalty < 0) {
+      await ctx.integrations.apps_database.execute(
+        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+        [latePenalty, input.camper_id], { label: "Apply late penalty" }
+      );
+      await ctx.integrations.apps_database.execute(
+        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
+         VALUES ($1, $2, $3, 'system', $4)`,
+        [input.camper_id, latePenalty, `Day ${input.day_number} survey submitted late`, cohortId],
+        { label: "Log late penalty" }
       );
     }
 
@@ -210,16 +237,15 @@ export default api({
         teamRaceBonusResult = bonus;
 
         if (bonus > 0) {
+          // Award to TEAM points (not individual members)
           await ctx.integrations.apps_database.execute(
-            `UPDATE camp201_campers SET points = points + $1
-             WHERE team_id = $2 AND role NOT IN ('counselor','admin')`,
-            [bonus, teamId], { label: "Award team race bonus" }
+            `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
+            [bonus, teamId], { label: "Award team race bonus to team_points" }
           );
           await ctx.integrations.apps_database.execute(
-            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
-             SELECT id, $1, $2, 'system', $4 FROM camp201_campers
-             WHERE team_id = $3 AND role NOT IN ('counselor','admin')`,
-            [bonus, `Day ${input.day_number} survey: Team finished ${rank}${rank === 1 ? "st" : rank === 2 ? "nd" : rank === 3 ? "rd" : "th"}!`, teamId, cohortId],
+            `INSERT INTO camp201_team_points_log (team_id, points, reason, cohort_id)
+             VALUES ($1, $2, $3, $4)`,
+            [teamId, bonus, `Day ${input.day_number} survey: Team finished ${rank}${rank === 1 ? "st" : rank === 2 ? "nd" : rank === 3 ? "rd" : "th"}!`, cohortId],
             { label: "Log team race bonus" }
           );
         }

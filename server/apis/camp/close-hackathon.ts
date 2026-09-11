@@ -2,7 +2,7 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 const INNOVATION_BADGE_ID = 12;
-const TEAM_POINTS = 10;
+const TEAM_POINTS = 15;
 
 export default api({
   name: "CloseHackathon",
@@ -59,18 +59,18 @@ export default api({
       );
     }
 
-    // Award team points: add to each member's individual points + log
-    for (const m of members) {
-      await ctx.integrations.apps_database.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [TEAM_POINTS, m.id]
-      );
-      await ctx.integrations.apps_database.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-         VALUES ($1, $2, $3, $4)`,
-        [m.id, TEAM_POINTS, `AI Hackathon Winner - ${winner.team_name}`, awarded_by]
-      );
-    }
+    // Award TEAM_POINTS to the team (not individual members)
+    await ctx.integrations.apps_database.execute(
+      `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
+      [TEAM_POINTS, winner.team_id],
+      { label: "Award hackathon team points" }
+    );
+    await ctx.integrations.apps_database.execute(
+      `INSERT INTO camp201_team_points_log (team_id, points, reason)
+       VALUES ($1, $2, $3)`,
+      [winner.team_id, TEAM_POINTS, `AI Hackathon Winner - ${winner.team_name}`],
+      { label: "Log hackathon team points" }
+    );
 
     return {
       success: true,

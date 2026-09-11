@@ -12,6 +12,8 @@ const BadgeSchema = z.object({
   requirement_type: z.string(),
   requirement_value: z.coerce.number(),
   points_reward: z.coerce.number(),
+  badge_type: z.string(),
+  base_points: z.coerce.number(),
 });
 
 const EarnedBadgeSchema = z.object({
@@ -20,8 +22,11 @@ const EarnedBadgeSchema = z.object({
   badge_icon: z.string(),
   badge_color: z.string(),
   badge_description: z.string(),
+  badge_category: z.string(),
+  badge_type: z.string(),
   awarded_at: z.string(),
   awarded_by_name: z.string().nullable(),
+  earn_count: z.coerce.number(),
 });
 
 export default api({
@@ -39,8 +44,8 @@ export default api({
   }),
   async run(ctx, { camper_id }) {
     const allBadges = await ctx.integrations.apps_database.query(
-      `SELECT id, name, description, icon, color, category, requirement_type, requirement_value, points_reward
-       FROM camp201_badges ORDER BY category, name LIMIT 50`,
+      `SELECT id, name, description, icon, color, category, requirement_type, requirement_value, points_reward, badge_type, base_points
+       FROM camp201_badges ORDER BY badge_type DESC, category, name LIMIT 50`,
       BadgeSchema,
       undefined,
       { label: "Get all badges" }
@@ -50,7 +55,8 @@ export default api({
     if (camper_id) {
       earnedBadges = await ctx.integrations.apps_database.query(
         `SELECT cb.badge_id, b.name as badge_name, b.icon as badge_icon, b.color as badge_color,
-                b.description as badge_description, cb.awarded_at,
+                b.description as badge_description, b.category as badge_category, b.badge_type,
+                cb.awarded_at, COALESCE(cb.earn_count, 1) as earn_count,
                 CONCAT(c.first_name, ' ', c.last_name) as awarded_by_name
          FROM camp201_camper_badges cb
          JOIN camp201_badges b ON b.id = cb.badge_id
