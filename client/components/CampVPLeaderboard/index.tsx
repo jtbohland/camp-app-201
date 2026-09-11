@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
+import { useApiData } from "@/hooks/useApiData";
 
 type TeamMember = {
   id: number;
@@ -25,6 +26,27 @@ type Props = {
 };
 
 export default function CampVPLeaderboard({ teams }: Props) {
+  // Get Top Dealer (dynamic W&D leader)
+  const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
+  const topDealerId = (wdData?.leaders ?? [])[0]?.camper_id ?? null;
+
+  // Get Camp Spirit winner(s)
+  const { data: spiritData } = useApiData("GetSpiritVoteResults", { camper_id: 0 }, { staleTime: 30_000 });
+  const spiritWinnerIds: Set<number> = useMemo(() => {
+    if (!spiritData?.voting_complete) return new Set();
+    const winners = spiritData?.winners ?? [];
+    if (winners.length === 0) return new Set();
+    const topVotes = winners[0].vote_count;
+    const topNotes = winners[0].note_count;
+    // All with same vote count AND same note count are co-winners
+    const tied = winners.filter((w: any) => w.vote_count === topVotes);
+    if (tied.length === 1) return new Set([tied[0].camper_id]);
+    // Tiebreaker: most kind words (notes)
+    const maxNotes = Math.max(...tied.map((w: any) => w.note_count));
+    const noteWinners = tied.filter((w: any) => w.note_count === maxNotes);
+    return new Set(noteWinners.map((w: any) => w.camper_id));
+  }, [spiritData]);
+
   // Flatten all members with team info, sorted by individual points
   const rankedCampers = useMemo(() => {
     const all: Array<{
@@ -135,6 +157,18 @@ export default function CampVPLeaderboard({ teams }: Props) {
                       <span className={`font-medium ${isFirst ? "text-foreground font-bold" : "text-foreground"}`}>
                         {camper.firstName} {camper.lastName}
                       </span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {camper.camperId === topDealerId && (
+                          <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-bold px-1.5 py-0">
+                            🎡 Top Dealer
+                          </Badge>
+                        )}
+                        {spiritWinnerIds.has(camper.camperId) && (
+                          <Badge className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white text-[9px] font-bold px-1.5 py-0">
+                            ✨ Camp Spirit
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </td>
 

@@ -19,6 +19,7 @@ const GATE_ICONS: Record<string, IconName> = {
   badges: "award",
   graduation: "graduation-cap",
   timer: "timer",
+  wheel_and_deal: "refresh-cw",
   teams: "users",
 };
 
@@ -32,6 +33,7 @@ const GATE_DESCRIPTIONS: Record<string, string> = {
   badges: "Badges & XP achievement page",
   graduation: "Graduation summary and memories",
   timer: "Countdown timer for sessions",
+  wheel_and_deal: "Wheel & Deal practice game",
   teams: "Team hub and collaboration",
 };
 

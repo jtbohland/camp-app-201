@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 import SessionScorecard from "@/components/SessionScorecard/index.js";
+import CampSpiritVote from "@/components/CampSpiritVote/index.js";
 
 const DAY_LABELS: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
 
@@ -103,6 +104,7 @@ export default function SurveyPage() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
+  const isAdmin = user?.email === "jt.bohland@amplitude.com";
 
   const { data: surveyData, loading: loadingSurvey, refetch } = useApiData("GetDailySurvey", {
     camper_id: camperId,
@@ -111,6 +113,7 @@ export default function SurveyPage() {
 
   const numDays = surveyData?.num_days ?? 4;
   const isFinalDay = surveyData?.is_final_day ?? false;
+  const isSpiritVoteDay = selectedDay === numDays - 1;
   const alreadySubmitted = surveyData?.already_submitted ?? false;
   const isLocked = surveyData?.locked ?? false;
   const sessions = surveyData?.sessions ?? [];
@@ -155,6 +158,15 @@ export default function SurveyPage() {
       .filter((q: { required: boolean }) => q.required)
       .every((q: { key: string }) => (overallOpen[q.key] ?? "").trim().length > 0);
   }, [isFinalDay, surveyData, overallOpen]);
+
+  // Fetch cohort for spirit vote (only on spirit vote day)
+  const { data: cohortData } = useApiData("GetCohort", {}, {
+    enabled: isSpiritVoteDay && camperId > 0,
+    staleTime: 60_000,
+  });
+  const spiritEligible = (cohortData?.members ?? []).filter(
+    (m: { role: string | null }) => m.role !== "counselor" && m.role !== "admin"
+  );
 
   const canSubmit = allSessionsRated && allOverallRated && requiredOpenFilled;
 
@@ -230,7 +242,7 @@ export default function SurveyPage() {
       </div>
 
       {/* States: submitted, locked, or show form */}
-      {(submitted || alreadySubmitted) ? (
+      {(submitted || (alreadySubmitted && !isAdmin)) ? (
         <Card className="p-8 text-center border-camp-green/30">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-camp-green/10 mb-4">
             <Icon icon="check-circle-2" className="w-8 h-8 text-camp-green" />
@@ -259,7 +271,7 @@ export default function SurveyPage() {
             </div>
           )}
         </Card>
-      ) : isLocked ? (
+      ) : (isLocked && !isAdmin) ? (
         <Card className="p-8 text-center border-red-200">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-red-50 mb-4">
             <Icon icon="lock" className="w-8 h-8 text-red-400" />
@@ -342,6 +354,17 @@ export default function SurveyPage() {
                 </Card>
               ))}
             </>
+          )}
+
+          {/* Camp Spirit Vote — auto-appears on 2nd-to-last day */}
+          {isSpiritVoteDay && camperId > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">🏕️</span>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Camp Spirit Vote</h2>
+              </div>
+              <CampSpiritVote camperId={camperId} cohortMembers={spiritEligible} />
+            </div>
           )}
 
           {/* Submit */}

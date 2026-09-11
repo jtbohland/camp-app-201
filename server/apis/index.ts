@@ -163,6 +163,16 @@ import MigrateNewHires from './camp/migrate-new-hires.js';
 import UploadNewHireList from './camp/upload-new-hire-list.js';
 import GetNewHires from './camp/get-new-hires.js';
 import UpdateNewHireStatus from './camp/update-new-hire-status.js';
+import SetupWheelTables from './camp/setup-wheel-tables.js';
+import CreateWheelRound from './camp/create-wheel-round.js';
+import GetActiveWheelRound from './camp/get-active-wheel-round.js';
+import SubmitWheelScore from './camp/submit-wheel-score.js';
+import CloseWheelScoring from './camp/close-wheel-scoring.js';
+import GetWheelLeaderboard from './camp/get-wheel-leaderboard.js';
+import SetupSpiritVoteTable from './camp/setup-spirit-vote-table.js';
+import SubmitSpiritVote from './camp/submit-spirit-vote.js';
+import GetSpiritVoteResults from './camp/get-spirit-vote-results.js';
+import CloseHackathon from './camp/close-hackathon.js';
 
 const apis = {
   SetupDatabase,
@@ -324,6 +334,16 @@ const apis = {
   UploadNewHireList,
   GetNewHires,
   UpdateNewHireStatus,
+  SetupWheelTables,
+  CreateWheelRound,
+  GetActiveWheelRound,
+  SubmitWheelScore,
+  CloseWheelScoring,
+  GetWheelLeaderboard,
+  SetupSpiritVoteTable,
+  SubmitSpiritVote,
+  GetSpiritVoteResults,
+  CloseHackathon,
 } as const;
 
 export default apis;

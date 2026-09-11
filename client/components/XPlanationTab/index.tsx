@@ -113,6 +113,18 @@ const categories: PointCategory[] = [
     ],
   },
   {
+    icon: "refresh-cw",
+    title: "Wheel & Deal",
+    color: "bg-blue-500/10 text-blue-600",
+    items: [
+      { label: "Pitch in front of the room (courage points!)", points: "+5", positive: true },
+      { label: "Self-awareness — self-eval within 1 pt of room avg", points: "+3", positive: true },
+      { label: "Self-awareness — within 2 pts", points: "+2", positive: true },
+      { label: "Self-awareness — 3+ pts off", points: "+1", positive: true },
+      { label: "Room loved it — room avg ≥ 12/15", points: "+2 bonus", positive: true },
+    ],
+  },
+  {
     icon: "sparkles",
     title: "Bonus & Spirit Points",
     color: "bg-pink-500/10 text-pink-600",
