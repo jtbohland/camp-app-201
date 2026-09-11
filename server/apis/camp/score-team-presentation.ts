@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -69,6 +70,11 @@ export default api({
       { label: "Log rubric team points" }
     );
 
+    // Check for improvement bonus
+    const improvement = await awardRubricImprovementBonus(
+      ctx.integrations.apps_database, team_id, totalScore, maxScore, 2
+    );
+
     // Award MVP if selected
     if (mvp_camper_id) {
       const MVP_POINTS = 10;
@@ -85,6 +91,7 @@ export default api({
       );
     }
 
-    return { success: true, message: `Team scored ${totalScore}/${maxScore}! +${totalScore} team points awarded.`, total_score: totalScore };
+    const improvementMsg = improvement.reasons.length > 0 ? ` 🔥 ${improvement.reasons.join('. ')}` : "";
+    return { success: true, message: `Team scored ${totalScore}/${maxScore}! +${totalScore} team points awarded.${improvementMsg}`, total_score: totalScore };
   },
 });

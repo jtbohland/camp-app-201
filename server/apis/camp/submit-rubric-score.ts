@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -78,6 +79,11 @@ export default api({
        VALUES ($1, $2, $3, $4)`,
       [team_id, pointsAwarded, `Presentation rubric: ${totalScore}/${template.max_total_points}`, cohortId],
       { label: "Log rubric team points" }
+    );
+
+    // Check for improvement bonus
+    await awardRubricImprovementBonus(
+      ctx.integrations.apps_database, team_id, totalScore, template.max_total_points, cohortId
     );
 
     return {
