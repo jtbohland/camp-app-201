@@ -23,6 +23,7 @@ export default api({
     rank: z.coerce.number(),
     total_campers: z.coerce.number(),
     badges_earned: z.coerce.number(),
+    badge_list: z.array(z.object({ id: z.number(), name: z.string(), description: z.string(), icon: z.string(), color: z.string() })),
     checkins_count: z.coerce.number(),
     surveys_completed: z.coerce.number(),
     prework_completed: z.coerce.number(),
@@ -48,7 +49,7 @@ export default api({
       { label: "Get camper info" }
     );
     if (camperInfo.length === 0) {
-      return { camper_name: "", team_name: null, team_logo: null, team_color: null, team_rank: null, total_teams: 0, team_members: [], total_points: 0, rank: 0, total_campers: 0, badges_earned: 0, checkins_count: 0, surveys_completed: 0, prework_completed: 0, points_log_highlights: [] };
+      return { camper_name: "", team_name: null, team_logo: null, team_color: null, team_rank: null, total_teams: 0, team_members: [], total_points: 0, rank: 0, total_campers: 0, badges_earned: 0, badge_list: [], checkins_count: 0, surveys_completed: 0, prework_completed: 0, points_log_highlights: [] };
     }
 
     // Get rank
@@ -72,6 +73,17 @@ export default api({
       CountSchema,
       [camper_id],
       { label: "Count badges" }
+    );
+    const badgeList = await ctx.integrations.apps_database.query(
+      `SELECT b.id, b.name, COALESCE(b.description, '') as description, COALESCE(b.icon, 'award') as icon, COALESCE(b.color, 'amber') as color
+       FROM camp201_camper_badges cb
+       JOIN camp201_badges b ON b.id = cb.badge_id
+       WHERE cb.camper_id = $1
+       ORDER BY cb.awarded_at
+       LIMIT 20`,
+      z.object({ id: z.number(), name: z.string(), description: z.string(), icon: z.string(), color: z.string() }),
+      [camper_id],
+      { label: "Get badge list" }
     );
     const checkinsResult = await ctx.integrations.apps_database.query(
       `SELECT COUNT(*)::int as count FROM camp201_checkin_responses WHERE camper_id = $1`,
@@ -160,6 +172,7 @@ export default api({
       rank: rankResult[0].count + 1,
       total_campers: totalResult[0].count,
       badges_earned: badgesResult[0].count,
+      badge_list: badgeList,
       checkins_count: checkinsResult[0].count,
       surveys_completed: surveysResult[0].count,
       prework_completed: preworkResult[0].count,

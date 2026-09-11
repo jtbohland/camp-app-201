@@ -46,8 +46,9 @@ export default function GraduationSummaryTab() {
     return tied.filter((w: any) => w.note_count === maxNotes).some((w: any) => w.camper_id === camperId);
   })();
 
-  // Badges — use count from graduation data (individual list not available)
-  const badgeCount = data?.badges_earned ?? 0;
+  // Badges from graduation data
+  const badgeList = (data?.badge_list ?? []) as { id: number; name: string; description: string; icon: string; color: string }[];
+  const badgeCount = badgeList.length || data?.badges_earned || 0;
 
   if (loadingCamper || loading) {
     return (
@@ -103,7 +104,7 @@ export default function GraduationSummaryTab() {
   // Compute awards this camper holds
   const isCampVP = data.rank === 1 && data.total_points > 0;
   const isTopDealer = camperId === topDealerId;
-  const hasInnovation = false; // TODO: check from badge list when available
+  const hasInnovation = badgeList.some((b) => b.name === "Innovation Award");
 
   const awards: { emoji: string; title: string; subtitle: string; gradient: string }[] = [];
   if (isCampVP) awards.push({ emoji: "👑", title: "cAMP-V-P", subtitle: "Most Valuable cAMPer — #1 in total XP", gradient: "from-yellow-400 to-amber-500" });
@@ -168,22 +169,26 @@ export default function GraduationSummaryTab() {
       )}
 
       {/* ── Badge Showcase ─────────────────────────────── */}
-      {badgeCount > 0 && (
-        <Card className="p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+      {badgeList.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
             <Icon icon="award" className="w-4 h-4 text-green-500" />
-            Badges Earned
+            Badges Earned ({badgeList.length})
           </h2>
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center">
-              <Icon icon="award" className="w-7 h-7 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold text-foreground">{badgeCount} badge{badgeCount !== 1 ? "s" : ""}</p>
-              <p className="text-xs text-muted-foreground">Collected throughout your cAMP journey</p>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {badgeList.map((b) => (
+              <Card key={b.id} className="p-3 flex items-center gap-3 hover:shadow-md transition-shadow">
+                <div className={`w-10 h-10 rounded-xl bg-${b.color}-100 flex items-center justify-center shrink-0`}>
+                  <Icon icon={(b.icon || "award") as IconName} className={`w-5 h-5 text-${b.color}-600`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">{b.name}</p>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">{b.description}</p>
+                </div>
+              </Card>
+            ))}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* ── Wheel & Deal Recap ─────────────────────────── */}
