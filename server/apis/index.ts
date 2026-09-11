@@ -163,6 +163,11 @@ import MigrateNewHires from './camp/migrate-new-hires.js';
 import UploadNewHireList from './camp/upload-new-hire-list.js';
 import GetNewHires from './camp/get-new-hires.js';
 import UpdateNewHireStatus from './camp/update-new-hire-status.js';
+import SetupWheelTables from './camp/setup-wheel-tables.js';
+import CreateWheelRound from './camp/create-wheel-round.js';
+import GetActiveWheelRound from './camp/get-active-wheel-round.js';
+import SubmitWheelScore from './camp/submit-wheel-score.js';
+import CloseWheelScoring from './camp/close-wheel-scoring.js';
 
 const apis = {
   SetupDatabase,
@@ -324,6 +329,11 @@ const apis = {
   UploadNewHireList,
   GetNewHires,
   UpdateNewHireStatus,
+  SetupWheelTables,
+  CreateWheelRound,
+  GetActiveWheelRound,
+  SubmitWheelScore,
+  CloseWheelScoring,
 } as const;
 
 export default apis;

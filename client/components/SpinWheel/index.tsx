@@ -7,6 +7,7 @@ type Props = {
   onLand: (product: WheelProduct) => void;
   disabled?: boolean;
   disabledLabel?: string;
+  autoSpin?: boolean;
 };
 
 const NUM = PRODUCTS.length;
@@ -67,7 +68,7 @@ function segPath(i: number): string {
   return `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2} Z`;
 }
 
-export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
+export default function SpinWheel({ onLand, disabled, disabledLabel, autoSpin }: Props) {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const animRef = useRef<number>(0);
@@ -110,6 +111,15 @@ export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
     };
     animRef.current = requestAnimationFrame(tick);
   }, [spinning, disabled, rotation, onLand]);
+
+  // Auto-spin when counselor selects a cAMPer
+  useEffect(() => {
+    if (autoSpin && !spinning) {
+      const t = setTimeout(() => spin(), 600);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSpin]);
 
   const label = spinning ? "Spinning..." : disabled ? (disabledLabel ?? "🔒 Complete Eval First") : "Spin!";
 
