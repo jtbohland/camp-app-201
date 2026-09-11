@@ -1,10 +1,13 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
+import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { toast } from "sonner";
 import ExecutivesTab from "@/components/ExecutivesTab/index.js";
 import AgendaResources from "@/components/AgendaResources/index.js";
 
@@ -46,6 +49,33 @@ export default function AgendaPage() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
+
+  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+
+  // Day lock states from config
+  const lockedDays = useMemo(() => {
+    const locked = new Set<number>();
+    if (configData?.config) {
+      for (const c of configData.config as Array<{ key: string; value: string }>) {
+        const match = c.key.match(/^agenda_day_(\d+)_locked$/);
+        if (match && c.value === "true") locked.add(parseInt(match[1], 10));
+      }
+    }
+    return locked;
+  }, [configData]);
+
+  const { run: toggleLock } = useApi("ToggleAgendaDayLock");
+  const { refetch: refetchConfig } = useApiData("GetCampConfig", {});
+
+  const handleToggleLock = useCallback(async (dayNum: number, currentlyLocked: boolean) => {
+    try {
+      await toggleLock({ day_number: dayNum, locked: !currentlyLocked });
+      refetchConfig();
+      toast.success(`Day ${dayNum} ${!currentlyLocked ? "locked" : "unlocked"}`);
+    } catch {
+      toast.error("Failed to toggle lock");
+    }
+  }, [toggleLock, refetchConfig]);
 
   const numDays = useMemo(() => {
     if (configData?.config) {
@@ -144,14 +174,34 @@ export default function AgendaPage() {
                 {dayGroups.map(({ dayNumber, label, items }) => {
                   const isToday = currentDayNumber === dayNumber;
                   const isPast = currentDayNumber !== null && dayNumber < currentDayNumber;
+                  const isDayLocked = lockedDays.has(dayNumber);
                   return (
                     <div key={dayNumber} className={isPast ? "opacity-60" : ""}>
                       <div className="flex items-center gap-3 mb-3">
                         <h2 className="text-lg font-bold flex items-center gap-2">
                           Day {dayNumber} — {label}
                           {isToday && <Badge className="bg-camp-green/15 text-camp-green border-camp-green/30 text-xs">Today</Badge>}
+                          {isDayLocked && !isAdmin && <Badge variant="outline" className="text-xs text-muted-foreground">🔒 Coming soon</Badge>}
                         </h2>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleLock(dayNumber, isDayLocked)}
+                            className={`text-xs ${isDayLocked ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"}`}
+                          >
+                            <Icon icon={isDayLocked ? "lock" : "unlock"} className="w-3.5 h-3.5 mr-1" />
+                            {isDayLocked ? "Locked" : "Unlocked"}
+                          </Button>
+                        )}
                       </div>
+                      {isDayLocked && !isAdmin ? (
+                        <Card className="p-6 text-center text-muted-foreground bg-muted/20 border-dashed">
+                          <span className="text-2xl block mb-2">🔒</span>
+                          <p className="text-sm font-medium">This day's schedule will be revealed soon!</p>
+                          <p className="text-xs mt-1">Check back when your counselors unlock it.</p>
+                        </Card>
+                      ) : (
                       <div className="flex flex-col gap-1.5">
                         {items.map((item: any) => {
                           const colors = TYPE_COLORS[item.session_type] ?? TYPE_COLORS.session;
@@ -187,6 +237,7 @@ export default function AgendaPage() {
                           );
                         })}
                       </div>
+                      )}
                     </div>
                   );
                 })}

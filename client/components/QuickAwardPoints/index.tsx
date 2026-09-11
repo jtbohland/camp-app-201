@@ -86,7 +86,7 @@ export default function QuickAwardPoints({ camperId }: Props) {
             <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-amber-50 to-yellow-50">
               <div className="flex items-center gap-2">
                 <span className="text-xl">⚡</span>
-                <h3 className="font-bold text-sm">Quick Award Points</h3>
+                <h3 className="font-bold text-sm">Award Quick cAMP Points</h3>
               </div>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <Icon icon="x" className="w-4 h-4" />

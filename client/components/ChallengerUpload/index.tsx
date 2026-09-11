@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import ImageUpload from "@/components/ImageUpload";
 
 type CourseUpload = {
@@ -27,6 +28,7 @@ function isExemptRole(role: string): boolean {
 }
 
 export default function ChallengerUpload({ camperId, camperRole, links, onComplete }: Props) {
+  const showPoints = usePointsBubble();
   const exempt = isExemptRole(camperRole);
   const { run: submit, loading } = useApi("SubmitPreworkValidation");
 
@@ -76,6 +78,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
       });
       if (result?.success) {
         toast.success(`Challenger verified! +${result.points_awarded} pts`);
+        showPoints(result.points_awarded as number);
         onComplete();
       }
     } catch (err) {

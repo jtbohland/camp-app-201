@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import CohortMemberCard from "@/components/CohortMemberCard/index.js";
 
@@ -50,6 +51,37 @@ export default function CohortTab() {
   const counselors = useMemo(() => members.filter((m: CohortMember) => m.role === "counselor" || m.role === "admin"), [members]);
   const campers = useMemo(() => members.filter((m: CohortMember) => m.role !== "counselor" && m.role !== "admin"), [members]);
 
+  const teamCount = useMemo(() => {
+    const teams = new Set<string>();
+    members.forEach((m: CohortMember) => { if (m.team_name) teams.add(m.team_name); });
+    return teams.size;
+  }, [members]);
+
+  const regionCount = useMemo(() => {
+    const regions = new Set<string>();
+    members.forEach((m: CohortMember) => { if (m.region) regions.add(m.region); });
+    return regions.size;
+  }, [members]);
+
+  const roleCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    const ROLE_ABBREVS: Record<string, string> = {
+      "account executive": "AEs", "solutions engineer": "SEs",
+      "sales development": "SDRs", "customer success": "CSMs",
+      "technical success": "TSMs", "renewal": "Renewal",
+      "partner": "Partners", "velocity": "Velocity",
+    };
+    campers.forEach((m: CohortMember) => {
+      const role = m.role?.toLowerCase() ?? "";
+      let label = "Other";
+      for (const [key, abbr] of Object.entries(ROLE_ABBREVS)) {
+        if (role.includes(key)) { label = abbr; break; }
+      }
+      map.set(label, (map.get(label) ?? 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [campers]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 w-full animate-pulse">
@@ -65,6 +97,39 @@ export default function CohortTab() {
 
   return (
     <div className="flex flex-col gap-6 w-full">
+      {/* Cohort Hero Stats */}
+      <div className="rounded-xl bg-gradient-to-r from-camp-green/90 to-emerald-700 p-5 text-white shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              🏕️ Cohort 8 — cAMP 201
+            </h2>
+            <p className="text-sm text-white/70 mt-0.5">Your fellow cAMPers on this journey</p>
+          </div>
+          <div className="flex items-center gap-5">
+            <div className="text-center">
+              <div className="text-2xl font-bold tabular-nums">{members.length}</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/60">cAMPers</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold tabular-nums">{teamCount}</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/60">Teams</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold tabular-nums">{regionCount}</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/60">Regions</div>
+            </div>
+          </div>
+        </div>
+        {/* Role distribution mini pills */}
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {roleCounts.map(([role, count]) => (
+            <Badge key={role} className="bg-white/15 text-white border-white/20 text-[10px]">
+              {count} {role}
+            </Badge>
+          ))}
+        </div>
+      </div>
       {/* Search */}
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">

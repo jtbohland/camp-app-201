@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { Badge } from "@/components/ui/badge";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ type Props = {
  * One submission per team per presentation. +5 pts for submitting.
  */
 export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
+  const showPoints = usePointsBubble();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [selectedPresentation, setSelectedPresentation] = useState("");
@@ -113,6 +114,7 @@ export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
       }
 
       toast.success("🏕️ cAMPfire Feedback submitted!");
+      showPoints(5);
 
       // Reset form
       setSunshine(["", "", ""]);

@@ -4,6 +4,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { IconName } from "lucide-react/dynamic";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import PreWorkWarningModal from "@/components/PreWorkWarningModal/index.js";
 import DeadlineCountdown from "@/components/DeadlineCountdown/index.js";
 import WheelAndDealForm from "@/components/WheelAndDealForm";
 import ChallengerUpload from "@/components/ChallengerUpload";
+import ShareWithManagerTile from "@/components/ShareWithManagerTile/index.js";
 
 type Link = { label: string; url: string };
 type ContentItem = {
@@ -37,6 +39,7 @@ type PreWorkProps = {
 export default function PreWork({ userId, camperEmail, camperRole, completedKeys, onComplete, isAdmin, deadline }: PreWorkProps) {
   const { run: completeItem, loading: completing } = useApi("CompletePreworkItem");
   const { run: trackClick } = useApi("TrackLinkClick");
+  const showPoints = usePointsBubble();
   const [completingKey, setCompletingKey] = useState<string | null>(null);
   const [warningItem, setWarningItem] = useState<ContentItem | null>(null);
   const [missingLinks, setMissingLinks] = useState<Link[]>([]);
@@ -96,6 +99,7 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
           toast.error(`Completed with penalty: ${result.pointsAwarded} pts. Next time, finish the links first!`);
         } else if (result.pointsAwarded > 0) {
           toast.success(`+${result.pointsAwarded} points earned! 🏕️`);
+          showPoints(result.pointsAwarded as number);
         }
         onComplete();
       }
@@ -199,6 +203,12 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
                   links={itemLinks}
                   onComplete={onComplete}
                 />
+              );
+            }
+            if (item.item_key === "share_with_manager") {
+              if (isCompleted) return null;
+              return (
+                <ShareWithManagerTile key={item.id} camperId={userId} onComplete={onComplete} />
               );
             }
 

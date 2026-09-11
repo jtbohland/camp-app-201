@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 
 const CORRECT_ANSWER = "nomnom";
 const POINTS = 5;
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export default function EasterEggTrivia({ camperId, teamId, open, onOpenChange }: Props) {
+  const showPoints = usePointsBubble();
   const [answer, setAnswer] = useState("");
   const [correct, setCorrect] = useState<boolean | null>(null);
   const [alreadyFound, setAlreadyFound] = useState(false);
@@ -44,6 +46,7 @@ export default function EasterEggTrivia({ camperId, teamId, open, onOpenChange }
           setAlreadyFound(true);
         } else {
           toast.success(`+${POINTS} hidden points earned!`);
+          showPoints(POINTS);
         }
       } catch {
         // Error — still show correct UI

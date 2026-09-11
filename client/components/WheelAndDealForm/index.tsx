@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 
 const PRODUCTS = [
   "Analytics", "CDP", "Experiment", "Session Replay", "Web Analytics",
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export default function WheelAndDealForm({ camperId, onComplete }: Props) {
+  const showPoints = usePointsBubble();
   const [product, setProduct] = useState("");
   const [challengeType, setChallengeType] = useState("");
   const [score, setScore] = useState("");
@@ -56,6 +58,7 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
           toast.warning("Submitted — a counselor will review your scores.");
         } else {
           toast.success(`Wheel & Deal submitted! +${result.points_awarded} pts`);
+          showPoints(result.points_awarded as number);
         }
         onComplete();
       }

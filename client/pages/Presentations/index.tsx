@@ -5,15 +5,13 @@ import { useSuperblocksUser } from "@superblocksteam/library";
 import { Skeleton } from "@/components/ui/skeleton";
 import PresentationGrid from "@/components/PresentationGrid/index.js";
 import PresentationDetail from "@/components/PresentationDetail/index.js";
-import CreatePresentationForm from "@/components/CreatePresentationForm/index.js";
-import { Button } from "@/components/ui/button";
 import PeerFeedbackForm from "@/components/PeerFeedbackForm/index.js";
 import CampfireFeed from "@/components/CampfireFeed/index.js";
+import PresentationOrderStrip from "@/components/PresentationOrderStrip/index.js";
 
 export default function PresentationsPage() {
   const user = useSuperblocksUser();
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
 
   const { data: camperData } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
@@ -32,10 +30,6 @@ export default function PresentationsPage() {
   const selectedPresentation = presentations.find((p) => p.id === selectedId);
 
   const handleBack = useCallback(() => setSelectedId(null), []);
-  const handleCreated = useCallback(() => {
-    setShowCreate(false);
-    refetch();
-  }, [refetch]);
 
   if (loading) {
     return (
@@ -79,19 +73,12 @@ export default function PresentationsPage() {
               Group presentations with rubrics and peer feedback
             </p>
           </div>
-          {isAdmin && (
-              <Button onClick={() => setShowCreate(!showCreate)} size="sm" className="bg-purple-600 hover:bg-purple-700">
-                <Icon icon={showCreate ? "x" : "plus"} className="w-4 h-4 mr-1.5" />
-                {showCreate ? "Cancel" : "New Presentation"}
-              </Button>
-            )}
         </div>
 
-        {showCreate && (
-          <CreatePresentationForm camperId={camperId} onCreated={handleCreated} />
-        )}
+        {/* Presentation Order Strip */}
+        <PresentationOrderStrip isAdmin={isAdmin} cohortId={1} />
 
-        {/* Peer Feedback — Campfire Review */}
+        {/* Peer Feedback — cAMPfire Feedback */}
         <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
 
         <div className={fetching ? "opacity-70" : ""}>
