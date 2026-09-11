@@ -203,6 +203,127 @@ export default api({
       }
     }
 
+    // --- Early Bird & Iron Camper badge evaluation ---
+    const EARLY_BIRD_BADGE_ID = 5;
+    const IRON_CAMPER_BADGE_ID = 6;
+    const IRON_CAMPER_POINTS = 15;
+    const TRULY_EARLY_MINUTES = 10; // must be 10+ min before timer_ends_at
+
+    // Check if THIS check-in was "truly early" (10+ min before deadline)
+    const trulyEarlyThreshold = new Date(timerEndsAt.getTime() - TRULY_EARLY_MINUTES * 60 * 1000);
+    const isTrulyEarly = now <= trulyEarlyThreshold;
+
+    if (isTrulyEarly) {
+      // Get camper's cohort info for camp length
+      const CohortInfoSchema = z.object({
+        cohort_id: z.number(),
+        start_date: z.string(),
+        end_date: z.string(),
+      });
+      const cohortInfo = await ctx.integrations.apps_database.query(
+        `SELECT c.cohort_id, co.start_date::text, co.end_date::text
+         FROM camp201_campers c
+         JOIN camp201_cohorts co ON co.id = c.cohort_id
+         WHERE c.id = $1 LIMIT 1`,
+        CohortInfoSchema,
+        [camper_id],
+        { label: "Get cohort info for badge eval" }
+      );
+
+      if (cohortInfo.length > 0) {
+        const { cohort_id, start_date, end_date } = cohortInfo[0];
+        const campDays = Math.round(
+          (new Date(end_date).getTime() - new Date(start_date).getTime()) / (1000 * 60 * 60 * 24)
+        ) + 1; // inclusive
+
+        // Get all check-in sessions for this cohort, and whether camper was truly early for each
+        const HistorySchema = z.object({
+          session_id: z.coerce.number(),
+          timer_ends_at: z.string(),
+          checked_in_at: z.string().nullable(),
+        });
+        const history = await ctx.integrations.apps_database.query(
+          `SELECT cs.id as session_id, cs.timer_ends_at,
+                  cr.checked_in_at
+           FROM camp201_checkin_sessions cs
+           LEFT JOIN camp201_checkin_responses cr
+             ON cr.session_id = cs.id AND cr.camper_id = $1
+           WHERE cs.cohort_id = $2 AND cs.status IN ('active', 'closed')
+           ORDER BY cs.started_at ASC
+           LIMIT 50`,
+          HistorySchema,
+          [camper_id, cohort_id],
+          { label: "Get check-in history for badge eval" }
+        );
+
+        // Calculate which sessions the camper was truly early for
+        const trulyEarlyFlags: boolean[] = history.map((h) => {
+          if (!h.checked_in_at) return false;
+          const sessionDeadline = new Date(h.timer_ends_at);
+          const earlyThreshold = new Date(sessionDeadline.getTime() - TRULY_EARLY_MINUTES * 60 * 1000);
+          return new Date(h.checked_in_at) <= earlyThreshold;
+        });
+
+        const totalSessions = history.length;
+
+        // --- Early Bird: 3+ consecutive truly-early days, camp must be > 3 days ---
+        if (campDays > 3) {
+          let maxStreak = 0;
+          let currentStreak = 0;
+          for (const early of trulyEarlyFlags) {
+            if (early) {
+              currentStreak++;
+              maxStreak = Math.max(maxStreak, currentStreak);
+            } else {
+              currentStreak = 0;
+            }
+          }
+          if (maxStreak >= 3) {
+            await ctx.integrations.apps_database.execute(
+              `INSERT INTO camp201_camper_badges (camper_id, badge_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [camper_id, EARLY_BIRD_BADGE_ID],
+              { label: "Award Early Bird badge" }
+            );
+          }
+        }
+
+        // --- Iron Camper: truly early EVERY session, and all sessions have occurred ---
+        // Only award once all camp days have had a check-in session
+        const allTrulyEarly = trulyEarlyFlags.length > 0 && trulyEarlyFlags.every(Boolean);
+        if (allTrulyEarly && totalSessions >= campDays) {
+          // Check if badge already awarded (to avoid duplicate points)
+          const ExistingBadge = z.object({ id: z.number() });
+          const existingIron = await ctx.integrations.apps_database.query(
+            `SELECT id FROM camp201_camper_badges WHERE camper_id = $1 AND badge_id = $2 LIMIT 1`,
+            ExistingBadge,
+            [camper_id, IRON_CAMPER_BADGE_ID],
+            { label: "Check existing Iron Camper badge" }
+          );
+
+          if (existingIron.length === 0) {
+            await ctx.integrations.apps_database.execute(
+              `INSERT INTO camp201_camper_badges (camper_id, badge_id)
+               VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [camper_id, IRON_CAMPER_BADGE_ID],
+              { label: "Award Iron Camper badge" }
+            );
+            // Award Iron Camper points
+            await ctx.integrations.apps_database.execute(
+              `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+              [IRON_CAMPER_POINTS, camper_id],
+              { label: "Award Iron Camper points" }
+            );
+            await ctx.integrations.apps_database.execute(
+              `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
+              [camper_id, IRON_CAMPER_POINTS, "Iron Camper — early every day"],
+              { label: "Log Iron Camper points" }
+            );
+          }
+        }
+      }
+    }
+
     return { success: true, timing, points, error: null, team_complete: teamComplete, first_team: firstTeam };
   },
 });
