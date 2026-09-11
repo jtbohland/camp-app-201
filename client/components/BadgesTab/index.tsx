@@ -9,6 +9,7 @@ import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
+import ProgressTrackers from "@/components/ProgressTrackers/index.js";
 
 const BADGE_COLORS: Record<string, string> = {
   amber: "from-amber-500/20 to-amber-700/20 border-amber-500/40 text-amber-400",
@@ -140,6 +141,18 @@ export default function BadgesTab() {
           />
         </div>
       </Card>
+
+      {/* Accelerator Progress Trackers */}
+      <ProgressTrackers
+        badges={allBadges.map((b: any) => ({
+          name: b.name,
+          icon: b.icon ?? "star",
+          color: b.color ?? "amber",
+          base_points: b.base_points ?? 0,
+          earn_count: earnCountMap.get(b.id) ?? 0,
+          badge_type: b.badge_type ?? "merit",
+        }))}
+      />
 
       {/* Earned section */}
       {earnedBadges.length > 0 && (
