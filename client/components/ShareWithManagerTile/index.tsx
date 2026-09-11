@@ -28,7 +28,7 @@ export default function ShareWithManagerTile({ camperId, onComplete }: Props) {
     try {
       await navigator.clipboard.writeText(SLACK_MESSAGE);
       setCopied(true);
-      toast.success("✅ Copied! Slack it to your manager");
+      toast.success("Copied! Slack it to your manager");
     } catch {
       // Fallback for older browsers
       const textarea = document.createElement("textarea");
@@ -38,7 +38,7 @@ export default function ShareWithManagerTile({ camperId, onComplete }: Props) {
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
-      toast.success("✅ Copied! Slack it to your manager");
+      toast.success("Copied! Slack it to your manager");
     }
   }, []);
 
@@ -83,8 +83,9 @@ export default function ShareWithManagerTile({ camperId, onComplete }: Props) {
         <div className="bg-white/80 border border-sky-100 rounded-lg p-3 text-xs text-sky-900/80 space-y-1.5">
           <p className="font-semibold">🏕️ I'm headed to cAMP 201!</p>
           <p className="text-[11px] text-sky-700/60 leading-relaxed">
-            cAMP 201 is Amplitude's in-person GTM capstone — the final summit of our onboarding journey in San Francisco...
+            cAMP 201 is Amplitude's in-person GTM capstone — the final summit of our onboarding journey in San Francisco. Track my engagement, points, badges, leaderboard status, and see if I earn the title of cAMP Champ! 🏆
           </p>
+          <p className="text-[11px] text-sky-500/50 break-all">{APP_URL}</p>
         </div>
 
         {/* Actions */}
