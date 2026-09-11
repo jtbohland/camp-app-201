@@ -169,6 +169,9 @@ import GetActiveWheelRound from './camp/get-active-wheel-round.js';
 import SubmitWheelScore from './camp/submit-wheel-score.js';
 import CloseWheelScoring from './camp/close-wheel-scoring.js';
 import GetWheelLeaderboard from './camp/get-wheel-leaderboard.js';
+import SetupSpiritVoteTable from './camp/setup-spirit-vote-table.js';
+import SubmitSpiritVote from './camp/submit-spirit-vote.js';
+import GetSpiritVoteResults from './camp/get-spirit-vote-results.js';
 
 const apis = {
   SetupDatabase,
@@ -336,6 +339,9 @@ const apis = {
   SubmitWheelScore,
   CloseWheelScoring,
   GetWheelLeaderboard,
+  SetupSpiritVoteTable,
+  SubmitSpiritVote,
+  GetSpiritVoteResults,
 } as const;
 
 export default apis;

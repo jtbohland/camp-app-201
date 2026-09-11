@@ -94,6 +94,21 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
   const topDealerId = (wdLeaders as any[])[0]?.camper_id ?? null;
   const isTopDealer = hire.camper.id === topDealerId;
 
+  // Camp Spirit data
+  const { data: spiritData } = useApiData("GetSpiritVoteResults", { camper_id: hire.camper.id }, { staleTime: 30_000 });
+  const isSpiritWinner = (() => {
+    if (!spiritData?.voting_complete) return false;
+    const winners = spiritData?.winners ?? [];
+    if (winners.length === 0) return false;
+    const topVotes = (winners as any[])[0].vote_count;
+    const tied = (winners as any[]).filter((w) => w.vote_count === topVotes);
+    if (tied.length === 1) return tied[0].camper_id === hire.camper.id;
+    const maxNotes = Math.max(...tied.map((w: any) => w.note_count));
+    const noteWinners = tied.filter((w: any) => w.note_count === maxNotes);
+    return noteWinners.some((w: any) => w.camper_id === hire.camper.id);
+  })();
+  const spiritVotesReceived = spiritData?.my_votes_received?.vote_count ?? 0;
+
   const completedPrework = hire.prework.filter(p => p.completed).length;
   const totalPrework = hire.prework.length;
   const preworkPct = totalPrework > 0 ? Math.round((completedPrework / totalPrework) * 100) : 0;
@@ -148,6 +163,11 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
               {isTopDealer && (
                 <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-bold px-1.5 py-0">
                   🎡 Top Dealer
+                </Badge>
+              )}
+              {isSpiritWinner && (
+                <Badge className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white text-[9px] font-bold px-1.5 py-0">
+                  ✨ Camp Spirit
                 </Badge>
               )}
               {isBottomQuartile && (

@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 import SessionScorecard from "@/components/SessionScorecard/index.js";
+import CampSpiritVote from "@/components/CampSpiritVote/index.js";
 
 const DAY_LABELS: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
 
@@ -112,6 +113,7 @@ export default function SurveyPage() {
 
   const numDays = surveyData?.num_days ?? 4;
   const isFinalDay = surveyData?.is_final_day ?? false;
+  const isSpiritVoteDay = selectedDay === numDays - 1;
   const alreadySubmitted = surveyData?.already_submitted ?? false;
   const isLocked = surveyData?.locked ?? false;
   const sessions = surveyData?.sessions ?? [];
@@ -156,6 +158,15 @@ export default function SurveyPage() {
       .filter((q: { required: boolean }) => q.required)
       .every((q: { key: string }) => (overallOpen[q.key] ?? "").trim().length > 0);
   }, [isFinalDay, surveyData, overallOpen]);
+
+  // Fetch cohort for spirit vote (only on spirit vote day)
+  const { data: cohortData } = useApiData("GetCohort", {}, {
+    enabled: isSpiritVoteDay && camperId > 0,
+    staleTime: 60_000,
+  });
+  const spiritEligible = (cohortData?.members ?? []).filter(
+    (m: { role: string | null }) => m.role !== "counselor" && m.role !== "admin"
+  );
 
   const canSubmit = allSessionsRated && allOverallRated && requiredOpenFilled;
 
@@ -343,6 +354,17 @@ export default function SurveyPage() {
                 </Card>
               ))}
             </>
+          )}
+
+          {/* Camp Spirit Vote — auto-appears on 2nd-to-last day */}
+          {isSpiritVoteDay && camperId > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">🏕️</span>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Camp Spirit Vote</h2>
+              </div>
+              <CampSpiritVote camperId={camperId} cohortMembers={spiritEligible} />
+            </div>
           )}
 
           {/* Submit */}
