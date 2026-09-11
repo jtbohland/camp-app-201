@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 
 type Props = {
-  onStop: (elapsedSeconds: number) => void;
+  onStop: (elapsedSeconds: number, timeRemaining: number) => void;
 };
 
 const DEFAULT_DURATION = 120; // 2 minutes
@@ -62,14 +62,16 @@ export default function PitchTimer({ onStop }: Props) {
 
   const stop = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    const finalElapsed = elapsed + 1;
+    const finalRemaining = DEFAULT_DURATION - finalElapsed;
     setState("stopped");
-    onStop(elapsed + 1); // +1 for the current second
+    onStop(finalElapsed, Math.max(0, finalRemaining));
   }, [elapsed, onStop]);
 
   // Auto-call onStop when timer hits 0
   useEffect(() => {
     if (state === "stopped" && remaining === 0) {
-      onStop(DEFAULT_DURATION);
+      onStop(DEFAULT_DURATION, 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, remaining]);

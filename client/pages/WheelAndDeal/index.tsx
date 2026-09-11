@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import SpinWheel from "@/components/SpinWheel/index.js";
 import ChallengeCard from "@/components/ChallengeCard/index.js";
 import PitchTimer from "@/components/PitchTimer/index.js";
-import ScoringCard from "@/components/ScoringCard/index.js";
+import ScoringCard, { calcCompletionScore } from "@/components/ScoringCard/index.js";
 import { generateChallenge, SCORING_CATEGORIES, SCORE_LABELS, type WheelProduct, type Challenge } from "@/lib/wheelData.js";
 
 type Phase = "spin" | "challenge" | "timer" | "selfEval" | "coachEval" | "results";
@@ -27,6 +27,7 @@ export default function WheelAndDealPage() {
   const [phase, setPhase] = useState<Phase>("spin");
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [pitchTime, setPitchTime] = useState(0);
+  const [completionScore, setCompletionScore] = useState(0);
   const [selfScores, setSelfScores] = useState<Record<string, number>>({});
   const [coachScores, setCoachScores] = useState<Record<string, number>>({});
   const [showHowTo, setShowHowTo] = useState(false);
@@ -37,8 +38,9 @@ export default function WheelAndDealPage() {
     setPhase("challenge");
   }, []);
 
-  const handleTimerStop = useCallback((elapsed: number) => {
+  const handleTimerStop = useCallback((elapsed: number, timeRemaining: number) => {
     setPitchTime(elapsed);
+    setCompletionScore(calcCompletionScore(timeRemaining));
     setPhase("selfEval");
   }, []);
 
@@ -56,11 +58,12 @@ export default function WheelAndDealPage() {
     setPhase("spin");
     setChallenge(null);
     setPitchTime(0);
+    setCompletionScore(0);
     setSelfScores({});
     setCoachScores({});
   }, []);
 
-  const selfTotal = Object.values(selfScores).reduce((s, v) => s + v, 0);
+  const selfTotal = Object.values(selfScores).reduce((s, v) => s + v, 0) + completionScore;
   const coachTotal = Object.values(coachScores).reduce((s, v) => s + v, 0);
 
   return (
@@ -136,7 +139,7 @@ export default function WheelAndDealPage() {
             <Icon icon="clock" className="w-4 h-4" />
             Pitch time: <span className="font-bold text-foreground">{formatPitchTime(pitchTime)}</span>
           </div>
-          <ScoringCard mode="self" onSubmit={handleSelfSubmit} />
+          <ScoringCard mode="self" onSubmit={handleSelfSubmit} completionScore={completionScore} />
         </div>
       )}
 
@@ -148,7 +151,7 @@ export default function WheelAndDealPage() {
             <Icon icon="clock" className="w-4 h-4" />
             Pitch time: <span className="font-bold text-foreground">{formatPitchTime(pitchTime)}</span>
             <span className="mx-2">·</span>
-            <span>Self-Eval: <strong>{selfTotal}/12</strong></span>
+            <span>Self-Eval: <strong>{selfTotal}/15</strong></span>
           </div>
           <ScoringCard mode="coach" onSubmit={handleCoachSubmit} />
         </div>
@@ -205,6 +208,25 @@ export default function WheelAndDealPage() {
                 );
               })}
 
+              {/* Completion row — self-eval only */}
+              <div className="contents">
+                <div className="flex items-center gap-2 text-sm">
+                  <span>⚡</span>
+                  <span className="font-medium">Completion</span>
+                  <span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground">AUTO</span>
+                </div>
+                <div className="text-center">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold text-sm">
+                    {completionScore}
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-muted text-muted-foreground font-bold text-sm">
+                    —
+                  </span>
+                </div>
+              </div>
+
               {/* Totals */}
               <div className="flex items-center gap-2 text-sm font-bold border-t pt-3 mt-1">
                 <span>🏆</span> Total
@@ -213,7 +235,7 @@ export default function WheelAndDealPage() {
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-100 text-blue-800 font-bold text-lg">
                   {selfTotal}
                 </span>
-                <div className="text-[10px] text-muted-foreground mt-0.5">/12</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">/15</div>
               </div>
               <div className="text-center border-t pt-3 mt-1">
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-purple-100 text-purple-800 font-bold text-lg">

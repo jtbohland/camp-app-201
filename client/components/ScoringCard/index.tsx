@@ -6,6 +6,8 @@ import { SCORING_CATEGORIES, SCORE_LABELS } from "@/lib/wheelData.js";
 type Props = {
   mode: "self" | "coach";
   onSubmit: (scores: Record<string, number>) => void;
+  /** Auto-filled completion score (1-3) for self-eval only */
+  completionScore?: number;
 };
 
 const SCORE_OPTIONS = [1, 2, 3] as const;
@@ -22,11 +24,23 @@ const SCORE_ACTIVE: Record<number, string> = {
   3: "border-green-500 bg-green-100 text-green-800 ring-2 ring-green-300 scale-105",
 };
 
-export default function ScoringCard({ mode, onSubmit }: Props) {
+/** Calculate completion score from seconds remaining */
+export function calcCompletionScore(timeRemaining: number): number {
+  if (timeRemaining >= 30) return 3; // Nailed It
+  if (timeRemaining >= 1) return 2;  // Getting There
+  return 1;                           // Needs Work (timer ran out)
+}
+
+export default function ScoringCard({ mode, onSubmit, completionScore }: Props) {
   const [scores, setScores] = useState<Record<string, number>>({});
 
-  const total = useMemo(() => Object.values(scores).reduce((s, v) => s + v, 0), [scores]);
+  const manualTotal = useMemo(() => Object.values(scores).reduce((s, v) => s + v, 0), [scores]);
   const allRated = SCORING_CATEGORIES.every((c) => scores[c.key] > 0);
+
+  // Self-eval: 4 manual + 1 auto completion = /15. Coach: 4 manual = /12.
+  const hasCompletion = mode === "self" && completionScore != null;
+  const maxScore = hasCompletion ? 15 : 12;
+  const displayTotal = hasCompletion ? manualTotal + completionScore : manualTotal;
 
   return (
     <Card className="p-5">
@@ -67,6 +81,31 @@ export default function ScoringCard({ mode, onSubmit }: Props) {
             </div>
           );
         })}
+
+        {/* Completion score — locked, auto-filled, self-eval only */}
+        {hasCompletion && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span>⚡</span>
+              <span className="text-sm font-semibold text-foreground">Completion</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">AUTO</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">Based on time remaining when the timer stopped.</p>
+            <div className="flex gap-2">
+              {SCORE_OPTIONS.map((val) => (
+                <div
+                  key={val}
+                  className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold text-center transition-all ${
+                    completionScore === val ? SCORE_ACTIVE[val] : "border-border bg-muted/30 text-muted-foreground/50"
+                  } ${completionScore === val ? "" : "opacity-40"}`}
+                >
+                  <div className="text-lg font-bold">{val}</div>
+                  <div className="text-[10px] leading-tight">{SCORE_LABELS[val]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Submit */}
@@ -78,8 +117,8 @@ export default function ScoringCard({ mode, onSubmit }: Props) {
           size="lg"
         >
           {allRated
-            ? `Score: ${total}/12 — Submit ${mode === "self" ? "Self-Evaluation" : "Coach Scores"}`
-            : `Rate all 4 categories to submit`}
+            ? `Score: ${displayTotal}/${maxScore} — Submit ${mode === "self" ? "Self-Evaluation" : "Coach Scores"}`
+            : `Rate all ${SCORING_CATEGORIES.length} categories to submit`}
         </Button>
       </div>
     </Card>
