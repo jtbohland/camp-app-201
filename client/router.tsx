@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "/teams/:teamId", lazy: () => import("./pages/TeamHub/index.js").then((m) => ({ Component: gated(m.default, "teams") })) },
       { path: "/presentations", lazy: () => import("./pages/Presentations/index.js").then((m) => ({ Component: gated(m.default, "presentations") })) },
       { path: "/timer", lazy: () => import("./pages/Timer/index.js").then((m) => ({ Component: gated(m.default, "timer") })) },
+      { path: "/wheel-and-deal", lazy: () => import("./pages/WheelAndDeal/index.js").then((m) => ({ Component: gated(m.default, "wheel_and_deal") })) },
       { path: "/survey", lazy: () => import("./pages/Survey/index.js").then((m) => ({ Component: gated(m.default, "surveys") })) },
       { path: "/badges", lazy: () => import("./pages/Badges/index.js").then((m) => ({ Component: gated(m.default, "badges") })) },
       { path: "/graduation", lazy: () => import("./pages/Graduation/index.js").then((m) => ({ Component: gated(m.default, "graduation") })) },
