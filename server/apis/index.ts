@@ -175,6 +175,10 @@ import GetSpiritVoteResults from './camp/get-spirit-vote-results.js';
 import CloseHackathon from './camp/close-hackathon.js';
 import SetupTeamPoints from './camp/setup-team-points.js';
 import SetupBadgeTypes from './camp/setup-badge-types.js';
+import SetupMemories from './camp/setup-memories.js';
+import GetMemories from './camp/get-memories.js';
+import AddMemory from './camp/add-memory.js';
+import ToggleMemoryReaction from './camp/toggle-memory-reaction.js';
 
 const apis = {
   SetupDatabase,
@@ -348,6 +352,10 @@ const apis = {
   CloseHackathon,
   SetupTeamPoints,
   SetupBadgeTypes,
+  SetupMemories,
+  GetMemories,
+  AddMemory,
+  ToggleMemoryReaction,
 } as const;
 
 export default apis;
