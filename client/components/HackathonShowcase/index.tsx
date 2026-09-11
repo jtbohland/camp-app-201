@@ -20,6 +20,8 @@ export default function HackathonShowcase({ presentationId, camperId, camperTeam
   });
   const { run: saveSubmission, loading: saving } = useApi("SaveHackathonSubmission");
   const { run: castVote, loading: voting } = useApi("SubmitHackathonVote");
+  const { run: closeHackathon, loading: closing } = useApi("CloseHackathon");
+  const [hackathonClosed, setHackathonClosed] = useState(false);
 
   const [tab, setTab] = useState<"submit" | "vote">("submit");
   const [form, setForm] = useState({
@@ -62,6 +64,17 @@ export default function HackathonShowcase({ presentationId, camperId, camperTeam
       else toast.error(res?.message ?? "Failed");
     } catch (err) { toast.error(String(err)); }
   }, [presentationId, camperId, castVote, refetch]);
+
+  const handleCloseHackathon = useCallback(async () => {
+    try {
+      const res = await closeHackathon({ presentation_id: presentationId, awarded_by: camperId }) as any;
+      toast.success(`🏆 ${res.winning_team_name} wins! +${res.team_points} team pts · ${res.members_awarded} Innovation badges awarded`);
+      setHackathonClosed(true);
+      refetch();
+    } catch (err) {
+      toast.error("Failed to close hackathon: " + String(err));
+    }
+  }, [presentationId, camperId, closeHackathon, refetch]);
 
   if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading showcase…</div>;
 
@@ -128,6 +141,37 @@ export default function HackathonShowcase({ presentationId, camperId, camperTeam
       {/* Vote tab */}
       {tab === "vote" && (
         <div className="space-y-4">
+          {/* Admin: Award Winner button */}
+          {isAdmin && submissions.length > 0 && !hackathonClosed && (
+            <Card className="p-4 border-amber-300 bg-amber-50/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏆</span>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Ready to award the winner?</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Awards +10 team pts + Innovation badge to every member of the top-voted team
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleCloseHackathon}
+                  disabled={closing}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold"
+                >
+                  {closing ? "Awarding..." : "🏆 Award Winner"}
+                </Button>
+              </div>
+            </Card>
+          )}
+          {hackathonClosed && (
+            <Card className="p-4 border-green-300 bg-green-50/50">
+              <div className="flex items-center gap-2">
+                <Icon icon="check-circle-2" className="w-5 h-5 text-green-600" />
+                <p className="text-sm font-bold text-green-900">Winner awarded! Innovation badges + team points distributed.</p>
+              </div>
+            </Card>
+          )}
           {submissions.length === 0 ? (
             <Card className="p-8 text-center text-muted-foreground">
               <Icon icon="inbox" className="w-8 h-8 mx-auto mb-2 opacity-50" />

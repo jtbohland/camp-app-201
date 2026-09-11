@@ -172,6 +172,7 @@ import GetWheelLeaderboard from './camp/get-wheel-leaderboard.js';
 import SetupSpiritVoteTable from './camp/setup-spirit-vote-table.js';
 import SubmitSpiritVote from './camp/submit-spirit-vote.js';
 import GetSpiritVoteResults from './camp/get-spirit-vote-results.js';
+import CloseHackathon from './camp/close-hackathon.js';
 
 const apis = {
   SetupDatabase,
@@ -342,6 +343,7 @@ const apis = {
   SetupSpiritVoteTable,
   SubmitSpiritVote,
   GetSpiritVoteResults,
+  CloseHackathon,
 } as const;
 
 export default apis;
