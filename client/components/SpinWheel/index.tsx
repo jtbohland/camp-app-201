@@ -10,10 +10,17 @@ type Props = {
 };
 
 const NUM = PRODUCTS.length;
-const SEGMENT_ANGLE = 360 / NUM; // 45°
-const RADIUS = 250;
-const CENTER = 260;
-const SVG_SIZE = 520;
+const SEG_DEG = 360 / NUM;          // 45°
+const SEG_RAD = (Math.PI * 2) / NUM; // π/4
+const R = 260;
+const CX = 290;
+const CY = 290;
+const SIZE = 580;
+
+// ── Text layout constants ──
+const SPOKE_MID = R * 0.54;  // center the text block at ~54% of the radius
+const CHAR_W = 8.2;          // approximate width per character
+const EDGE_GAP = 8;          // spacing between words
 
 // ── Tick sound via Web Audio API ──
 function playTick() {
@@ -52,14 +59,28 @@ function easeOutQuartic(t: number): number {
 }
 
 // ── SVG pie segment path ──
-function segmentPath(i: number): string {
-  const a1 = (i * SEGMENT_ANGLE - 90) * (Math.PI / 180);
-  const a2 = ((i + 1) * SEGMENT_ANGLE - 90) * (Math.PI / 180);
-  const x1 = CENTER + RADIUS * Math.cos(a1);
-  const y1 = CENTER + RADIUS * Math.sin(a1);
-  const x2 = CENTER + RADIUS * Math.cos(a2);
-  const y2 = CENTER + RADIUS * Math.sin(a2);
-  return `M ${CENTER} ${CENTER} L ${x1} ${y1} A ${RADIUS} ${RADIUS} 0 0 1 ${x2} ${y2} Z`;
+function segPath(i: number): string {
+  const a1 = i * SEG_RAD - Math.PI / 2;
+  const a2 = (i + 1) * SEG_RAD - Math.PI / 2;
+  const x1 = CX + R * Math.cos(a1);
+  const y1 = CY + R * Math.sin(a1);
+  const x2 = CX + R * Math.cos(a2);
+  const y2 = CY + R * Math.sin(a2);
+  return `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2} Z`;
+}
+
+// ── Compute word positions along a spoke ──
+// Splits name on "+" or "&", centers word blocks around SPOKE_MID
+function spokeWords(name: string): { word: string; x: number }[] {
+  const parts = name.split(/\s*[+&]\s*/).map((s) => s.trim().toUpperCase());
+  const widths = parts.map((w) => w.length * CHAR_W);
+  const totalSpan = widths.reduce((s, w) => s + w, 0) + (parts.length - 1) * EDGE_GAP;
+  let cursor = SPOKE_MID - totalSpan / 2;
+  return parts.map((word, j) => {
+    const x = cursor + widths[j] / 2;
+    cursor += widths[j] + EDGE_GAP;
+    return { word, x };
+  });
 }
 
 export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
@@ -86,7 +107,7 @@ export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
       const cur = r0 + extra * easeOutQuartic(p);
       setRotation(cur);
 
-      const seg = Math.floor((((cur % 360) + 360) % 360) / SEGMENT_ANGLE);
+      const seg = Math.floor((((cur % 360) + 360) % 360) / SEG_DEG);
       if (seg !== lastSegRef.current && lastSegRef.current !== -1) playTick();
       lastSegRef.current = seg;
 
@@ -96,7 +117,7 @@ export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
         setRotation(total);
         const fa = ((total % 360) + 360) % 360;
         const pa = (((360 - fa) % 360) + 360) % 360;
-        const idx = Math.floor(pa / SEGMENT_ANGLE) % NUM;
+        const idx = Math.floor(pa / SEG_DEG) % NUM;
         const prod = PRODUCTS[idx];
         playTick();
         fireConfetti(prod.confettiEmojis);
@@ -110,91 +131,67 @@ export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-5">
-      {/* Pointer (12 o'clock) */}
-      <div className="relative" style={{ width: SVG_SIZE, height: SVG_SIZE }}>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 z-10">
-          <div className="w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[28px] border-t-gray-800 drop-shadow-lg" />
+      {/* Pointer at 12 o'clock */}
+      <div className="relative" style={{ width: SIZE, height: SIZE }}>
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+          <div
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: "11px solid transparent",
+              borderRight: "11px solid transparent",
+              borderTop: "24px solid #1a1a2e",
+            }}
+          />
         </div>
 
         <svg
-          width={SVG_SIZE}
-          height={SVG_SIZE}
-          viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-          className="drop-shadow-2xl"
+          width={SIZE}
+          height={SIZE}
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          className="drop-shadow-xl"
           style={{ transform: `rotate(${rotation}deg)`, transition: spinning ? "none" : undefined }}
         >
-          {/* Outer rim */}
-          <circle cx={CENTER} cy={CENTER} r={RADIUS + 4} fill="none" stroke="white" strokeWidth="8" opacity="0.3" />
+          {PRODUCTS.map((p, i) => {
+            // Midpoint angle of this segment in degrees (0° = 12 o'clock)
+            const midDeg = (i + 0.5) * SEG_DEG;
+            // For bottom-half segments (90°–270°), flip 180° so text reads rim-inward
+            const flip = midDeg > 90 && midDeg < 270;
+            const rotateDeg = flip ? midDeg + 180 : midDeg;
+            const words = spokeWords(p.name);
 
-          {/* Segments */}
-          {PRODUCTS.map((p, i) => (
-            <g key={p.id}>
-              <path d={segmentPath(i)} fill={p.color} stroke="white" strokeWidth="2.5" />
+            return (
+              <g key={p.id}>
+                {/* Pie segment */}
+                <path d={segPath(i)} fill={p.color} stroke="#fff" strokeWidth="2" />
 
-              {/* Product name — radial text along the spoke, always readable */}
-              {(() => {
-                // midDeg is the absolute angle of the spoke bisector (0° = top/12 o'clock)
-                const midDeg = (i + 0.5) * SEGMENT_ANGLE;
-                // For segments whose spoke points roughly downward (90°–270°),
-                // flip the text 180° so it reads from the rim inward instead of upside-down
-                const flip = midDeg > 90 && midDeg < 270;
-                const textR = RADIUS * 0.55; // distance from center
-                const rad = (midDeg - 90) * (Math.PI / 180);
-                const tx = CENTER + textR * Math.cos(rad);
-                const ty = CENTER + textR * Math.sin(rad);
-                const textAngle = flip ? midDeg + 180 : midDeg;
-                return (
-                  <text
-                    x={tx}
-                    y={ty}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill="white"
-                    fontSize="12.5"
-                    fontWeight="800"
-                    letterSpacing="1.5"
-                    className="uppercase select-none pointer-events-none"
-                    style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
-                    transform={`rotate(${textAngle}, ${tx}, ${ty})`}
-                  >
-                    {p.name}
-                  </text>
-                );
-              })()}
-
-              {/* Emoji near the outer edge */}
-              {(() => {
-                const midDeg = (i + 0.5) * SEGMENT_ANGLE;
-                const emojiR = RADIUS * 0.82;
-                const rad = (midDeg - 90) * (Math.PI / 180);
-                const ex = CENTER + emojiR * Math.cos(rad);
-                const ey = CENTER + emojiR * Math.sin(rad);
-                return (
-                  <text
-                    x={ex}
-                    y={ey}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize="28"
-                    className="select-none pointer-events-none"
-                  >
-                    {p.icon.slice(0, 2)}
-                  </text>
-                );
-              })()}
-            </g>
-          ))}
+                {/* Product name — each word placed along the spoke */}
+                <g transform={`translate(${CX}, ${CY}) rotate(${rotateDeg})`}>
+                  {words.map((w, j) => (
+                    <text
+                      key={j}
+                      x={flip ? -w.x : w.x}
+                      y={0}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="rgba(255,255,255,0.95)"
+                      fontSize="13"
+                      fontWeight="800"
+                      letterSpacing="0.5"
+                      fontFamily="Inter, sans-serif"
+                      className="uppercase select-none pointer-events-none"
+                    >
+                      {w.word}
+                    </text>
+                  ))}
+                </g>
+              </g>
+            );
+          })}
 
           {/* Center hub */}
-          <circle cx={CENTER} cy={CENTER} r="28" fill="white" stroke="white" strokeWidth="4" filter="url(#hubShadow)" />
-          <circle cx={CENTER} cy={CENTER} r="10" fill="#2962FF" />
-
-          {/* Shadow filter for hub */}
-          <defs>
-            <filter id="hubShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.15" />
-            </filter>
-          </defs>
+          <circle cx={CX} cy={CY} r="30" fill="#fff" />
+          <circle cx={CX} cy={CY} r="14" fill="#2962FF" />
         </svg>
       </div>
 
