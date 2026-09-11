@@ -163,7 +163,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-8 p-8 max-w-6xl overflow-auto">
       {/* Hero: Logo + Welcome — one combined card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2d4a27] via-[#3a5a32] to-[#2d4a27] p-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#1e1b4b] p-8">
         {/* Faded background watermark */}
         <img
           src="/nomnom/camp201-logo-transparent.png"
@@ -174,7 +174,7 @@ export default function HomePage() {
           <img
             src="/nomnom/camp201-logo-transparent.png"
             alt="cAMP 201"
-            className="w-64 h-64 object-contain drop-shadow-2xl"
+            className="w-72 h-72 object-contain drop-shadow-2xl"
           />
           <div className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
             <div>

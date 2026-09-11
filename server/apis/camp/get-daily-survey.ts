@@ -65,10 +65,10 @@ export default api({
     const numDays = configRows.length > 0 ? parseInt(configRows[0].value, 10) : 4;
     const isFinalDay = input.day_number === numDays;
 
-    // Get sessions for this day (exclude lunch/break)
+    // Get sessions for this day (exclude non-learning sessions)
     const sessions = await ctx.integrations.apps_database.query(
       `SELECT id, title, session_type, start_time, end_time
-       FROM camp201_agenda WHERE day_number = $1 AND session_type NOT IN ('lunch','break')
+       FROM camp201_agenda WHERE day_number = $1 AND session_type NOT IN ('lunch','break','core')
        ORDER BY start_time LIMIT 30`,
       AgendaSessionSchema, [input.day_number], { label: "Get day sessions" }
     );
