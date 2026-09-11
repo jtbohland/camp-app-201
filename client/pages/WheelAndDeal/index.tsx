@@ -13,6 +13,7 @@ import PitchTimer from "@/components/PitchTimer/index.js";
 import ScoringCard, { calcCompletionScore } from "@/components/ScoringCard/index.js";
 import CamperSelector from "@/components/CamperSelector/index.js";
 import WheelResultsModal from "@/components/WheelResultsModal/index.js";
+import WheelLeaderboard from "@/components/WheelLeaderboard/index.js";
 import { generateChallenge, SCORING_CATEGORIES, COMPLETION_CATEGORY, SCORE_LABELS, type WheelProduct, type Challenge } from "@/lib/wheelData.js";
 
 // ── Types ────────────────────────────────────────────────
@@ -471,6 +472,11 @@ export default function WheelAndDealPage() {
             </Card>
           )}
         </div>
+      </div>
+
+      {/* ── LEADERBOARD ──────────────────────────────── */}
+      <div className="mt-6">
+        <WheelLeaderboard />
       </div>
     </div>
   );

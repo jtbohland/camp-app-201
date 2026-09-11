@@ -26,6 +26,7 @@ export default function ProfileXPSummary({ camperId, points, teamName }: Props) 
     logo_vote: { icon: "🎨", label: "Logo Voting", color: "text-pink-600" },
     bonus: { icon: "🎁", label: "Bonus", color: "text-emerald-600" },
     penalty: { icon: "⚠️", label: "Penalties", color: "text-red-600" },
+    wheel_and_deal: { icon: "🎡", label: "Wheel & Deal", color: "text-blue-600" },
   };
 
   return (

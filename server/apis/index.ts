@@ -168,6 +168,7 @@ import CreateWheelRound from './camp/create-wheel-round.js';
 import GetActiveWheelRound from './camp/get-active-wheel-round.js';
 import SubmitWheelScore from './camp/submit-wheel-score.js';
 import CloseWheelScoring from './camp/close-wheel-scoring.js';
+import GetWheelLeaderboard from './camp/get-wheel-leaderboard.js';
 
 const apis = {
   SetupDatabase,
@@ -334,6 +335,7 @@ const apis = {
   GetActiveWheelRound,
   SubmitWheelScore,
   CloseWheelScoring,
+  GetWheelLeaderboard,
 } as const;
 
 export default apis;

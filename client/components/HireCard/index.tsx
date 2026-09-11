@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApi } from "@/hooks/useApi";
+import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
 
@@ -306,6 +307,12 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
             )}
           </div>
 
+          {/* Wheel & Deal */}
+          <div>
+            <SectionHeader icon="refresh-cw" title="Wheel & Deal" />
+            <WheelDealSection camperId={hire.camper.id} />
+          </div>
+
           {/* Executive Q&A submissions */}
           <div>
             <SectionHeader icon="hand-helping" title="Executive Q&A Submissions" count={hire.exec_questions.length} />
@@ -397,6 +404,35 @@ function StatBox({ icon, iconColor, value, label }: { icon: IconName; iconColor:
       <Icon icon={icon} className={`w-4 h-4 ${iconColor} mb-1`} />
       <span className="text-lg font-bold">{value}</span>
       <span className="text-[10px] text-muted-foreground text-center leading-tight">{label}</span>
+    </div>
+  );
+}
+
+function WheelDealSection({ camperId }: { camperId: number }) {
+  const { data } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
+  const leaders = data?.leaders ?? [];
+  const stats = leaders.find((l: { camper_id: number }) => l.camper_id === camperId);
+
+  if (!stats) return <p className="text-sm text-muted-foreground">No pitches yet</p>;
+
+  return (
+    <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="p-2 rounded-lg bg-blue-50">
+        <div className="text-lg font-bold text-blue-700">{stats.pitch_count}</div>
+        <div className="text-[10px] text-muted-foreground">Pitches</div>
+      </div>
+      <div className="p-2 rounded-lg bg-blue-50">
+        <div className="text-lg font-bold text-blue-700">{stats.avg_self_score || "—"}</div>
+        <div className="text-[10px] text-muted-foreground">Self Avg</div>
+      </div>
+      <div className="p-2 rounded-lg bg-purple-50">
+        <div className="text-lg font-bold text-purple-700">{stats.avg_room_score || "—"}</div>
+        <div className="text-[10px] text-muted-foreground">Room Avg</div>
+      </div>
+      <div className="p-2 rounded-lg bg-amber-50">
+        <div className="text-lg font-bold text-amber-700">{stats.total_points}</div>
+        <div className="text-[10px] text-muted-foreground">W&D Pts</div>
+      </div>
     </div>
   );
 }
