@@ -62,20 +62,18 @@ export default function PresentationOrderStrip({ isAdmin, cohortId }: Props) {
 
   return (
     <div className="space-y-2">
-      {/* Admin controls */}
-      {isAdmin && (
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleShuffle}
-            disabled={shuffling}
-            size="sm"
-            className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
-          >
-            <Icon icon="shuffle" className="w-3.5 h-3.5 mr-1.5" />
-            {shuffling ? "Shuffling..." : "🎲 Randomize Order"}
-          </Button>
-        </div>
-      )}
+      {/* Randomize — any cAMPer can push the button */}
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={handleShuffle}
+          disabled={shuffling}
+          size="sm"
+          className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
+        >
+          <Icon icon="shuffle" className="w-3.5 h-3.5 mr-1.5" />
+          {shuffling ? "Shuffling..." : "🎲 Randomize Order"}
+        </Button>
+      </div>
 
       {/* Order strip */}
       {isActive && order.length > 0 && (

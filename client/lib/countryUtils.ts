@@ -28,12 +28,32 @@ export const COUNTRY_FLAGS: Record<string, { flag: string; bg: string; text: str
   "Colombia":            { flag: "🇨🇴", bg: "bg-yellow-100",  text: "text-yellow-800" },
 };
 
+// Common aliases → canonical name
+const COUNTRY_ALIASES: Record<string, string> = {
+  "USA": "United States",
+  "US": "United States",
+  "U.S.": "United States",
+  "U.S.A.": "United States",
+  "UK": "United Kingdom",
+  "U.K.": "United Kingdom",
+  "UAE": "United Arab Emirates",
+  "U.A.E.": "United Arab Emirates",
+  "S. Korea": "South Korea",
+  "KSA": "Saudi Arabia",
+};
+
 const DEFAULT_COUNTRY = { flag: "🌍", bg: "bg-gray-100", text: "text-gray-700" };
 
 export function getCountryStyle(country: string | null | undefined) {
   if (!country) return null;
-  // Try exact match, then "the X" variants
-  return COUNTRY_FLAGS[country] ?? COUNTRY_FLAGS[`the ${country}`] ?? { ...DEFAULT_COUNTRY, flag: "🌍" };
+  const canonical = COUNTRY_ALIASES[country] ?? country;
+  return COUNTRY_FLAGS[canonical] ?? COUNTRY_FLAGS[`the ${canonical}`] ?? { ...DEFAULT_COUNTRY, flag: "🌍" };
+}
+
+/** Return the display name (canonical) for a country, resolving aliases */
+export function getCountryDisplayName(country: string | null | undefined): string | null {
+  if (!country) return null;
+  return COUNTRY_ALIASES[country] ?? country;
 }
 
 export function formatTenure(startDate: string | null | undefined): string | null {

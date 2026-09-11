@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getCountryStyle } from "@/lib/countryUtils.js";
+import { getCountryStyle, getCountryDisplayName } from "@/lib/countryUtils.js";
 import CohortMemberCard from "@/components/CohortMemberCard/index.js";
 
 type CohortMember = {
@@ -64,8 +64,9 @@ export default function CohortTab() {
     const map = new Map<string, string>();
     members.forEach((m: CohortMember) => {
       if (m.country) {
+        const canonical = getCountryDisplayName(m.country) ?? m.country;
         const style = getCountryStyle(m.country);
-        if (style) map.set(m.country, style.flag);
+        if (style) map.set(canonical, style.flag);
       }
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));

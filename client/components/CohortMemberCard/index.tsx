@@ -1,6 +1,6 @@
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
-import { getCountryStyle, formatTenure } from "@/lib/countryUtils.js";
+import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
 
 type CohortMember = {
   id: number;
@@ -80,6 +80,7 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
   const isCounselor = member.role === "counselor" || member.role === "admin";
   const roleStyle = getRoleStyle(member.role);
   const countryStyle = getCountryStyle(member.country);
+  const countryName = getCountryDisplayName(member.country);
   const tenure = formatTenure(member.start_date);
 
   return (
@@ -126,9 +127,9 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
             {roleStyle.text || member.role}
           </span>
         )}
-        {member.country && countryStyle && (
+        {countryName && countryStyle && (
           <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${countryStyle.bg} ${countryStyle.text}`}>
-            {countryStyle.flag} {member.country.replace(/^the /, "")}
+            {countryStyle.flag} {countryName.replace(/^the /, "")}
           </span>
         )}
         {member.manager && (
