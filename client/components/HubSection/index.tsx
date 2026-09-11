@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useApi } from "@/hooks/useApi.js";
 import { useApiData } from "@/hooks/useApiData.js";
 import { toast } from "sonner";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 
 type HubItem = {
   id: number;
@@ -56,6 +57,7 @@ export default function HubSection({ section, items, canContribute, teamId, camp
   const [newType, setNewType] = useState("note");
 
   const { run: addItem, loading: adding } = useApi("AddHubItem");
+  const showPoints = usePointsBubble();
 
   const handleAdd = useCallback(async () => {
     if (!newTitle.trim()) {
@@ -72,6 +74,7 @@ export default function HubSection({ section, items, canContribute, teamId, camp
         content: newContent.trim() || null,
       });
       toast.success("Added to hub!");
+      if (newType !== "resource") showPoints(3);
       setNewTitle("");
       setNewContent("");
       setShowAdd(false);

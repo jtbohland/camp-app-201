@@ -13,6 +13,8 @@ export default api({
       email: z.string(),
       role_title: z.string().nullable(),
       region: z.string().nullable(),
+      country: z.string().nullable(),
+      start_date: z.string().nullable(),
       manager_name: z.string().nullable(),
       manager_email: z.string().nullable(),
     })),
@@ -45,6 +47,19 @@ export default api({
            uploaded_by, cohort_id],
           { label: `Upsert hire: ${row.email}` }
         );
+        // Also update camper record with country and start_date if they exist
+        if (row.country?.trim() || row.start_date?.trim()) {
+          await db.execute(
+            `UPDATE camp201_campers SET
+               country = COALESCE($2, country),
+               start_date = COALESCE($3::date, start_date)
+             WHERE LOWER(email) = $1`,
+            [row.email.trim().toLowerCase(),
+             row.country?.trim() || null,
+             row.start_date?.trim() || null],
+            { label: `Update camper country/start: ${row.email}` }
+          );
+        }
         inserted++;
       } catch {
         skipped++;

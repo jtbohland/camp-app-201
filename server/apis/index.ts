@@ -149,6 +149,11 @@ import MigrateEBR from './camp/migrate-ebr.js';
 import GetEBRRoleAssignments from './camp/get-ebr-role-assignments.js';
 import SaveEBRRoleAssignment from './camp/save-ebr-role-assignment.js';
 import ToggleScoresRevealed from './camp/toggle-scores-revealed.js';
+import ToggleAgendaDayLock from './camp/toggle-agenda-day-lock.js';
+import GetAgendaDayLocks from './camp/get-agenda-day-locks.js';
+import RandomizePresentationOrder from './camp/randomize-presentation-order.js';
+import GetPresentationOrder from './camp/get-presentation-order.js';
+import ClearPresentationOrder from './camp/clear-presentation-order.js';
 import QuickAwardPoints from './camp/quick-award-points.js';
 import MigratePreworkSubmissions from './camp/migrate-prework-submissions.js';
 import SubmitPreworkValidation from './camp/submit-prework-validation.js';
@@ -305,6 +310,11 @@ const apis = {
   GetEBRRoleAssignments,
   SaveEBRRoleAssignment,
   ToggleScoresRevealed,
+  ToggleAgendaDayLock,
+  GetAgendaDayLocks,
+  RandomizePresentationOrder,
+  GetPresentationOrder,
+  ClearPresentationOrder,
   QuickAwardPoints,
   MigratePreworkSubmissions,
   SubmitPreworkValidation,

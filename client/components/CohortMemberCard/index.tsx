@@ -1,5 +1,6 @@
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
 
 type CohortMember = {
   id: number;
@@ -19,6 +20,7 @@ type CohortMember = {
   team_name: string | null;
   team_color: string | null;
   team_logo_url: string | null;
+  start_date: string | null;
 };
 
 type CohortMemberCardProps = {
@@ -77,6 +79,9 @@ function getRoleStyle(role: string | null) {
 export default function CohortMemberCard({ member }: CohortMemberCardProps) {
   const isCounselor = member.role === "counselor" || member.role === "admin";
   const roleStyle = getRoleStyle(member.role);
+  const countryStyle = getCountryStyle(member.country);
+  const countryName = getCountryDisplayName(member.country);
+  const tenure = formatTenure(member.start_date);
 
   return (
     <div className={`flex flex-col border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""}`}>
@@ -122,10 +127,9 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
             {roleStyle.text || member.role}
           </span>
         )}
-        {member.region && (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">
-            <Icon icon="globe" className="w-3 h-3" />
-            {member.region}
+        {countryName && countryStyle && (
+          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${countryStyle.bg} ${countryStyle.text}`}>
+            {countryStyle.flag} {countryName.replace(/^the /, "")}
           </span>
         )}
         {member.manager && (
@@ -154,6 +158,16 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
           <p className="text-xs text-foreground/70 italic line-clamp-2">
             "{member.fun_fact}"
           </p>
+        </div>
+      )}
+
+      {/* Tenure */}
+      {tenure && (
+        <div className="px-4 pb-3">
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Icon icon="clock" className="w-3 h-3" />
+            {tenure}
+          </span>
         </div>
       )}
     </div>
