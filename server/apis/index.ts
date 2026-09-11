@@ -173,6 +173,7 @@ import SetupSpiritVoteTable from './camp/setup-spirit-vote-table.js';
 import SubmitSpiritVote from './camp/submit-spirit-vote.js';
 import GetSpiritVoteResults from './camp/get-spirit-vote-results.js';
 import CloseHackathon from './camp/close-hackathon.js';
+import SetupTeamPoints from './camp/setup-team-points.js';
 
 const apis = {
   SetupDatabase,
@@ -344,6 +345,7 @@ const apis = {
   SubmitSpiritVote,
   GetSpiritVoteResults,
   CloseHackathon,
+  SetupTeamPoints,
 } as const;
 
 export default apis;

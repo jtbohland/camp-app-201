@@ -44,11 +44,11 @@ export default api({
     // Team rankings
     const teams = await ctx.integrations.apps_database.query(
       `SELECT t.id, t.name, t.logo_url, t.color,
-              COALESCE(SUM(c.points), 0) as total_points,
+              COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) as total_points,
               COUNT(c.id) as member_count
        FROM camp201_teams t
        LEFT JOIN camp201_campers c ON c.team_id = t.id
-       GROUP BY t.id, t.name, t.logo_url, t.color
+       GROUP BY t.id, t.name, t.logo_url, t.color, t.team_points
        ORDER BY total_points DESC
        LIMIT 20`,
       LeaderboardTeamSchema,

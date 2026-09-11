@@ -59,22 +59,18 @@ export default api({
       );
     }
 
-    // Award team points: split TEAM_POINTS evenly among members
-    const perMember = Math.floor(TEAM_POINTS / members.length);
-    const remainder = TEAM_POINTS % members.length;
-
-    for (let i = 0; i < members.length; i++) {
-      const pts = perMember + (i < remainder ? 1 : 0);
-      await ctx.integrations.apps_database.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [pts, members[i].id]
-      );
-      await ctx.integrations.apps_database.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-         VALUES ($1, $2, $3, $4)`,
-        [members[i].id, pts, `AI Hackathon Winner - ${winner.team_name}`, awarded_by]
-      );
-    }
+    // Award TEAM_POINTS to the team (not individual members)
+    await ctx.integrations.apps_database.execute(
+      `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
+      [TEAM_POINTS, winner.team_id],
+      { label: "Award hackathon team points" }
+    );
+    await ctx.integrations.apps_database.execute(
+      `INSERT INTO camp201_team_points_log (team_id, points, reason)
+       VALUES ($1, $2, $3)`,
+      [winner.team_id, TEAM_POINTS, `AI Hackathon Winner - ${winner.team_name}`],
+      { label: "Log hackathon team points" }
+    );
 
     return {
       success: true,

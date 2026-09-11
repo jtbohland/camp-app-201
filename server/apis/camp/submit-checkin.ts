@@ -192,12 +192,17 @@ export default api({
           );
           firstTeam = true;
 
-          // Award +5 bonus to all team members who checked in
+          // Award +5 to TEAM points (not individual members)
           await ctx.integrations.apps_database.execute(
-            `UPDATE camp201_campers SET points = points + 5
-             WHERE id IN (SELECT camper_id FROM camp201_checkin_responses WHERE session_id = $1 AND team_id = $2)`,
-            [session_id, teamId],
-            { label: "Award first-team bonus" }
+            `UPDATE camp201_teams SET team_points = team_points + 5 WHERE id = $1`,
+            [teamId],
+            { label: "Award first-team bonus to team_points" }
+          );
+          await ctx.integrations.apps_database.execute(
+            `INSERT INTO camp201_team_points_log (team_id, points, reason)
+             VALUES ($1, $2, $3)`,
+            [teamId, 5, `First team to check in (session ${session_id})`],
+            { label: "Log first-team bonus" }
           );
         }
       }

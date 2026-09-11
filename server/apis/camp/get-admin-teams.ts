@@ -42,7 +42,7 @@ export default api({
 
     const teams = await ctx.integrations.apps_database.query(
       `SELECT t.id, t.name,
-              COALESCE(SUM(c.points), 0)::int as total_points,
+              COALESCE(SUM(c.points), 0)::int + COALESCE(t.team_points, 0) as total_points,
               COUNT(c.id)::int as member_count,
               COALESCE(AVG(c.points), 0)::int as avg_points,
               CASE
@@ -56,7 +56,7 @@ export default api({
        FROM camp201_teams t
        LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
        WHERE 1=1 ${cohortFilter}
-       GROUP BY t.id
+       GROUP BY t.id, t.team_points
        ORDER BY total_points DESC
        LIMIT 50`,
       TeamMetricSchema,

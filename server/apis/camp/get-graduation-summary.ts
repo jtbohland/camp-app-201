@@ -146,11 +146,12 @@ export default api({
         { label: "Get team members" }
       );
 
-      // Team rank (by sum of member points)
+      // Team rank (by sum of member points + team_points)
       const teamRanks = await ctx.integrations.apps_database.query(
-        `SELECT tm.team_id, SUM(c.points) AS total
-         FROM camp201_team_members tm JOIN camp201_campers c ON c.id = tm.user_id
-         GROUP BY tm.team_id ORDER BY total DESC LIMIT 10`,
+        `SELECT t.id as team_id, COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
+         FROM camp201_teams t
+         LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
+         GROUP BY t.id, t.team_points ORDER BY total DESC LIMIT 10`,
         z.object({ team_id: z.coerce.number(), total: z.coerce.number() }),
         [],
         { label: "Get team rankings" }
