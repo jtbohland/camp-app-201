@@ -25,7 +25,7 @@ const categories: PointCategory[] = [
     items: [
       { label: "Complete any pre-work item", points: "+5 each", positive: true },
       { label: "All pre-work done 2+ days early", points: "+15 bonus", positive: true },
-      { label: "All pre-work done 1-2 days early", points: "+10 bonus", positive: true },
+      { label: "All pre-work done 1–2 days early", points: "+10 bonus", positive: true },
       { label: "Incomplete item at deadline", points: "-10 each", positive: false },
     ],
   },
@@ -69,38 +69,42 @@ const categories: PointCategory[] = [
     title: "Fireside Finder (Bingo)",
     color: "bg-orange-500/10 text-orange-600",
     items: [
-      { label: "Correct bingo guess", points: "+2", positive: true },
-      { label: "Complete a full row (BINGO!)", points: "+10 bonus", positive: true },
-      { label: "Same person guessed back-to-back", points: "-2", positive: false },
-    ],
-  },
-  {
-    icon: "users",
-    title: "Team Collaboration",
-    color: "bg-purple-500/10 text-purple-600",
-    items: [
-      { label: "Complete a team challenge", points: "+15", positive: true },
-      { label: "Team wins a competition", points: "+20/member", positive: true },
-    ],
-  },
-  {
-    icon: "hand-helping",
-    title: "Session Participation",
-    color: "bg-teal-500/10 text-teal-600",
-    items: [
-      { label: "Ask a question during executive session", points: "+5", positive: true },
-      { label: "Volunteer for a role-play or demo", points: "+10", positive: true },
-      { label: "Lead a group discussion", points: "+15", positive: true },
+      { label: "Correct bingo guess", points: "+2 each", positive: true },
+      { label: "1st BINGO (complete a row/column/diagonal)", points: "+15 bonus", positive: true },
+      { label: "2nd BINGO", points: "+10 bonus", positive: true },
+      { label: "3rd BINGO", points: "+7 bonus", positive: true },
+      { label: "4th+ BINGO", points: "+3 each", positive: true },
+      { label: "BLACKOUT (all 24 squares!)", points: "+20 bonus", positive: true },
+      { label: "Cheat penalty (same person guessed back-to-back)", points: "-2", positive: false },
     ],
   },
   {
     icon: "presentation",
-    title: "Presentations & EBR",
-    color: "bg-orange-500/10 text-orange-600",
+    title: "Presentations — Value Pillars & Value Discovery",
+    color: "bg-purple-500/10 text-purple-600",
     items: [
-      { label: "Team presentation scored by counselor rubric", points: "Up to 15", positive: true },
-      { label: "MVP — Most Valuable Presenter (counselor-awarded, optional)", points: "+10", positive: true },
-      { label: "Peer feedback submitted", points: "+3", positive: true },
+      { label: "Value Pillars & Use Cases — counselor rubric (per counselor)", points: "Up to 15", positive: true },
+      { label: "Value Discovery with Challenger — counselor rubric (per counselor)", points: "Up to 15", positive: true },
+      { label: "MVP — Most Valuable Presenter (counselor-awarded)", points: "+10", positive: true },
+    ],
+  },
+  {
+    icon: "briefcase",
+    title: "Mini EBR — Capstone Presentation",
+    color: "bg-red-500/10 text-red-600",
+    items: [
+      { label: "EBR rubric score — per counselor evaluator", points: "Up to 50 each", positive: true },
+      { label: "Multiple counselors score → points stack", points: "2 counselors = up to 100", positive: true },
+      { label: "This is the big one — EBR is worth more than any other presentation", points: "", positive: true },
+    ],
+  },
+  {
+    icon: "message-circle",
+    title: "cAMPfire Feedback & Q&A",
+    color: "bg-teal-500/10 text-teal-600",
+    items: [
+      { label: "Submit peer feedback (cAMPfire review)", points: "+3 each", positive: true },
+      { label: "Ask a question during executive guest speaker Q&A", points: "+5", positive: true },
     ],
   },
   {
@@ -109,7 +113,8 @@ const categories: PointCategory[] = [
     color: "bg-violet-500/10 text-violet-600",
     items: [
       { label: "Submit a hackathon project", points: "+10", positive: true },
-      { label: "Win the hackathon vote", points: "+20/member", positive: true },
+      { label: "Winning team — voted by peers", points: "+5/member", positive: true },
+      { label: "Winning team members earn the Innovation Award badge", points: "🏆 Badge", positive: true },
     ],
   },
   {
@@ -125,14 +130,22 @@ const categories: PointCategory[] = [
     ],
   },
   {
+    icon: "award",
+    title: "Badges",
+    color: "bg-yellow-500/10 text-yellow-600",
+    items: [
+      { label: "Earn any badge", points: "+5 each", positive: true },
+      { label: "Badges are awarded for milestones like pre-work, check-ins, bingo, etc.", points: "", positive: true },
+    ],
+  },
+  {
     icon: "sparkles",
-    title: "Bonus & Spirit Points",
+    title: "Bonus & Quick cAMP Points",
     color: "bg-pink-500/10 text-pink-600",
     items: [
-      { label: "Help a fellow cAMPer (counselor-awarded)", points: "+5", positive: true },
-      { label: "Outstanding team spirit (counselor-awarded)", points: "+10", positive: true },
-      { label: "Creative solution to a challenge", points: "+10", positive: true },
-      { label: "Hidden easter eggs throughout the app", points: "+5", positive: true },
+      { label: "Quick cAMP Points — counselor-awarded for spirit & effort", points: "+3 to +10", positive: true },
+      { label: "Hidden easter eggs throughout the app", points: "+5 each", positive: true },
+      { label: "Camp Spirit — voted by peers on the 2nd-to-last day", points: "✨ Title", positive: true },
     ],
   },
 ];
@@ -180,11 +193,13 @@ export default function XPlanationTab() {
                           />
                           {item.label}
                         </span>
-                        <span className={`text-sm font-bold whitespace-nowrap ${
-                          item.positive ? "text-camp-green" : "text-red-500"
-                        }`}>
-                          {item.points}
-                        </span>
+                        {item.points && (
+                          <span className={`text-sm font-bold whitespace-nowrap ${
+                            item.positive ? "text-camp-green" : "text-red-500"
+                          }`}>
+                            {item.points}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -212,11 +227,11 @@ export default function XPlanationTab() {
           </li>
           <li className="flex items-start gap-2 text-sm text-foreground/80">
             <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <span>Check in early for +3 instead of +1 — small margins add up.</span>
+            <span>The Mini EBR is the highest-value presentation — each counselor can award up to 50 pts.</span>
           </li>
           <li className="flex items-start gap-2 text-sm text-foreground/80">
             <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-            <span>Design a winning logo — your whole team earns up to +20 pts from the vote!</span>
+            <span>Wheel & Deal rewards self-awareness — knowing how you did is worth as much as doing well.</span>
           </li>
           <li className="flex items-start gap-2 text-sm text-foreground/80">
             <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />

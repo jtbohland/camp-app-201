@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiData } from "@/hooks/useApiData";
@@ -19,19 +20,25 @@ const BADGE_COLORS: Record<string, string> = {
   yellow: "from-yellow-500/20 to-yellow-700/20 border-yellow-500/40 text-yellow-400",
   rose: "from-rose-500/20 to-rose-700/20 border-rose-500/40 text-rose-400",
   cyan: "from-cyan-500/20 to-cyan-700/20 border-cyan-500/40 text-cyan-400",
+  teal: "from-teal-500/20 to-teal-700/20 border-teal-500/40 text-teal-400",
+  indigo: "from-indigo-500/20 to-indigo-700/20 border-indigo-500/40 text-indigo-400",
+  pink: "from-pink-500/20 to-pink-700/20 border-pink-500/40 text-pink-400",
 };
 
-const CATEGORIES: Record<string, string> = {
-  preparation: "Preparation",
-  points: "Points Milestones",
-  attendance: "Attendance",
-  collaboration: "Collaboration",
-  engagement: "Engagement",
-  feedback: "Feedback",
-  performance: "Performance",
-  special: "Special Awards",
-  general: "General",
+const CATEGORY_META: Record<string, { label: string; icon: IconName; pill: string }> = {
+  preparation: { label: "Preparation", icon: "book-open", pill: "bg-cyan-100 text-cyan-700 border-cyan-200" },
+  points: { label: "Points Milestones", icon: "trending-up", pill: "bg-amber-100 text-amber-700 border-amber-200" },
+  attendance: { label: "Attendance", icon: "log-in", pill: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  collaboration: { label: "Collaboration", icon: "users", pill: "bg-purple-100 text-purple-700 border-purple-200" },
+  engagement: { label: "Engagement", icon: "flame", pill: "bg-orange-100 text-orange-700 border-orange-200" },
+  feedback: { label: "Feedback", icon: "message-circle", pill: "bg-teal-100 text-teal-700 border-teal-200" },
+  performance: { label: "Performance", icon: "trophy", pill: "bg-red-100 text-red-700 border-red-200" },
+  special: { label: "Special Awards", icon: "crown", pill: "bg-pink-100 text-pink-700 border-pink-200" },
+  general: { label: "General", icon: "star", pill: "bg-gray-100 text-gray-700 border-gray-200" },
 };
+
+// Preferred category display order
+const CATEGORY_ORDER = ["preparation", "attendance", "engagement", "feedback", "collaboration", "performance", "points", "special", "general"];
 
 export default function BadgesTab() {
   const user = useSuperblocksUser();
@@ -57,9 +64,23 @@ export default function BadgesTab() {
     return allBadges.filter((b: any) => b.category === selectedCategory);
   }, [allBadges, selectedCategory]);
 
+  // Group badges by category for "All" view
+  const groupedBadges = useMemo(() => {
+    if (selectedCategory !== "all") return null;
+    const groups: Record<string, any[]> = {};
+    for (const b of allBadges) {
+      const cat = (b as any).category || "general";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(b);
+    }
+    return CATEGORY_ORDER
+      .filter((cat) => groups[cat]?.length)
+      .map((cat) => ({ category: cat, badges: groups[cat] }));
+  }, [allBadges, selectedCategory]);
+
   const categories = useMemo(() => {
     const cats = new Set(allBadges.map((b: any) => b.category));
-    return Array.from(cats) as string[];
+    return CATEGORY_ORDER.filter((cat) => cats.has(cat));
   }, [allBadges]);
 
   if (loadingCamper || loadingBadges) {
@@ -67,9 +88,7 @@ export default function BadgesTab() {
       <div className="max-w-4xl space-y-4">
         <Skeleton className="h-20 rounded-xl" />
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-36 rounded-xl" />
-          ))}
+          {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-36 rounded-xl" />)}
         </div>
       </div>
     );
@@ -77,7 +96,7 @@ export default function BadgesTab() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* Filter */}
+      {/* Filter + Progress */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {earnedBadges.length}/{allBadges.length} unlocked
@@ -89,7 +108,9 @@ export default function BadgesTab() {
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
             {categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>{CATEGORIES[cat] ?? cat}</SelectItem>
+              <SelectItem key={cat} value={cat}>
+                {CATEGORY_META[cat]?.label ?? cat}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -126,6 +147,7 @@ export default function BadgesTab() {
                 description={badge.badge_description}
                 icon={badge.badge_icon as IconName}
                 color={badge.badge_color}
+                category={badge.badge_category}
                 earned
                 earnedDate={badge.awarded_at}
               />
@@ -134,59 +156,78 @@ export default function BadgesTab() {
         </div>
       )}
 
-      {/* All badges grid */}
-      <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">
-          {selectedCategory === "all" ? "All Badges" : CATEGORIES[selectedCategory] ?? selectedCategory}
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {filteredBadges.map((badge: any) => (
-            <BadgeCard
-              key={badge.id}
-              name={badge.name}
-              description={badge.description}
-              icon={badge.icon as IconName}
-              color={badge.color}
-              earned={earnedIds.has(badge.id)}
-              pointsReward={badge.points_reward}
-              isAdmin={isAdmin}
-              badgeId={badge.id}
-              camperId={camperId}
-              onAwarded={refetch}
-            />
-          ))}
+      {/* Grouped by category (when "All" selected) */}
+      {groupedBadges ? (
+        <div className="space-y-6">
+          {groupedBadges.map(({ category, badges }) => {
+            const meta = CATEGORY_META[category] ?? CATEGORY_META.general;
+            return (
+              <div key={category}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon icon={meta.icon} className="w-4 h-4 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold text-foreground">{meta.label}</h2>
+                  <span className="text-[10px] text-muted-foreground">({badges.length})</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {badges.map((badge: any) => (
+                    <BadgeCard
+                      key={badge.id}
+                      name={badge.name}
+                      description={badge.description}
+                      icon={badge.icon as IconName}
+                      color={badge.color}
+                      category={badge.category}
+                      earned={earnedIds.has(badge.id)}
+                      pointsReward={badge.points_reward}
+                      isAdmin={isAdmin}
+                      badgeId={badge.id}
+                      camperId={camperId}
+                      onAwarded={refetch}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
+      ) : (
+        <div>
+          <h2 className="text-sm font-semibold text-foreground mb-3">
+            {CATEGORY_META[selectedCategory]?.label ?? selectedCategory}
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {filteredBadges.map((badge: any) => (
+              <BadgeCard
+                key={badge.id}
+                name={badge.name}
+                description={badge.description}
+                icon={badge.icon as IconName}
+                color={badge.color}
+                category={badge.category}
+                earned={earnedIds.has(badge.id)}
+                pointsReward={badge.points_reward}
+                isAdmin={isAdmin}
+                badgeId={badge.id}
+                camperId={camperId}
+                onAwarded={refetch}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function BadgeCard({
-  name,
-  description,
-  icon,
-  color,
-  earned,
-  earnedDate,
-  pointsReward,
-  isAdmin,
-  badgeId,
-  camperId,
-  onAwarded,
+  name, description, icon, color, category, earned, earnedDate, pointsReward, isAdmin, badgeId, camperId, onAwarded,
 }: {
-  name: string;
-  description: string;
-  icon: IconName;
-  color: string;
-  earned: boolean;
-  earnedDate?: string;
-  pointsReward?: number;
-  isAdmin?: boolean;
-  badgeId?: number;
-  camperId?: number;
-  onAwarded?: () => void;
+  name: string; description: string; icon: IconName; color: string; category?: string;
+  earned: boolean; earnedDate?: string; pointsReward?: number;
+  isAdmin?: boolean; badgeId?: number; camperId?: number; onAwarded?: () => void;
 }) {
   const colorClass = BADGE_COLORS[color] ?? BADGE_COLORS.amber;
+  const catMeta = CATEGORY_META[category ?? "general"] ?? CATEGORY_META.general;
   const { run: awardBadge, loading: awarding } = useApi("AwardBadge");
 
   const handleAward = useCallback(async () => {
@@ -208,7 +249,18 @@ function BadgeCard({
     <Card className={`relative p-4 text-center bg-gradient-to-br border transition-all ${
       earned ? colorClass : "from-muted/20 to-muted/40 border-border opacity-60"
     } ${earned ? "hover:scale-[1.02]" : ""}`}>
-      <div className={`flex items-center justify-center w-12 h-12 mx-auto rounded-full mb-2 ${
+      {/* Category pill */}
+      <div className="absolute top-2 left-2">
+        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border ${catMeta.pill}`}>
+          {catMeta.label}
+        </span>
+      </div>
+      {!earned && (
+        <div className="absolute top-2 right-2">
+          <Icon icon="lock" className="w-3 h-3 text-muted-foreground/40" />
+        </div>
+      )}
+      <div className={`flex items-center justify-center w-12 h-12 mx-auto rounded-full mb-2 mt-3 ${
         earned ? "bg-white/10" : "bg-muted/30"
       }`}>
         <Icon icon={icon} className={`w-6 h-6 ${earned ? "" : "text-muted-foreground/50"}`} />
@@ -217,18 +269,13 @@ function BadgeCard({
         {name}
       </h3>
       <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{description}</p>
-      {pointsReward && pointsReward > 0 && (
+      {pointsReward != null && pointsReward > 0 && (
         <span className="text-[10px] text-amber-400 mt-1 block">+{pointsReward} pts</span>
       )}
       {earned && earnedDate && (
         <span className="text-[10px] text-muted-foreground mt-1 block">
           {new Date(earnedDate).toLocaleDateString()}
         </span>
-      )}
-      {!earned && (
-        <div className="absolute top-2 right-2">
-          <Icon icon="lock" className="w-3 h-3 text-muted-foreground/40" />
-        </div>
       )}
     </Card>
   );

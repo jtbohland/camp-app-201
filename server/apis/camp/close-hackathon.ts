@@ -2,7 +2,7 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 const INNOVATION_BADGE_ID = 12;
-const TEAM_POINTS = 10;
+const TEAM_POINTS = 5;
 
 export default api({
   name: "CloseHackathon",
