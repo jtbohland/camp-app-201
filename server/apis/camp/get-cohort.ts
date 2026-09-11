@@ -16,6 +16,7 @@ const CohortMemberSchema = z.object({
   linkedin_url: z.string().nullable(),
   fun_fact: z.string().nullable(),
   points: z.coerce.number(),
+  start_date: z.string().nullable(),
   team_id: z.coerce.number().nullable(),
   team_name: z.string().nullable(),
   team_color: z.string().nullable(),
@@ -36,7 +37,7 @@ export default api({
     const members = await ctx.integrations.apps_database.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.role, c.manager,
               c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.fun_fact,
-              c.points, c.team_id,
+              c.points, c.team_id, c.start_date,
               t.name as team_name, t.color as team_color, t.logo_url as team_logo_url
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON t.id = c.team_id

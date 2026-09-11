@@ -48,7 +48,9 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
     const lastIdx = header.findIndex((h) => h.includes("last"));
     const emailIdx = header.findIndex((h) => h.includes("email"));
     const roleIdx = header.findIndex((h) => h.includes("role") || h.includes("title"));
-    const regionIdx = header.findIndex((h) => h.includes("region") || h.includes("location"));
+    const regionIdx = header.findIndex((h) => h.includes("region"));
+    const countryIdx = header.findIndex((h) => h.includes("country") || h.includes("location"));
+    const startDateIdx = header.findIndex((h) => h.includes("start") && h.includes("date"));
     const mgrNameIdx = header.findIndex((h) => h.includes("manager") && !h.includes("email"));
     const mgrEmailIdx = header.findIndex((h) => h.includes("manager") && h.includes("email"));
 
@@ -62,6 +64,8 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
         email: cols[emailIdx] ?? "",
         role_title: roleIdx >= 0 ? cols[roleIdx] ?? null : null,
         region: regionIdx >= 0 ? cols[regionIdx] ?? null : null,
+        country: countryIdx >= 0 ? cols[countryIdx] ?? null : null,
+        start_date: startDateIdx >= 0 ? cols[startDateIdx] ?? null : null,
         manager_name: mgrNameIdx >= 0 ? cols[mgrNameIdx] ?? null : null,
         manager_email: mgrEmailIdx >= 0 ? cols[mgrEmailIdx] ?? null : null,
       };
@@ -110,7 +114,7 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
             {uploading ? "Uploading..." : "Upload CSV"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            CSV with columns: First Name, Last Name, Email, Role/Title, Region, Manager Name, Manager Email
+            CSV with columns: First Name, Last Name, Email, Role/Title, Country/Location, Start Date, Manager Name, Manager Email
           </p>
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
