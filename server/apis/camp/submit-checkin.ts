@@ -1,4 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRepeatableBadge } from "../../lib/award-badge.js";
+import { BADGE_IDS } from "../../lib/accelerator.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -134,13 +136,36 @@ export default api({
 
     if (now <= timerEndsAt) {
       timing = "early";
-      points = 5;
+      points = 0; // Will be set by accelerator below
     } else if (now <= graceEnd) {
       timing = "on_time";
-      points = 3;
+      points = 0; // on_time gets no points (only early check-ins earn)
     } else {
       timing = "late";
       points = -2;
+    }
+
+    // For early check-ins, use the accelerator badge system
+    if (timing === "early") {
+      const result = await awardRepeatableBadge(
+        ctx.integrations.apps_database,
+        camper_id,
+        BADGE_IDS.CHECK_IN,
+        `Check-in: early (session ${session_id})`,
+      );
+      points = result.points;
+    } else if (timing === "late" && points < 0) {
+      // Late penalty: deduct points
+      await ctx.integrations.apps_database.execute(
+        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+        [points, camper_id],
+        { label: "Deduct late check-in points" }
+      );
+      await ctx.integrations.apps_database.execute(
+        `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
+        [camper_id, points, `Check-in: late (${session_id})`],
+        { label: "Log late penalty" }
+      );
     }
 
     // Insert check-in response
@@ -149,20 +174,6 @@ export default api({
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [session_id, camper_id, teamId, timing, submittedWord, points],
       { label: "Record check-in" }
-    );
-
-    // Award points to camper
-    await ctx.integrations.apps_database.execute(
-      `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-      [points, camper_id],
-      { label: "Award check-in points" }
-    );
-
-    // Log points
-    await ctx.integrations.apps_database.execute(
-      `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
-      [camper_id, points, `Check-in: ${timing} (${session_id})`],
-      { label: "Log check-in points" }
     );
 
     // Check if team is now complete

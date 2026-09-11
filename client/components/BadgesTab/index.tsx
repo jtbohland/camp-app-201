@@ -58,6 +58,15 @@ export default function BadgesTab() {
   const allBadges = badgesData?.all_badges ?? [];
   const earnedBadges = badgesData?.earned_badges ?? [];
   const earnedIds = useMemo(() => new Set(earnedBadges.map((b: any) => b.badge_id)), [earnedBadges]);
+  const earnCountMap = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const b of earnedBadges) map.set((b as any).badge_id, (b as any).earn_count ?? 1);
+    return map;
+  }, [earnedBadges]);
+
+  // Separate repeatable badges from one-time merits
+  const repeatableBadges = useMemo(() => allBadges.filter((b: any) => b.badge_type === "badge"), [allBadges]);
+  const merits = useMemo(() => allBadges.filter((b: any) => b.badge_type === "merit"), [allBadges]);
 
   const filteredBadges = useMemo(() => {
     if (selectedCategory === "all") return allBadges;
@@ -148,6 +157,8 @@ export default function BadgesTab() {
                 icon={badge.badge_icon as IconName}
                 color={badge.badge_color}
                 category={badge.badge_category}
+                badgeType={badge.badge_type}
+                earnCount={badge.earn_count}
                 earned
                 earnedDate={badge.awarded_at}
               />
@@ -177,6 +188,8 @@ export default function BadgesTab() {
                       icon={badge.icon as IconName}
                       color={badge.color}
                       category={badge.category}
+                      badgeType={badge.badge_type}
+                      earnCount={earnCountMap.get(badge.id) ?? 0}
                       earned={earnedIds.has(badge.id)}
                       pointsReward={badge.points_reward}
                       isAdmin={isAdmin}
@@ -204,6 +217,8 @@ export default function BadgesTab() {
                 icon={badge.icon as IconName}
                 color={badge.color}
                 category={badge.category}
+                badgeType={badge.badge_type}
+                earnCount={earnCountMap.get(badge.id) ?? 0}
                 earned={earnedIds.has(badge.id)}
                 pointsReward={badge.points_reward}
                 isAdmin={isAdmin}
@@ -220,11 +235,12 @@ export default function BadgesTab() {
 }
 
 function BadgeCard({
-  name, description, icon, color, category, earned, earnedDate, pointsReward, isAdmin, badgeId, camperId, onAwarded,
+  name, description, icon, color, category, earned, earnedDate, pointsReward, isAdmin, badgeId, camperId, onAwarded, earnCount, badgeType,
 }: {
   name: string; description: string; icon: IconName; color: string; category?: string;
   earned: boolean; earnedDate?: string; pointsReward?: number;
   isAdmin?: boolean; badgeId?: number; camperId?: number; onAwarded?: () => void;
+  earnCount?: number; badgeType?: string;
 }) {
   const colorClass = BADGE_COLORS[color] ?? BADGE_COLORS.amber;
   const catMeta = CATEGORY_META[category ?? "general"] ?? CATEGORY_META.general;
@@ -258,6 +274,12 @@ function BadgeCard({
       {!earned && (
         <div className="absolute top-2 right-2">
           <Icon icon="lock" className="w-3 h-3 text-muted-foreground/40" />
+        </div>
+      )}
+      {/* Earn count indicator for repeatable badges */}
+      {earned && badgeType === "badge" && (earnCount ?? 0) > 0 && (
+        <div className="absolute top-2 right-2 bg-amber-500 text-white text-[9px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          ×{earnCount}
         </div>
       )}
       <div className={`flex items-center justify-center w-12 h-12 mx-auto rounded-full mb-2 mt-3 ${

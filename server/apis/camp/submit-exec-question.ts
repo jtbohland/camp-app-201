@@ -1,7 +1,8 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRepeatableBadge } from "../../lib/award-badge.js";
+import { BADGE_IDS } from "../../lib/accelerator.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
-const POINTS_PER_QUESTION = 2;
 const MAX_QUESTIONS = 5;
 
 export default api({
@@ -34,16 +35,12 @@ export default api({
       { label: "Insert exec question" }
     );
 
-    // Award points
-    await ctx.integrations.camp_db.execute(
-      `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by) VALUES ($1, $2, $3, $4)`,
-      [camper_id, POINTS_PER_QUESTION, `Submitted Q&A question (exec #${executive_id})`, camper_id],
-      { label: "Award question points" }
-    );
-    await ctx.integrations.camp_db.execute(
-      `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-      [POINTS_PER_QUESTION, camper_id],
-      { label: "Update camper points" }
+    // Award accelerated Q&A badge
+    await awardRepeatableBadge(
+      ctx.integrations.camp_db,
+      camper_id,
+      BADGE_IDS.QA_CONTRIBUTOR,
+      `Submitted Q&A question (exec #${executive_id})`,
     );
 
     return { success: true, id };

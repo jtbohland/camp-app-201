@@ -1,4 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { awardRepeatableBadge } from "../../lib/award-badge.js";
+import { BADGE_IDS } from "../../lib/accelerator.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -37,21 +39,15 @@ export default api({
       { label: "Insert feedback" }
     );
 
-    // Award points to the author for giving feedback
-    if (input.points_to_award > 0) {
-      await ctx.integrations.apps_database.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [input.points_to_award, input.author_id],
-        { label: "Award feedback points to author" }
-      );
-      await ctx.integrations.apps_database.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-         VALUES ($1, $2, $3, 'system')`,
-        [input.author_id, input.points_to_award, `Peer feedback: ${input.session_label}`],
-        { label: "Log feedback points" }
-      );
-    }
+    // Award accelerated Peer Feedback badge to the author
+    const badgeResult = await awardRepeatableBadge(
+      ctx.integrations.apps_database,
+      input.author_id,
+      BADGE_IDS.PEER_FEEDBACK,
+      `Peer feedback: ${input.session_label}`,
+      cohortId,
+    );
 
-    return { success: true, feedback_id: result[0].id, points_awarded: input.points_to_award };
+    return { success: true, feedback_id: result[0].id, points_awarded: badgeResult.points };
   },
 });
