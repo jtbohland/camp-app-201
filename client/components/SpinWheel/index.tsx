@@ -17,10 +17,8 @@ const CX = 290;
 const CY = 290;
 const SIZE = 580;
 
-// ── Text layout constants ──
-const SPOKE_MID = R * 0.54;  // center the text block at ~54% of the radius
-const CHAR_W = 8.2;          // approximate width per character
-const EDGE_GAP = 8;          // spacing between words
+// ── Text position along the spoke ──
+const TEXT_R = R * 0.54; // center text at ~54% of radius
 
 // ── Tick sound via Web Audio API ──
 function playTick() {
@@ -67,20 +65,6 @@ function segPath(i: number): string {
   const x2 = CX + R * Math.cos(a2);
   const y2 = CY + R * Math.sin(a2);
   return `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2} Z`;
-}
-
-// ── Compute word positions along a spoke ──
-// Splits name on "+" or "&", centers word blocks around SPOKE_MID
-function spokeWords(name: string): { word: string; x: number }[] {
-  const parts = name.split(/\s*[+&]\s*/).map((s) => s.trim().toUpperCase());
-  const widths = parts.map((w) => w.length * CHAR_W);
-  const totalSpan = widths.reduce((s, w) => s + w, 0) + (parts.length - 1) * EDGE_GAP;
-  let cursor = SPOKE_MID - totalSpan / 2;
-  return parts.map((word, j) => {
-    const x = cursor + widths[j] / 2;
-    cursor += widths[j] + EDGE_GAP;
-    return { word, x };
-  });
 }
 
 export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
@@ -153,38 +137,50 @@ export default function SpinWheel({ onLand, disabled, disabledLabel }: Props) {
           style={{ transform: `rotate(${rotation}deg)`, transition: spinning ? "none" : undefined }}
         >
           {PRODUCTS.map((p, i) => {
-            // Midpoint angle of this segment in degrees (0° = 12 o'clock)
+            // midDeg in our coordinate system (0° = 12 o'clock)
             const midDeg = (i + 0.5) * SEG_DEG;
-            // For bottom-half segments (90°–270°), flip 180° so text reads rim-inward
-            const flip = midDeg > 90 && midDeg < 270;
-            const rotateDeg = flip ? midDeg + 180 : midDeg;
-            const words = spokeWords(p.name);
+            // SVG rotate() uses 0° = 3 o'clock, so subtract 90° to align
+            const svgAngle = midDeg - 90;
+            // Text reads left-to-right when the spoke aims rightward (SVG -90° to 90°).
+            // When the spoke aims leftward (90° to 270°), rotate 180° so text stays readable.
+            // Normalize svgAngle to [0,360) for the check:
+            const n = ((svgAngle % 360) + 360) % 360;
+            const flip = n > 90 && n <= 270;
+            // When flipped, we rotate 180° extra. Text x positions stay positive
+            // because +x now points back toward the segment (outward from center).
+            const rotateDeg = flip ? svgAngle + 180 : svgAngle;
 
             return (
               <g key={p.id}>
                 {/* Pie segment */}
                 <path d={segPath(i)} fill={p.color} stroke="#fff" strokeWidth="2" />
 
-                {/* Product name — each word placed along the spoke */}
-                <g transform={`translate(${CX}, ${CY}) rotate(${rotateDeg})`}>
-                  {words.map((w, j) => (
+                {/* Product name — flat text at the spoke midpoint */}
+                {(() => {
+                  // Compute absolute position of text center along the spoke
+                  const rad = svgAngle * (Math.PI / 180);
+                  const tx = CX + TEXT_R * Math.cos(rad);
+                  const ty = CY + TEXT_R * Math.sin(rad);
+                  // Text rotates to align with the spoke direction
+                  const textAngle = flip ? svgAngle + 180 : svgAngle;
+                  return (
                     <text
-                      key={j}
-                      x={flip ? -w.x : w.x}
-                      y={0}
+                      x={tx}
+                      y={ty}
                       textAnchor="middle"
                       dominantBaseline="middle"
                       fill="rgba(255,255,255,0.95)"
-                      fontSize="13"
+                      fontSize={p.name.length > 20 ? "9" : p.name.length > 14 ? "10.5" : "13"}
                       fontWeight="800"
                       letterSpacing="0.5"
                       fontFamily="Inter, sans-serif"
                       className="uppercase select-none pointer-events-none"
+                      transform={`rotate(${textAngle}, ${tx}, ${ty})`}
                     >
-                      {w.word}
+                      {p.name.toUpperCase()}
                     </text>
-                  ))}
-                </g>
+                  );
+                })()}
               </g>
             );
           })}
