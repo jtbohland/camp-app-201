@@ -103,6 +103,7 @@ export default function SurveyPage() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
+  const isAdmin = user?.email === "jt.bohland@amplitude.com";
 
   const { data: surveyData, loading: loadingSurvey, refetch } = useApiData("GetDailySurvey", {
     camper_id: camperId,
@@ -230,7 +231,7 @@ export default function SurveyPage() {
       </div>
 
       {/* States: submitted, locked, or show form */}
-      {(submitted || alreadySubmitted) ? (
+      {(submitted || (alreadySubmitted && !isAdmin)) ? (
         <Card className="p-8 text-center border-camp-green/30">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-camp-green/10 mb-4">
             <Icon icon="check-circle-2" className="w-8 h-8 text-camp-green" />
@@ -259,7 +260,7 @@ export default function SurveyPage() {
             </div>
           )}
         </Card>
-      ) : isLocked ? (
+      ) : (isLocked && !isAdmin) ? (
         <Card className="p-8 text-center border-red-200">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-red-50 mb-4">
             <Icon icon="lock" className="w-8 h-8 text-red-400" />
