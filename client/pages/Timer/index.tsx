@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useSuperblocksUser } from "@superblocksteam/library";
 import { Icon } from "@/components/ui/icon";
 import { toast } from "sonner";
 
@@ -88,7 +89,14 @@ const PRESET_TIMES = [
   { label: "30 min", seconds: 1800 },
 ];
 
-const CHECKIN_LABELS = ["Morning", "Post-lunch", "After break", "After breakout"];
+const TIMER_MODES = [
+  { value: "morning", label: "Morning", icon: "sunrise", checkin: true, checkinLabel: "Morning" },
+  { value: "break", label: "Back from Break", icon: "coffee", checkin: true, checkinLabel: "Back from Break" },
+  { value: "lunch", label: "Back from Lunch", icon: "utensils", checkin: true, checkinLabel: "Back from Lunch" },
+  { value: "prep", label: "Prep & Practice", icon: "pencil", checkin: false },
+  { value: "presentation", label: "Presentation", icon: "presentation", checkin: false },
+  { value: "custom", label: "Custom Timer", icon: "clock", checkin: false },
+];
 
 export default function TimerPage() {
   const [totalSeconds, setTotalSeconds] = useState(600);
@@ -96,13 +104,17 @@ export default function TimerPage() {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [soundIndex, setSoundIndex] = useState(0);
-  const [checkinLabel, setCheckinLabel] = useState("After break");
+  const [checkinLabel, setCheckinLabel] = useState("Morning");
+  const [timerMode, setTimerMode] = useState("morning");
+  const currentMode = TIMER_MODES.find((m) => m.value === timerMode);
+  const isCheckinMode = currentMode?.checkin ?? false;
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundsRef = useRef<SoundOption[]>([]);
 
   // Current camper data (for admin check)
-  const { data: camperData } = useApiData("GetCurrentCamper", { email: "" });
+  const user = useSuperblocksUser();
+  const { data: camperData } = useApiData("GetCurrentCamper", { email: user?.email ?? "" }, { enabled: !!user?.email });
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
 
   // Active check-in polling (every 3 seconds when session is active)
@@ -229,7 +241,38 @@ export default function TimerPage() {
             Check-in active: {checkinData?.session?.label}
           </p>
         )}
+        {!activeSessionId && !isCheckinMode && running && (
+          <p className="text-sm text-amber-400 font-medium mt-1">
+            {currentMode?.label}
+          </p>
+        )}
       </div>
+
+      {/* Timer Mode Selector (admin only — always visible, disabled when running) */}
+      {isAdmin && (
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {TIMER_MODES.map((mode) => (
+            <button
+              key={mode.value}
+              onClick={() => {
+                if (!running && !activeSessionId) {
+                  setTimerMode(mode.value);
+                  if (mode.checkin && 'checkinLabel' in mode) setCheckinLabel(mode.checkinLabel as string);
+                }
+              }}
+              disabled={running || !!activeSessionId}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                timerMode === mode.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
+              } ${running || activeSessionId ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <Icon icon={mode.icon as any} className="w-3 h-3" />
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Timer Display */}
       <div className="relative flex items-center justify-center">
@@ -266,24 +309,26 @@ export default function TimerPage() {
       <div className="flex items-center gap-3 flex-wrap justify-center">
         {!running ? (
           <>
-            {isAdmin && !activeSessionId && (
+            {isAdmin && !activeSessionId && isCheckinMode && (
               <button
                 onClick={() => startTimer(true)}
                 disabled={remaining <= 0 && !finished}
                 className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl font-semibold text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
               >
                 <Icon icon="play" className="w-4 h-4" />
-                Start + Check-In
+                {finished ? "Restart + Check-In" : remaining < totalSeconds ? "Resume + Check-In" : "Start + Check-In"}
               </button>
             )}
-            <button
-              onClick={() => startTimer(false)}
-              disabled={remaining <= 0 && !finished}
-              className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              <Icon icon="play" className="w-4 h-4" />
-              {finished ? "Restart" : remaining < totalSeconds ? "Resume" : "Start"}
-            </button>
+            {!isCheckinMode && (
+              <button
+                onClick={() => startTimer(false)}
+                disabled={remaining <= 0 && !finished}
+                className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Icon icon="play" className="w-4 h-4" />
+                {finished ? "Restart" : remaining < totalSeconds ? "Resume" : "Start"}
+              </button>
+            )}
           </>
         ) : (
           <button onClick={pause} className="flex items-center gap-2 px-5 py-3 bg-camp-amber text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">
@@ -302,20 +347,6 @@ export default function TimerPage() {
           <Icon icon="volume-2" className="w-4 h-4" /> Test
         </button>
       </div>
-
-      {/* Check-In Label selector (admin only) */}
-      {isAdmin && !activeSessionId && (
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-muted-foreground">Check-in label:</label>
-          <select
-            value={checkinLabel}
-            onChange={(e) => setCheckinLabel(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {CHECKIN_LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-      )}
 
       {/* Time Presets */}
       <div className="flex flex-col items-center gap-2 w-full max-w-md">
