@@ -18,11 +18,13 @@ export default function AdminCloseCamp({ camperId }: Props) {
   const { run: closeCamp, loading: closing } = useApi("CloseCamp");
   const { run: revealTeam, loading: revealing } = useApi("RevealTeamStanding");
   const { run: revealVP, loading: revealingVP } = useApi("RevealCampVP");
+  const { run: toggleFinalSurvey, loading: togglingFinal } = useApi("ToggleFinalSurvey");
 
   const campClosed = status?.camp_closed ?? false;
   const readyToClose = status?.camp_ready_to_close ?? false;
   const revealedTeamIds = status?.revealed_team_ids ?? [];
   const vpRevealed = status?.vp_revealed ?? false;
+  const finalSurveyUnlocked = status?.final_survey_unlocked ?? false;
 
   const handleClose = useCallback(async () => {
     try {
@@ -64,6 +66,18 @@ export default function AdminCloseCamp({ camperId }: Props) {
       toast.error("Error: " + message);
     }
   }, [revealVP, refetch]);
+
+  const handleToggleFinalSurvey = useCallback(async () => {
+    try {
+      await toggleFinalSurvey({ unlocked: !finalSurveyUnlocked });
+      await refetch();
+      toast.success(finalSurveyUnlocked ? "Final survey locked" : "Final survey unlocked! 📋");
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message) : String(error);
+      toast.error("Error: " + message);
+    }
+  }, [toggleFinalSurvey, finalSurveyUnlocked, refetch]);
 
   // Get team standings for reveal controls
   const { data: leaderboard } = useApiData("GetLeaderboard", {}, { enabled: campClosed, staleTime: 10000 });
@@ -142,50 +156,88 @@ export default function AdminCloseCamp({ camperId }: Props) {
           <div className="space-y-2 mb-4">
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">cAMP Champ — Team Standings</h4>
             {teamStandings.length > 0 ? (
-              [...teamStandings].reverse().map((team: any, idx: number) => {
-                const rank = teamStandings.length - idx;
-                const isRevealed = revealedTeamIds.includes(team.team_id);
-                return (
-                  <div key={team.team_id} className="flex items-center justify-between bg-background rounded-lg border px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-muted-foreground w-5">#{rank}</span>
-                      <span className="text-sm font-medium">{team.team_name}</span>
-                      {isRevealed && <span className="text-xs text-emerald-600">✓ Revealed</span>}
+              (() => {
+                const reversed = [...teamStandings].reverse();
+                // Find the next team to reveal (first unrevealed in last→first order)
+                const nextToRevealIdx = reversed.findIndex((t: any) => !revealedTeamIds.includes(t.team_id));
+                return reversed.map((team: any, idx: number) => {
+                  const rank = teamStandings.length - idx;
+                  const isRevealed = revealedTeamIds.includes(team.team_id);
+                  const isNext = idx === nextToRevealIdx;
+                  const canReveal = isNext && !isRevealed;
+                  return (
+                    <div key={team.team_id} className="flex items-center justify-between bg-background rounded-lg border px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5">#{rank}</span>
+                        <span className="text-sm font-medium">{team.team_name}</span>
+                        {isRevealed && <span className="text-xs text-emerald-600">✓ Revealed</span>}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={isRevealed ? "ghost" : canReveal ? "outline" : "ghost"}
+                        disabled={!canReveal || revealing}
+                        onClick={() => handleRevealTeam(team.team_id)}
+                      >
+                        {isRevealed ? "Shown" : canReveal ? "Reveal" : "Locked"}
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={isRevealed ? "ghost" : "outline"}
-                      disabled={isRevealed || revealing}
-                      onClick={() => handleRevealTeam(team.team_id)}
-                    >
-                      {isRevealed ? "Shown" : "Reveal"}
-                    </Button>
-                  </div>
-                );
-              })
+                  );
+                });
+              })()
             ) : (
               <p className="text-xs text-muted-foreground">Loading team standings...</p>
             )}
           </div>
 
-          {/* cAMP-V-P Reveal */}
-          <div className="border-t pt-3">
-            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">cAMP-V-P</h4>
-            <Button
-              className={vpRevealed
-                ? "w-full bg-emerald-100 text-emerald-700 cursor-default"
-                : "w-full bg-gradient-to-r from-yellow-400 to-amber-500 text-white hover:from-yellow-500 hover:to-amber-600"
-              }
-              disabled={vpRevealed || revealingVP}
-              onClick={handleRevealVP}
-            >
-              {vpRevealed ? (
-                <><Icon icon="check" className="w-4 h-4 mr-1" /> cAMP-V-P Revealed</>
-              ) : (
-                <><Icon icon="crown" className="w-4 h-4 mr-1" /> Reveal cAMP-V-P 👑</>
-              )}
-            </Button>
-          </div>
+          {/* cAMP-V-P Reveal — gated behind all teams revealed */}
+          {(() => {
+            const allTeamsRevealed = teamStandings.length > 0 && teamStandings.every((t: any) => revealedTeamIds.includes(t.team_id));
+            return (
+              <div className="border-t pt-3">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">cAMP-V-P</h4>
+                {!allTeamsRevealed && !vpRevealed ? (
+                  <p className="text-xs text-muted-foreground italic">Reveal all team standings first to unlock cAMP-V-P</p>
+                ) : (
+                  <Button
+                    className={vpRevealed
+                      ? "w-full bg-emerald-100 text-emerald-700 cursor-default"
+                      : "w-full bg-gradient-to-r from-yellow-400 to-amber-500 text-white hover:from-yellow-500 hover:to-amber-600"
+                    }
+                    disabled={vpRevealed || revealingVP}
+                    onClick={handleRevealVP}
+                  >
+                    {vpRevealed ? (
+                      <><Icon icon="check" className="w-4 h-4 mr-1" /> cAMP-V-P Revealed</>
+                    ) : (
+                      <><Icon icon="crown" className="w-4 h-4 mr-1" /> Reveal cAMP-V-P 👑</>
+                    )}
+                  </Button>
+                )}
+              </div>
+            );
+          })()}
+        </Card>
+      )}
+
+      {/* Final Survey — available after podium is done */}
+      {campClosed && vpRevealed && (
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
+            <Icon icon="clipboard-list" className="w-4 h-4 text-blue-600" />
+            Final Day Survey
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Unlock the post-ceremony survey. cAMPers can submit but <strong>zero points</strong> will be awarded — no impact on standings.
+          </p>
+          <Button
+            variant={finalSurveyUnlocked ? "outline" : "default"}
+            className={finalSurveyUnlocked ? "" : "bg-blue-600 text-white hover:bg-blue-700"}
+            onClick={handleToggleFinalSurvey}
+            disabled={togglingFinal}
+          >
+            <Icon icon={finalSurveyUnlocked ? "lock" : "unlock"} className="w-4 h-4 mr-2" />
+            {finalSurveyUnlocked ? "Lock Final Survey" : "Unlock Final Survey"}
+          </Button>
         </Card>
       )}
 

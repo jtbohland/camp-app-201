@@ -21,6 +21,7 @@ export default api({
     camp_champ_team_id: z.number().nullable(),
     revealed_team_ids: z.array(z.number()),
     vp_revealed: z.boolean(),
+    final_survey_unlocked: z.boolean(),
   }),
   async run(ctx) {
     const CountSchema = z.object({ count: z.coerce.number() });
@@ -124,6 +125,15 @@ export default api({
     );
     const vpRevealed = vpRevealedResult.length > 0 && vpRevealedResult[0].value === "true";
 
+    // Check if final survey is unlocked
+    const finalSurveyResult = await ctx.integrations.apps_database.query(
+      `SELECT value FROM camp201_config WHERE key = 'final_survey_unlocked' LIMIT 1`,
+      z.object({ value: z.string() }),
+      undefined,
+      { label: "Check final survey" }
+    );
+    const finalSurveyUnlocked = finalSurveyResult.length > 0 && finalSurveyResult[0].value === "true";
+
     return {
       camp_closed: campClosed,
       camp_ready_to_close: campReadyToClose,
@@ -135,6 +145,7 @@ export default api({
       camp_champ_team_id: campChampTeamId,
       revealed_team_ids: revealedTeamIds,
       vp_revealed: vpRevealed,
+      final_survey_unlocked: finalSurveyUnlocked,
     };
   },
 });

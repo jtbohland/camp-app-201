@@ -183,6 +183,7 @@ import GetCloseCampStatus from './camp/get-close-camp-status.js';
 import CloseCamp from './camp/close-camp.js';
 import RevealTeamStanding from './camp/reveal-team-standing.js';
 import RevealCampVP from './camp/reveal-camp-vp.js';
+import ToggleFinalSurvey from './camp/toggle-final-survey.js';
 
 const apis = {
   SetupDatabase,
@@ -364,6 +365,7 @@ const apis = {
   CloseCamp,
   RevealTeamStanding,
   RevealCampVP,
+  ToggleFinalSurvey,
 } as const;
 
 export default apis;
