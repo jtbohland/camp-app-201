@@ -32,15 +32,8 @@ export default api({
     );
     const cohortId = activeCohort.length > 0 ? activeCohort[0].id : null;
 
-    // Calculate check-in window based on break length
-    let windowSeconds: number;
-    if (duration_minutes <= 5) {
-      windowSeconds = 120; // last 2 min
-    } else if (duration_minutes <= 10) {
-      windowSeconds = 180; // last 3 min
-    } else {
-      windowSeconds = 300; // last 5 min (cap)
-    }
+    // Check-in window: always opens 5 minutes before timer ends
+    const windowSeconds = 300; // 5 min, always
 
     const now = new Date();
     const timerEndsAt = new Date(now.getTime() + duration_minutes * 60 * 1000);

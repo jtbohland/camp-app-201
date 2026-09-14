@@ -92,21 +92,23 @@ export default function DailyTrail({ badges }: Props) {
 
               {/* Points per earn */}
               <span className="text-[10px] text-muted-foreground mt-1">
-                {b.id === 134
+                {b.id === 133
+                  ? "Early +5 · On-time +3"
+                  : b.id === 134
                   ? "2→4→6→8→10 pts/day"
                   : `${b.base_points} pts${tier > 0 ? ` +${[0,1,2,3,5][tier]} bonus` : ""} each`
                 }
               </span>
 
-              {/* Tier pill */}
-              {earned && (
+              {/* Tier pill — only for accelerated badges (not Check-In or Survey) */}
+              {earned && b.id !== 133 && b.id !== 134 && (
                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full mt-1.5 ${TIER_COLORS[tier]}`}>
                   {TIER_LABELS[tier]}
                 </span>
               )}
 
-              {/* Progress to next tier */}
-              {earned && next !== null && (
+              {/* Progress to next tier — only for accelerated badges */}
+              {earned && b.id !== 133 && b.id !== 134 && next !== null && (
                 <div className="w-full mt-2">
                   <div className="h-1 rounded-full bg-muted overflow-hidden">
                     <div
@@ -120,7 +122,7 @@ export default function DailyTrail({ badges }: Props) {
                 </div>
               )}
 
-              {next === null && earned && (
+              {next === null && earned && b.id !== 133 && b.id !== 134 && (
                 <span className="text-[9px] text-amber-600 font-medium mt-1">🔥 Maxed out!</span>
               )}
             </div>
