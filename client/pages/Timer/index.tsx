@@ -316,17 +316,19 @@ export default function TimerPage() {
                 className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl font-semibold text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
               >
                 <Icon icon="play" className="w-4 h-4" />
-                Start + Check-In
+                {finished ? "Restart + Check-In" : remaining < totalSeconds ? "Resume + Check-In" : "Start + Check-In"}
               </button>
             )}
-            <button
-              onClick={() => startTimer(false)}
-              disabled={remaining <= 0 && !finished}
-              className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              <Icon icon="play" className="w-4 h-4" />
-              {finished ? "Restart" : remaining < totalSeconds ? "Resume" : "Start"}
-            </button>
+            {!isCheckinMode && (
+              <button
+                onClick={() => startTimer(false)}
+                disabled={remaining <= 0 && !finished}
+                className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Icon icon="play" className="w-4 h-4" />
+                {finished ? "Restart" : remaining < totalSeconds ? "Resume" : "Start"}
+              </button>
+            )}
           </>
         ) : (
           <button onClick={pause} className="flex items-center gap-2 px-5 py-3 bg-camp-amber text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">
