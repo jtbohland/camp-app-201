@@ -82,51 +82,53 @@ export default function PresentationsPage() {
   return (
     <div className="flex flex-col h-full w-full overflow-auto p-6">
       <div className="max-w-5xl mx-auto w-full space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Icon icon="presentation" className="w-6 h-6 text-purple-400" />
-              Presentations
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Group presentations with rubrics and peer feedback
-            </p>
+        {/* Header + Admin Controls */}
+        <div>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Icon icon="presentation" className="w-6 h-6 text-purple-400" />
+                Presentations
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Group presentations with rubrics and peer feedback
+              </p>
+            </div>
+            {/* Admin toggle pills — compact, top-right */}
+            {isAdmin && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleToggleFeedback}
+                  disabled={togglingGate}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                    feedbackLocked
+                      ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                  title={feedbackLocked ? "Click to unlock peer feedback" : "Click to lock peer feedback"}
+                >
+                  <Icon icon={feedbackLocked ? "lock" : "lock-open"} className="w-3 h-3" />
+                  {togglingGate ? "..." : feedbackLocked ? "Feedback Locked" : "Feedback Open"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Presentation Order Strip */}
         <PresentationOrderStrip isAdmin={isAdmin} cohortId={1} />
 
-        {/* Peer Feedback — cAMPfire Feedback */}
-        <div className="relative">
-          {isAdmin && (
-            <div className="flex justify-end mb-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleToggleFeedback}
-                disabled={togglingGate}
-                className={feedbackLocked
-                  ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                }
-              >
-                <Icon icon={feedbackLocked ? "lock" : "lock-open"} className="w-3.5 h-3.5 mr-1.5" />
-                {togglingGate ? "..." : feedbackLocked ? "Feedback Locked" : "Feedback Open"}
-              </Button>
-            </div>
-          )}
-          {feedbackLocked && !isAdmin ? (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-muted-foreground text-sm">
-              <Icon icon="lock" className="w-4 h-4" />
-              Peer feedback will open during presentations
-            </div>
-          ) : (
-            <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
-          )}
-        </div>
+        {/* Peer Feedback — only show when unlocked (or admin) */}
+        {feedbackLocked && !isAdmin ? (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-muted/40 text-muted-foreground text-sm border border-border/50">
+            <Icon icon="lock" className="w-4 h-4 shrink-0" />
+            Peer feedback will open during presentations — your counselor will unlock it
+          </div>
+        ) : (
+          <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
+        )}
 
+        {/* Presentation Cards */}
         <div className={fetching ? "opacity-70" : ""}>
           <PresentationGrid
             presentations={presentations}
