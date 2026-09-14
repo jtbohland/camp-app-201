@@ -89,16 +89,13 @@ const PRESET_TIMES = [
   { label: "30 min", seconds: 1800 },
 ];
 
-const CHECKIN_LABELS = ["Morning", "Back from Break", "Back from Lunch", "After Breakout", "Post-Presentation"];
-
 const TIMER_MODES = [
-  { value: "checkin", label: "Check-In Timer", icon: "log-in" },
-  { value: "camp_begins", label: "cAMP begins in…", icon: "sunrise" },
-  { value: "break_return", label: "Back from Break", icon: "coffee" },
-  { value: "lunch_return", label: "Back from Lunch", icon: "utensils" },
-  { value: "prep_practice", label: "Prep & Practice ends in…", icon: "pencil" },
-  { value: "presentation", label: "Presentation Timer", icon: "presentation" },
-  { value: "custom", label: "Custom Timer", icon: "clock" },
+  { value: "morning", label: "Morning", icon: "sunrise", checkin: true, checkinLabel: "Morning" },
+  { value: "break", label: "Back from Break", icon: "coffee", checkin: true, checkinLabel: "Back from Break" },
+  { value: "lunch", label: "Back from Lunch", icon: "utensils", checkin: true, checkinLabel: "Back from Lunch" },
+  { value: "prep", label: "Prep & Practice", icon: "pencil", checkin: false },
+  { value: "presentation", label: "Presentation", icon: "presentation", checkin: false },
+  { value: "custom", label: "Custom Timer", icon: "clock", checkin: false },
 ];
 
 export default function TimerPage() {
@@ -107,8 +104,10 @@ export default function TimerPage() {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [soundIndex, setSoundIndex] = useState(0);
-  const [checkinLabel, setCheckinLabel] = useState("Back from Break");
-  const [timerMode, setTimerMode] = useState("checkin");
+  const [checkinLabel, setCheckinLabel] = useState("Morning");
+  const [timerMode, setTimerMode] = useState("morning");
+  const currentMode = TIMER_MODES.find((m) => m.value === timerMode);
+  const isCheckinMode = currentMode?.checkin ?? false;
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundsRef = useRef<SoundOption[]>([]);
@@ -242,9 +241,9 @@ export default function TimerPage() {
             Check-in active: {checkinData?.session?.label}
           </p>
         )}
-        {!activeSessionId && timerMode !== "checkin" && (
+        {!activeSessionId && !isCheckinMode && running && (
           <p className="text-sm text-amber-400 font-medium mt-1">
-            {TIMER_MODES.find((m) => m.value === timerMode)?.label}
+            {currentMode?.label}
           </p>
         )}
       </div>
@@ -255,7 +254,12 @@ export default function TimerPage() {
           {TIMER_MODES.map((mode) => (
             <button
               key={mode.value}
-              onClick={() => !running && !activeSessionId && setTimerMode(mode.value)}
+              onClick={() => {
+                if (!running && !activeSessionId) {
+                  setTimerMode(mode.value);
+                  if (mode.checkin && 'checkinLabel' in mode) setCheckinLabel(mode.checkinLabel as string);
+                }
+              }}
               disabled={running || !!activeSessionId}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 timerMode === mode.value
@@ -305,7 +309,7 @@ export default function TimerPage() {
       <div className="flex items-center gap-3 flex-wrap justify-center">
         {!running ? (
           <>
-            {isAdmin && !activeSessionId && timerMode === "checkin" && (
+            {isAdmin && !activeSessionId && isCheckinMode && (
               <button
                 onClick={() => startTimer(true)}
                 disabled={remaining <= 0 && !finished}
@@ -341,20 +345,6 @@ export default function TimerPage() {
           <Icon icon="volume-2" className="w-4 h-4" /> Test
         </button>
       </div>
-
-      {/* Check-In Label selector (admin only, checkin mode) */}
-      {isAdmin && !activeSessionId && timerMode === "checkin" && (
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-muted-foreground">Check-in label:</label>
-          <select
-            value={checkinLabel}
-            onChange={(e) => setCheckinLabel(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {CHECKIN_LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-      )}
 
       {/* Time Presets */}
       <div className="flex flex-col items-center gap-2 w-full max-w-md">
