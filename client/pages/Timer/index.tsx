@@ -247,18 +247,19 @@ export default function TimerPage() {
         )}
       </div>
 
-      {/* Timer Mode Selector (admin only, when no active session) */}
-      {isAdmin && !activeSessionId && !running && (
+      {/* Timer Mode Selector (admin only — always visible, disabled when running) */}
+      {isAdmin && (
         <div className="flex flex-wrap justify-center gap-1.5">
           {TIMER_MODES.map((mode) => (
             <button
               key={mode.value}
-              onClick={() => setTimerMode(mode.value)}
+              onClick={() => !running && !activeSessionId && setTimerMode(mode.value)}
+              disabled={running || !!activeSessionId}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 timerMode === mode.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
-              }`}
+              } ${running || activeSessionId ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <Icon icon={mode.icon as any} className="w-3 h-3" />
               {mode.label}

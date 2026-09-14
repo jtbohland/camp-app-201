@@ -6,12 +6,12 @@ import XPlanationTab from "@/components/XPlanationTab/index.js";
 type TabId = "badges" | "xplanation";
 
 const tabs: { id: TabId; label: string; icon: string }[] = [
-  { id: "badges", label: "My Badges", icon: "award" },
   { id: "xplanation", label: "How Points Work", icon: "sparkles" },
+  { id: "badges", label: "My Badges", icon: "award" },
 ];
 
 export default function BadgesPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("badges");
+  const [activeTab, setActiveTab] = useState<TabId>("xplanation");
 
   return (
     <div className="flex flex-col h-full w-full overflow-auto">

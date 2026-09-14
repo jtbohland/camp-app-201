@@ -52,10 +52,10 @@ const categories: PointCategory[] = [
     items: [
       { label: "Check in 10+ min early", points: "5 base", positive: true, note: "Earns a Check-In badge + accelerator bonus" },
       { label: "Check in on time", points: "+3", positive: true },
-      { label: "Check in late", points: "-2", positive: false },
-      { label: "First team to all check in", points: "+5 team pts", positive: true, note: "Goes to team_points, not individual" },
+      { label: "First team to all check in", points: "+5 team pts", positive: true, note: "Goes to team bonus points, not individual" },
       { label: "2nd team to check in", points: "+3 team pts", positive: true },
       { label: "3rd team", points: "+1 team pt", positive: true },
+      { label: "Check in late", points: "-2", positive: false },
     ],
   },
   {
@@ -120,7 +120,7 @@ const categories: PointCategory[] = [
     subtitle: "Team points! Improve each time for bonus points.",
     color: "bg-purple-500/10 text-purple-600",
     items: [
-      { label: "Value Pillars rubric score", points: "team pts", positive: true, note: "Score goes directly to team_points" },
+      { label: "Value Pillars rubric score", points: "team pts", positive: true, note: "Score goes directly to team bonus points" },
       { label: "Value Discovery rubric score", points: "team pts", positive: true },
       { label: "Mini EBR rubric score (per counselor)", points: "team pts", positive: true, note: "Up to 50 per counselor, stacks" },
       { label: "5%+ improvement over previous presentation", points: "+3 team", positive: true },
@@ -164,7 +164,7 @@ const categories: PointCategory[] = [
 
 const principles: { icon: IconName; title: string; description: string }[] = [
   { icon: "eye", title: "Transparent", description: "Every point is logged. You can always see exactly why." },
-  { icon: "scale", title: "Fair", description: "Team bonuses go to team_points (not inflated per-member). Individual effort is rewarded individually." },
+  { icon: "scale", title: "Fair", description: "Team bonuses go to the team (not inflated per-member). Individual effort is rewarded individually." },
   { icon: "trending-up", title: "Accelerated", description: "The more you do, the more each action is worth. Consistency is rewarded." },
   { icon: "shield", title: "Team + Individual", description: "cAMP-V-P crowns the top individual. cAMP Champ crowns the top team." },
 ];
@@ -199,7 +199,7 @@ export default function XPlanationTab() {
           <div className="p-3 rounded-lg bg-muted/20 border">
             <p className="text-sm font-bold text-foreground">🏕 cAMP Champ</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Highest <span className="font-semibold text-foreground">team</span> score = sum of all members' individual points + team_points (check-in race, survey race, rubrics, hackathon).
+              Highest <span className="font-semibold text-foreground">team</span> score = sum of all members' individual points + team bonus points (check-in race, survey race, rubrics, hackathon).
             </p>
           </div>
         </div>
