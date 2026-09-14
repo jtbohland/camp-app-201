@@ -24,6 +24,17 @@ export default api({
     if (await isCampClosed(ctx.integrations.apps_database)) {
       throw new Error("cAMP is closed — feedback is no longer accepted.");
     }
+
+    // Check peer_feedback feature gate
+    const gateResult = await ctx.integrations.apps_database.query(
+      `SELECT is_locked FROM camp201_feature_gates WHERE feature_key = 'peer_feedback' LIMIT 1`,
+      z.object({ is_locked: z.boolean() }), undefined,
+      { label: "Check peer_feedback gate" }
+    );
+    if (gateResult.length > 0 && gateResult[0].is_locked) {
+      throw new Error("Peer feedback is currently locked by your counselor.");
+    }
+
     // Get active cohort
     const CohortSchema = z.object({ id: z.coerce.number() });
     const cohort = await ctx.integrations.apps_database.query(

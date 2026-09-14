@@ -20,6 +20,17 @@ export default api({
     if (await isCampClosed(ctx.integrations.camp_db)) {
       throw new Error("cAMP is closed — Q&A is no longer accepted.");
     }
+
+    // Check exec_qa feature gate
+    const gateResult = await ctx.integrations.camp_db.query(
+      `SELECT is_locked FROM camp201_feature_gates WHERE feature_key = 'exec_qa' LIMIT 1`,
+      z.object({ is_locked: z.boolean() }), undefined,
+      { label: "Check exec_qa gate" }
+    );
+    if (gateResult.length > 0 && gateResult[0].is_locked) {
+      return { success: false, message: "Executive Q&A is currently locked by your counselor." };
+    }
+
     // Check max questions per session
     const CountSchema = z.object({ count: z.coerce.number() });
     const [{ count }] = await ctx.integrations.camp_db.query(
