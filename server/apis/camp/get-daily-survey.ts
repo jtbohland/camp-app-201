@@ -45,7 +45,7 @@ export default api({
     manually_locked: z.boolean(),
     deadline_iso: z.string().nullable(),
     grace_deadline_iso: z.string().nullable(),
-    day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean() })),
+    day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean(), locked: z.boolean() })),
     team_progress: z.array(z.object({
       team_id: z.number(), team_name: z.string(), team_color: z.string().nullable(),
       total_members: z.number(), submitted_count: z.number(),
@@ -129,9 +129,24 @@ export default api({
     );
     // Fill in missing days
     const statusMap = new Map(dayStatuses.map(d => [d.day_number, true]));
+
+    // Get all per-day lock statuses
+    const DayLockSchema = z.object({ key: z.string(), value: z.string() });
+    const dayLocks = await ctx.integrations.apps_database.query(
+      `SELECT key, value FROM camp201_config WHERE key LIKE 'survey_day_%_locked' LIMIT 10`,
+      DayLockSchema, [],
+      { label: "Get all day lock statuses" }
+    );
+    const lockMap = new Map<number, boolean>();
+    for (const dl of dayLocks) {
+      const match = dl.key.match(/survey_day_(\d+)_locked/);
+      if (match) lockMap.set(parseInt(match[1]), dl.value === "true");
+    }
+
     const allDayStatuses = Array.from({ length: numDays }, (_, i) => ({
       day_number: i + 1,
       submitted: statusMap.get(i + 1) ?? false,
+      locked: lockMap.get(i + 1) ?? false,
     }));
 
     // Team race progress for this day

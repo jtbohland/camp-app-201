@@ -25,7 +25,7 @@ const USEFULNESS_SCALE = [
 type SessionRating = { rating: number; usefulness: number; comment: string };
 type OverallRating = Record<string, number>;
 type OpenResponses = Record<string, string>;
-type DayStatus = { day_number: number; submitted: boolean };
+type DayStatus = { day_number: number; submitted: boolean; locked: boolean };
 type TeamProgress = { team_id: number; team_name: string; team_color: string | null; total_members: number; submitted_count: number };
 
 function CountdownTimer({ deadlineIso }: { deadlineIso: string }) {
@@ -245,13 +245,13 @@ export default function SurveyPage() {
               )}
               {isAdmin && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleToggleDayLock(ds.day_number, !isLocked || ds.day_number !== selectedDay); }}
+                  onClick={(e) => { e.stopPropagation(); handleToggleDayLock(ds.day_number, !ds.locked); }}
                   className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${
-                    (isSelected && isLocked) ? "bg-red-500 text-white" : "bg-muted text-muted-foreground hover:bg-primary hover:text-white"
+                    ds.locked ? "bg-red-500 text-white" : "bg-camp-green/80 text-white hover:bg-camp-green"
                   }`}
-                  title={isSelected && isLocked ? "Unlock this day" : "Lock this day"}
+                  title={ds.locked ? `Unlock Day ${ds.day_number}` : `Lock Day ${ds.day_number}`}
                 >
-                  <Icon icon={isSelected && isLocked ? "lock" : "unlock"} className="w-3 h-3" />
+                  <Icon icon={ds.locked ? "lock" : "lock-open"} className="w-3 h-3" />
                 </button>
               )}
             </button>
