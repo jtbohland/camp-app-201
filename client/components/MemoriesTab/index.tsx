@@ -29,13 +29,7 @@ export default function MemoriesTab() {
     viewer_camper_id: camperId || null,
   }, { enabled: camperId > 0 });
 
-  // Also get legacy gallery photos
-  const { data: galleryData } = useApiData("GetGallery", {
-    day_number: dayFilter === "all" ? null : Number(dayFilter),
-  });
-
   const memories = data?.memories ?? [];
-  const galleryPhotos = galleryData?.photos ?? [];
 
   if (loading) {
     return (
@@ -46,7 +40,7 @@ export default function MemoriesTab() {
     );
   }
 
-  const totalCount = memories.length + galleryPhotos.length;
+  const totalCount = memories.length;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -86,31 +80,9 @@ export default function MemoriesTab() {
       <div className={`space-y-4 ${fetching ? "opacity-70" : ""}`}>
         {fetching && <p className="text-xs text-muted-foreground">Updating…</p>}
 
-        {/* New memories from camp201_memories */}
+        {/* Unified feed: memories + legacy gallery photos */}
         {memories.map((m: any) => (
           <MemoryCard key={`m-${m.id}`} memory={m} camperId={camperId} onReacted={refetch} />
-        ))}
-
-        {/* Legacy gallery photos (no reactions) */}
-        {galleryPhotos.map((p: any) => (
-          <Card key={`g-${p.id}`} className="p-4 bg-card border">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-700/30 flex items-center justify-center">
-                <Icon icon="user" className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{p.uploaded_by_name}</p>
-                <p className="text-[10px] text-muted-foreground">Day {p.day_number ?? "?"}</p>
-              </div>
-              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                📸 Photo
-              </span>
-            </div>
-            <div className="rounded-lg overflow-hidden mb-2">
-              <img src={p.image_url} alt={p.caption ?? "Camp photo"} className="w-full max-h-80 object-cover" loading="lazy" />
-            </div>
-            {p.caption && <p className="text-xs text-muted-foreground">{p.caption}</p>}
-          </Card>
         ))}
 
         {totalCount === 0 && (

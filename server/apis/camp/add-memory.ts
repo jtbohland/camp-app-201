@@ -17,6 +17,7 @@ export default api({
     success: z.boolean(),
     memory_id: z.number(),
     badge_awarded: z.boolean(),
+    points_awarded: z.number(),
   }),
   async run(ctx, input) {
     // Get active cohort
@@ -45,60 +46,74 @@ export default api({
       { label: "Insert memory" }
     );
 
-    // Award KINDling badge on first photo upload
+    // Check if this is their first of this type
+    const CountSchema = z.object({ cnt: z.coerce.number() });
+    const countRows = await ctx.integrations.apps_database.query(
+      `SELECT COUNT(*)::int as cnt FROM camp201_memories WHERE camper_id = $1 AND memory_type = $2`,
+      CountSchema,
+      [input.camper_id, input.memory_type],
+      { label: "Count memories of this type" }
+    );
+    const countOfType = countRows[0]?.cnt ?? 0;
+
+    let pointsAwarded = 0;
+
+    // +2 points for first photo, +1 point for first text memory
+    if (countOfType === 1) {
+      const pts = input.memory_type === "photo" ? 2 : 1;
+      await ctx.integrations.apps_database.execute(
+        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
+        [pts, input.camper_id],
+        { label: `Award ${pts} pts for first ${input.memory_type} memory` }
+      );
+      await ctx.integrations.apps_database.execute(
+        `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
+        [input.camper_id, pts, `First ${input.memory_type} shared to Memories`],
+        { label: "Log memory points" }
+      );
+      pointsAwarded = pts;
+    }
+
+    // KINDling badge: requires BOTH a photo AND a text memory
     let badgeAwarded = false;
-    if (input.memory_type === "photo") {
-      // Find KINDling badge ID
+    const hasPhotos = await ctx.integrations.apps_database.query(
+      `SELECT 1 FROM camp201_memories WHERE camper_id = $1 AND memory_type = 'photo' LIMIT 1`,
+      z.object({}),
+      [input.camper_id],
+      { label: "Check has photos" }
+    );
+    const hasTexts = await ctx.integrations.apps_database.query(
+      `SELECT 1 FROM camp201_memories WHERE camper_id = $1 AND memory_type = 'text' LIMIT 1`,
+      z.object({}),
+      [input.camper_id],
+      { label: "Check has texts" }
+    );
+
+    if (hasPhotos.length > 0 && hasTexts.length > 0) {
       const badge = await ctx.integrations.apps_database.query(
         `SELECT id FROM camp201_badges WHERE name = 'KINDling' LIMIT 1`,
         z.object({ id: z.coerce.number() }),
         undefined,
         { label: "Find KINDling badge" }
       );
-
       if (badge.length > 0) {
-        const kindlingId = badge[0].id;
-
-        // Check if already awarded
         const existing = await ctx.integrations.apps_database.query(
           `SELECT id FROM camp201_camper_badges WHERE camper_id = $1 AND badge_id = $2 LIMIT 1`,
           z.object({ id: z.coerce.number() }),
-          [input.camper_id, kindlingId],
-          { label: "Check existing KINDling badge" }
+          [input.camper_id, badge[0].id],
+          { label: "Check existing KINDling" }
         );
-
         if (existing.length === 0) {
           await ctx.integrations.apps_database.execute(
             `INSERT INTO camp201_camper_badges (camper_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [input.camper_id, kindlingId],
+            [input.camper_id, badge[0].id],
             { label: "Award KINDling badge" }
           );
-
-          // Award badge points (5 pts)
-          const badgePoints = await ctx.integrations.apps_database.query(
-            `SELECT points_reward FROM camp201_badges WHERE id = $1 LIMIT 1`,
-            z.object({ points_reward: z.coerce.number() }),
-            [kindlingId],
-            { label: "Get KINDling points" }
-          );
-          const pts = badgePoints[0]?.points_reward ?? 0;
-          if (pts > 0) {
-            await ctx.integrations.apps_database.execute(
-              `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-              [pts, input.camper_id],
-              { label: "Award KINDling points" }
-            );
-            await ctx.integrations.apps_database.execute(
-              `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
-              [input.camper_id, pts, "KINDling badge — first photo shared to Memories"],
-              { label: "Log KINDling points" }
-            );
-          }
           badgeAwarded = true;
         }
       }
     }
 
-    return { success: true, memory_id: result[0].id, badge_awarded: badgeAwarded };
+    return { success: true, memory_id: result[0].id, badge_awarded: badgeAwarded, points_awarded: pointsAwarded };
   },
 });
