@@ -42,9 +42,13 @@ export default function ProgressTrackers({ badges }: { badges: BadgeData[] }) {
         <h3 className="text-sm font-semibold text-foreground">Your Progress</h3>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {repeatableBadges.map((b) => (
-          <TrackerCard key={b.name} badge={b} />
-        ))}
+        {repeatableBadges.map((b) =>
+          b.name === "Survey Complete" ? (
+            <SurveyTrackerCard key={b.name} badge={b} />
+          ) : (
+            <TrackerCard key={b.name} badge={b} />
+          )
+        )}
       </div>
     </div>
   );
@@ -113,6 +117,61 @@ function TrackerCard({ badge }: { badge: BadgeData }) {
             +{nextTier.bonus} bonus
           </span>
         )}
+      </div>
+    </Card>
+  );
+}
+
+const SURVEY_DAYS = [
+  { day: 1, pts: 2 },
+  { day: 2, pts: 4 },
+  { day: 3, pts: 6 },
+  { day: 4, pts: 8 },
+  { day: 5, pts: 10 },
+];
+
+function SurveyTrackerCard({ badge }: { badge: BadgeData }) {
+  const count = badge.earn_count;
+  const nextDay = SURVEY_DAYS.find((d) => d.day > count);
+  const currentDay = count > 0 ? SURVEY_DAYS.find((d) => d.day === count) : null;
+  const progressPct = Math.min(100, (count / 5) * 100);
+  const isComplete = count >= 5;
+
+  return (
+    <Card className="p-3 bg-card border">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-7 h-7 rounded-lg bg-muted/40 flex items-center justify-center">
+          <Icon icon={badge.icon as IconName} className="w-3.5 h-3.5 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground truncate">{badge.name}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {currentDay ? `${currentDay.pts} pts earned today` : "Submit survey to earn"}
+          </p>
+        </div>
+        <span className="text-sm font-bold text-foreground">{count}/5</span>
+      </div>
+
+      {/* Day dots */}
+      <div className="flex items-center gap-1.5 mb-1.5">
+        {SURVEY_DAYS.map((d) => (
+          <div key={d.day} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className={`w-full h-2 rounded-full ${count >= d.day ? "bg-teal-500" : "bg-muted/30"}`} />
+            <span className={`text-[8px] ${count >= d.day ? "text-teal-400 font-bold" : "text-muted-foreground"}`}>
+              +{d.pts}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between">
+        {isComplete ? (
+          <span className="text-[9px] font-bold text-teal-400">ALL SURVEYS DONE ⭐</span>
+        ) : nextDay ? (
+          <span className="text-[9px] text-muted-foreground">
+            Day {nextDay.day} → +{nextDay.pts} pts
+          </span>
+        ) : null}
       </div>
     </Card>
   );

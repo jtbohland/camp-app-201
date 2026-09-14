@@ -181,17 +181,27 @@ export default api({
     let firstTeam = false;
 
     if (teamId) {
-      const TeamStatusSchema = z.object({ checked_in: z.coerce.number(), total: z.coerce.number() });
+      // Count checked-in members, total team members, and absent members with approved requests
+      const TeamStatusSchema = z.object({ checked_in: z.coerce.number(), total: z.coerce.number(), absent_approved: z.coerce.number() });
       const teamStatus = await ctx.integrations.apps_database.query(
         `SELECT
           (SELECT COUNT(*) FROM camp201_checkin_responses WHERE session_id = $1 AND team_id = $2) as checked_in,
-          (SELECT COUNT(*) FROM camp201_campers WHERE team_id = $2 AND role != 'counselor') as total`,
+          (SELECT COUNT(*) FROM camp201_campers WHERE team_id = $2 AND role != 'counselor') as total,
+          (SELECT COUNT(DISTINCT ar.camper_id)
+           FROM camp201_absence_requests ar
+           JOIN camp201_campers c2 ON c2.id = ar.camper_id
+           WHERE c2.team_id = $2
+             AND ar.status = 'approved'
+             AND ar.start_time <= NOW()
+             AND ar.end_time >= NOW()
+          ) as absent_approved`,
         TeamStatusSchema,
         [session_id, teamId],
-        { label: "Check team completion" }
+        { label: "Check team completion (with absences)" }
       );
 
-      if (teamStatus.length > 0 && teamStatus[0].checked_in >= teamStatus[0].total && teamStatus[0].total > 0) {
+      const effectiveTotal = teamStatus[0].total - teamStatus[0].absent_approved;
+      if (teamStatus.length > 0 && teamStatus[0].checked_in >= effectiveTotal && effectiveTotal > 0) {
         teamComplete = true;
 
         // Check if this is the first team to complete

@@ -43,24 +43,35 @@ export default api({
     })),
   }),
   async run(ctx, { day_filter, viewer_camper_id }) {
-    const dayClause = day_filter ? `AND m.day_number = ${day_filter}` : "";
+    const dayClause = day_filter ? `AND combined.day_number = ${day_filter}` : "";
 
+    // UNION camp201_memories with legacy camp201_gallery into one feed
     const rows = await ctx.integrations.apps_database.query(
-      `SELECT m.id, m.camper_id, m.memory_type, m.content, m.image_url, m.day_number,
-              m.created_at::text, c.first_name, c.last_name, c.photo_url,
-              (SELECT json_agg(json_build_object('emoji', sub.emoji, 'count', sub.cnt,
-                'reacted', COALESCE((SELECT true FROM camp201_memory_reactions r2
-                  WHERE r2.memory_id = m.id AND r2.emoji = sub.emoji AND r2.camper_id = ${viewer_camper_id ?? 0}), false)))
-               FROM (SELECT emoji, COUNT(*) as cnt FROM camp201_memory_reactions WHERE memory_id = m.id GROUP BY emoji) sub
-              )::text as reactions
-       FROM camp201_memories m
-       JOIN camp201_campers c ON c.id = m.camper_id
-       WHERE 1=1 ${dayClause}
-       ORDER BY m.created_at DESC
-       LIMIT 50`,
+      `WITH combined AS (
+        SELECT m.id, m.camper_id, m.memory_type, m.content, m.image_url, m.day_number, m.created_at
+        FROM camp201_memories m
+        UNION ALL
+        SELECT -(g.id) as id, g.uploaded_by as camper_id, 'photo' as memory_type, g.caption as content,
+               g.image_url, g.day_number, g.created_at
+        FROM camp201_gallery g
+      )
+      SELECT combined.id, combined.camper_id, combined.memory_type, combined.content, combined.image_url,
+             combined.day_number, combined.created_at::text, c.first_name, c.last_name, c.photo_url,
+             CASE WHEN combined.id > 0 THEN
+               (SELECT json_agg(json_build_object('emoji', sub.emoji, 'count', sub.cnt,
+                 'reacted', COALESCE((SELECT true FROM camp201_memory_reactions r2
+                   WHERE r2.memory_id = combined.id AND r2.emoji = sub.emoji AND r2.camper_id = ${viewer_camper_id ?? 0}), false)))
+                FROM (SELECT emoji, COUNT(*) as cnt FROM camp201_memory_reactions WHERE memory_id = combined.id GROUP BY emoji) sub
+               )::text
+             ELSE NULL END as reactions
+      FROM combined
+      JOIN camp201_campers c ON c.id = combined.camper_id
+      WHERE 1=1 ${dayClause}
+      ORDER BY combined.created_at DESC
+      LIMIT 50`,
       MemorySchema,
       undefined,
-      { label: "Fetch memories feed" }
+      { label: "Fetch unified memories + gallery feed" }
     );
 
     const EMOJI_LIST = ["❤️", "🙌", "🥹", "😂", "🔥"];
