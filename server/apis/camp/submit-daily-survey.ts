@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { getSurveyPoints, BADGE_IDS } from "../../lib/accelerator.js";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 const LATE_PENALTY = -3;
@@ -36,6 +37,19 @@ export default api({
     team_race_bonus: z.number(),
   }),
   async run(ctx, input) {
+    // Check camp closed — allow if final_survey_unlocked, but flag for zero-point mode
+    let isFinalSurvey = false;
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      const finalUnlocked = await ctx.integrations.apps_database.query(
+        `SELECT value FROM camp201_config WHERE key = 'final_survey_unlocked' LIMIT 1`,
+        z.object({ value: z.string() }), undefined, { label: "Check final survey unlock" }
+      );
+      if (finalUnlocked.length > 0 && finalUnlocked[0].value === "true") {
+        isFinalSurvey = true; // Allow submission but skip all point logic
+      } else {
+        throw new Error("cAMP is closed — surveys are no longer accepted.");
+      }
+    }
     const cohortFilter = `(SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)`;
     const CohortSchema = z.object({ id: z.coerce.number() });
     const ConfigSchema = z.object({ value: z.string() });
@@ -151,7 +165,10 @@ export default api({
     }
 
     // Award/deduct individual points
-    const netPoints = pointsAwarded + latePenalty;
+    const netPoints = isFinalSurvey ? 0 : pointsAwarded + latePenalty;
+
+// Skip all point/badge logic for final survey (post-close, zero-impact)
+if (!isFinalSurvey) {
 
 // Award Survey Complete badge (earn_count only, no accelerator points — surveys use escalating)
 if (onTime) {
@@ -193,8 +210,12 @@ if (pointsAwarded > 0) {
       );
     }
 
+} // end if (!isFinalSurvey)
+
     // Team race check: did this submission complete the team?
     let teamRaceBonusResult = 0;
+
+    if (!isFinalSurvey) {
     const CamperTeamSchema = z.object({ team_id: z.coerce.number() });
     const camperTeam = await ctx.integrations.apps_database.query(
       `SELECT team_id FROM camp201_campers WHERE id = $1 AND team_id IS NOT NULL LIMIT 1`,
@@ -251,6 +272,7 @@ if (pointsAwarded > 0) {
         }
       }
     }
+    } // end team race (!isFinalSurvey)
 
     const finalBonus = typeof teamRaceBonusResult === "number" ? teamRaceBonusResult : 0;
 

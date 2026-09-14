@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -13,6 +14,9 @@ export default api({
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, { voter_id, nominee_id, note }) {
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      throw new Error("cAMP is closed — voting is no longer accepted.");
+    }
     if (voter_id === nominee_id) throw new Error("You cannot vote for yourself");
     await ctx.integrations.apps_database.execute(
       `INSERT INTO camp201_spirit_votes (voter_id, nominee_id, note, cohort_id)

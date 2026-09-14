@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -24,6 +25,9 @@ export default api({
     points_awarded: z.number(),
   }),
   async run(ctx, { template_id, team_id, scored_by, scores, notes }) {
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      return { success: false, score_id: 0, total_score: 0, max_score: 0, points_awarded: 0 };
+    }
     // Get the template to know max score and points to award
     const TemplateSchema = z.object({
       max_total_points: z.coerce.number(),
@@ -85,6 +89,35 @@ export default api({
     await awardRubricImprovementBonus(
       ctx.integrations.apps_database, team_id, totalScore, template.max_total_points, cohortId
     );
+
+    // ─── Check if all Mini EBR scores are in → set camp_ready_to_close ───
+    const MINI_EBR_TEMPLATE_ID = 100;
+    if (template_id === MINI_EBR_TEMPLATE_ID && cohortId) {
+      const CountSchema = z.object({ count: z.coerce.number() });
+      // Count counselors in cohort
+      const counselorResult = await ctx.integrations.apps_database.query(
+        `SELECT COUNT(*)::int as count FROM camp201_campers WHERE role = 'counselor' AND cohort_id = $1`,
+        CountSchema, [cohortId], { label: "Count counselors for close check" }
+      );
+      // Count teams (non-test)
+      const teamResult = await ctx.integrations.apps_database.query(
+        `SELECT COUNT(*)::int as count FROM camp201_teams WHERE cohort_id = $1 AND name != 'TEST'`,
+        CountSchema, [cohortId], { label: "Count teams for close check" }
+      );
+      // Count Mini EBR scores submitted
+      const scoreResult = await ctx.integrations.apps_database.query(
+        `SELECT COUNT(*)::int as count FROM camp201_rubric_scores WHERE template_id = $1 AND cohort_id = $2`,
+        CountSchema, [MINI_EBR_TEMPLATE_ID, cohortId], { label: "Count Mini EBR scores" }
+      );
+      const needed = counselorResult[0].count * teamResult[0].count;
+      if (needed > 0 && scoreResult[0].count >= needed) {
+        await ctx.integrations.apps_database.execute(
+          `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_ready_to_close', 'true', NOW())
+           ON CONFLICT (key) DO UPDATE SET value = 'true', updated_at = NOW()`,
+          undefined, { label: "Set camp_ready_to_close" }
+        );
+      }
+    }
 
     return {
       success: true,

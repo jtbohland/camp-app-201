@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -20,6 +21,9 @@ export default api({
     points_awarded: z.number(),
   }),
   async run(ctx, input) {
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      return { success: false, memory_id: 0, badge_awarded: false, points_awarded: 0 };
+    }
     // Get active cohort
     const cohort = await ctx.integrations.apps_database.query(
       `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,

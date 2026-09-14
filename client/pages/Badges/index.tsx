@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
+import { useApiData } from "@/hooks/useApiData.js";
 import BadgesTab from "@/components/BadgesTab/index.js";
 import XPlanationTab from "@/components/XPlanationTab/index.js";
 
@@ -12,6 +13,12 @@ const tabs: { id: TabId; label: string; icon: string }[] = [
 
 export default function BadgesPage() {
   const [activeTab, setActiveTab] = useState<TabId>("xplanation");
+
+  // Camp close awareness — lock badges until all leaderboards revealed
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 10000 });
+  const campClosed = closeStatus?.camp_closed ?? false;
+  const vpRevealed = closeStatus?.vp_revealed ?? false;
+  const badgesLocked = campClosed && !vpRevealed;
 
   return (
     <div className="flex flex-col h-full w-full overflow-auto">
@@ -48,9 +55,23 @@ export default function BadgesPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 p-6">
-        {activeTab === "badges" && <BadgesTab />}
-        {activeTab === "xplanation" && <XPlanationTab />}
+      <div className="flex-1 p-6 relative">
+        {activeTab === "badges" && badgesLocked ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center p-6">
+              <div className="text-4xl mb-3">🏕️</div>
+              <h3 className="font-bold text-lg text-foreground">Badges Locked</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                cAMP has closed! Final badges and standings are being revealed during the podium ceremony. Check back soon!
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {activeTab === "badges" && <BadgesTab />}
+            {activeTab === "xplanation" && <XPlanationTab />}
+          </>
+        )}
       </div>
     </div>
   );

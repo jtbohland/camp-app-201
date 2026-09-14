@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import HireCard from "@/components/HireCard";
+import { Card } from "@/components/ui/card";
 
 export default function ManagerDashboard() {
   const user = useSuperblocksUser();
@@ -58,8 +59,26 @@ export default function ManagerDashboard() {
   const totalCampers = dashboard?.total_campers ?? 0;
   const totalSurveys = dashboard?.total_surveys ?? 0;
 
+  // Check if camp is closed
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 30000 });
+  const campClosed = closeStatus?.camp_closed ?? false;
+
   return (
     <div className="flex flex-col gap-6 p-8 max-w-4xl overflow-auto">
+      {/* Camp Closed Banner */}
+      {campClosed && (
+        <Card className="p-4 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">🏕️</div>
+            <div>
+              <h3 className="font-semibold text-sm text-amber-900">cAMP 201 Has Concluded</h3>
+              <p className="text-xs text-amber-700 mt-0.5">
+                All points and standings are final. Check your cAMPer's graduation page for their full results!
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
       {/* Header */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 p-8 text-white">
         <div className="absolute top-0 right-0 opacity-10">

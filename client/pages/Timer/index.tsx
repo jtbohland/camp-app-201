@@ -4,6 +4,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { Icon } from "@/components/ui/icon";
 import { toast } from "sonner";
+import { useTimerContext } from "@/components/TimerContext/index.js";
 
 type SoundOption = { label: string; emoji: string; play: () => void };
 
@@ -99,15 +100,39 @@ const TIMER_MODES = [
 ];
 
 export default function TimerPage() {
-  const [totalSeconds, setTotalSeconds] = useState(600);
-  const [remaining, setRemaining] = useState(600);
-  const [running, setRunning] = useState(false);
-  const [finished, setFinished] = useState(false);
+  // Read global timer context to restore state when returning to this page
+  const timerCtx = useTimerContext();
+  const ctxState = timerCtx.state;
+
+  const [totalSeconds, setTotalSeconds] = useState(() => ctxState.totalSeconds || 600);
+  const [remaining, setRemaining] = useState(() => ctxState.remaining || 600);
+  const [running, setRunning] = useState(() => ctxState.running);
+  const [finished, setFinished] = useState(() => ctxState.finished);
   const [soundIndex, setSoundIndex] = useState(0);
-  const [checkinLabel, setCheckinLabel] = useState("Morning");
+  const [checkinLabel, setCheckinLabel] = useState(() => ctxState.label || "Morning");
   const [timerMode, setTimerMode] = useState("morning");
   const currentMode = TIMER_MODES.find((m) => m.value === timerMode);
   const isCheckinMode = currentMode?.checkin ?? false;
+
+  // While Timer page is mounted, disable context's interval (this page's interval is source of truth).
+  // On unmount, re-enable context interval by pushing current local state with `running` intact.
+  const localStateRef = useRef({ running: false, remaining: 600, totalSeconds: 600, finished: false, label: "" });
+  useEffect(() => {
+    // On mount: stop context interval
+    timerCtx.setTimerState({ running: false });
+    return () => {
+      // On unmount: hand off to context
+      const s = localStateRef.current;
+      timerCtx.setTimerState({ running: s.running, remaining: s.remaining, totalSeconds: s.totalSeconds, finished: s.finished, label: s.label });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep ref in sync with local state (for unmount handoff)
+  useEffect(() => {
+    localStateRef.current = { running, remaining, totalSeconds, finished, label: checkinLabel || currentMode?.label || "" };
+    // Also update context state (but keep context running=false so its interval stays off)
+    timerCtx.setTimerState({ running: false, remaining, totalSeconds, finished, label: checkinLabel || currentMode?.label || "" });
+  }, [running, remaining, totalSeconds, finished, checkinLabel, currentMode?.label]);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundsRef = useRef<SoundOption[]>([]);

@@ -179,6 +179,11 @@ import SetupMemories from './camp/setup-memories.js';
 import GetMemories from './camp/get-memories.js';
 import AddMemory from './camp/add-memory.js';
 import ToggleMemoryReaction from './camp/toggle-memory-reaction.js';
+import GetCloseCampStatus from './camp/get-close-camp-status.js';
+import CloseCamp from './camp/close-camp.js';
+import RevealTeamStanding from './camp/reveal-team-standing.js';
+import RevealCampVP from './camp/reveal-camp-vp.js';
+import ToggleFinalSurvey from './camp/toggle-final-survey.js';
 
 const apis = {
   SetupDatabase,
@@ -356,6 +361,11 @@ const apis = {
   GetMemories,
   AddMemory,
   ToggleMemoryReaction,
+  GetCloseCampStatus,
+  CloseCamp,
+  RevealTeamStanding,
+  RevealCampVP,
+  ToggleFinalSurvey,
 } as const;
 
 export default apis;
