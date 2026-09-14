@@ -15,7 +15,7 @@ const HIDDEN_IDS = new Set([7, 8, 9, 103]); // Team Player, Campfire Storyteller
 const DAILY_IDS = [133, 134, 136, 137, 135]; // Check-In, Survey, Hub Post, Q&A, Peer Feedback
 
 // Special award IDs
-const SPECIAL_IDS = new Set([11, 12, 34, 105]); // Camp Spirit, Innovation Award, Wheel Dealer, Alpine Legend
+const SPECIAL_IDS = new Set([199, 11, 12, 34, 105]); // cAMP-V-P, Camp Spirit, Innovation Award, Wheel Dealer, Alpine Legend
 
 // Achievement trail grouping
 const ACHIEVEMENT_GROUPS: { label: string; icon: IconName; color: string; ids: number[] }[] = [

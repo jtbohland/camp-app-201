@@ -19,12 +19,14 @@ const GLOW: Record<string, string> = {
   rose:   "from-rose-500/20 via-rose-400/10 to-transparent border-rose-400/30",
   cyan:   "from-cyan-500/20 via-cyan-400/10 to-transparent border-cyan-400/30",
   orange: "from-orange-500/20 via-orange-400/10 to-transparent border-orange-400/30",
+  amber:  "from-amber-500/20 via-amber-400/10 to-transparent border-amber-400/30",
 };
 
 const ICON_BG: Record<string, string> = {
   rose:   "bg-rose-500 ring-rose-400/40",
   cyan:   "bg-cyan-500 ring-cyan-400/40",
   orange: "bg-orange-500 ring-orange-400/40",
+  amber:  "bg-amber-500 ring-amber-400/40",
 };
 
 export default function SpecialAwards({ awards }: Props) {

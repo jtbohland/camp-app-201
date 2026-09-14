@@ -8,6 +8,7 @@ const PEAK_PERFORMER_ID = 3;  // 250+ points
 const LEGEND_LAKE_ID = 4;     // 500+ points
 const CAMP_SPIRIT_ID = 11;    // Peer-voted (already awarded before close)
 const WHEEL_DEALER_ID = 34;   // Top of W&D leaderboard
+const CAMP_VP_ID = 199;       // cAMP-V-P (most individual points)
 const ALPINE_LEGEND_ID = 105; // cAMP-V-P + Wheel Dealer + Camp Spirit
 
 const MILESTONE_BADGES = [
@@ -192,6 +193,15 @@ export default api({
          ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
         [String(campVp.camper_id)],
         { label: "Store cAMP-V-P" }
+      );
+
+      // Award cAMP-V-P badge
+      await ctx.integrations.apps_database.execute(
+        `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, earn_count)
+         VALUES ($1, $2, NOW(), 1)
+         ON CONFLICT (camper_id, badge_id) DO NOTHING`,
+        [campVp.camper_id, CAMP_VP_ID],
+        { label: "Award cAMP-V-P badge" }
       );
     }
 
