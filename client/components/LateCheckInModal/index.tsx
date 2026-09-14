@@ -107,6 +107,9 @@ export default function LateCheckInModal({ camperId, isAdmin }: Props) {
             {loading ? "Checking in..." : "Check In Late (-2 pts)"}
           </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground text-center mt-3">
+          Check-in is required — you must submit your PIN before continuing.
+        </p>
       </div>
     </div>
   );

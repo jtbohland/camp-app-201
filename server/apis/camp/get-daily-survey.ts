@@ -110,13 +110,13 @@ export default api({
       deadline.setHours(9, 0, 0, 0);
       deadlineIso = deadline.toISOString();
 
-      // Grace: 10am PT (1 hour after deadline)
+      // Grace deadline kept for display (shows "Due 9am PT" countdown)
       const grace = new Date(deadline);
       grace.setHours(10, 0, 0, 0);
       graceDeadlineIso = grace.toISOString();
 
-      // Lock if past grace period OR manually locked by counselor
-      locked = new Date() > grace || manuallyLocked;
+      // Lock is now purely manual — counselors control when each day locks
+      locked = manuallyLocked;
     }
 
     // Get day statuses (which days has this camper submitted)

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { useApiData } from "@/hooks/useApiData";
@@ -10,7 +10,6 @@ type Props = {
 };
 
 export default function LateSurveyModal({ camperId, isAdmin }: Props) {
-  const [dismissedDays, setDismissedDays] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -29,19 +28,13 @@ export default function LateSurveyModal({ camperId, isAdmin }: Props) {
   // Find first locked + incomplete day that hasn't been dismissed
   const dayStatuses: Array<{ day_number: number; submitted: boolean; locked: boolean }> = (data as any)?.day_statuses ?? [];
   const missedDay = dayStatuses.find(
-    (ds) => ds.locked && !ds.submitted && !dismissedDays.has(ds.day_number)
+    (ds) => ds.locked && !ds.submitted
   );
 
   const handleGoToSurvey = useCallback(() => {
     if (!missedDay) return;
     navigate(`/survey?late=true&day=${missedDay.day_number}`);
-    setDismissedDays((prev) => new Set(prev).add(missedDay.day_number));
   }, [missedDay, navigate]);
-
-  const handleDismiss = useCallback(() => {
-    if (!missedDay) return;
-    setDismissedDays((prev) => new Set(prev).add(missedDay.day_number));
-  }, [missedDay]);
 
   if (!missedDay) return null;
 
@@ -78,14 +71,10 @@ export default function LateSurveyModal({ camperId, isAdmin }: Props) {
             <Icon icon="clipboard-list" className="w-4 h-4 mr-2" />
             Complete Day {missedDay.day_number} Survey (Late)
           </Button>
-          <Button
-            variant="ghost"
-            onClick={handleDismiss}
-            className="w-full text-muted-foreground"
-          >
-            Dismiss (-5 pts for missed survey)
-          </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground text-center mt-3">
+          This survey is required — you must complete it before continuing.
+        </p>
       </div>
     </div>
   );
