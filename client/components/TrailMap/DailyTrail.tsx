@@ -92,7 +92,10 @@ export default function DailyTrail({ badges }: Props) {
 
               {/* Points per earn */}
               <span className="text-[10px] text-muted-foreground mt-1">
-                {b.base_points} pts{tier > 0 ? ` +${[0,1,2,3,5][tier]} bonus` : ""} each
+                {b.id === 134
+                  ? "2→4→6→8→10 pts/day"
+                  : `${b.base_points} pts${tier > 0 ? ` +${[0,1,2,3,5][tier]} bonus` : ""} each`
+                }
               </span>
 
               {/* Tier pill */}
