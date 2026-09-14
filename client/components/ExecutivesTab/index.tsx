@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon";
 import ExecutiveCard from "@/components/ExecutiveCard/index.js";
 import ExecutiveDialog from "@/components/ExecutiveDialog/index.js";
 import ExecQAFeed from "@/components/ExecQAFeed/index.js";
+import { Button } from "@/components/ui/button";
 
 type Executive = {
   id: number;
@@ -31,6 +32,23 @@ export default function ExecutivesTab() {
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
   const { data: execData, loading: execLoading, fetching, refetch } = useApiData("GetExecutives", { active_only: !isAdmin });
   const loading = camperLoading || execLoading;
+
+  // Feature gate for Q&A
+  const { data: gatesData, refetch: refetchGates } = useApiData("GetFeatureGates", {}, { staleTime: 15000 });
+  const { run: updateGate, loading: togglingGate } = useApi("UpdateFeatureGate");
+  const qaGate = (gatesData?.gates ?? []).find((g: any) => g.feature_key === "exec_qa");
+  const qaLocked = qaGate?.is_locked ?? true;
+
+  const handleToggleQA = useCallback(async () => {
+    try {
+      await updateGate({ feature_key: "exec_qa", is_locked: !qaLocked, unlock_at: null });
+      toast.success(qaLocked ? "🔓 Q&A Unlocked" : "🔒 Q&A Locked");
+      refetchGates();
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
+      toast.error("Failed: " + msg);
+    }
+  }, [qaLocked, updateGate, refetchGates]);
 
   const handleAdd = useCallback(() => {
     setEditingExec(null);
@@ -94,12 +112,29 @@ export default function ExecutivesTab() {
   if (selectedExecForQA) {
     return (
       <div className="flex flex-col gap-6 p-6 w-full">
+        {isAdmin && (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleToggleQA}
+              disabled={togglingGate}
+              className={qaLocked
+                ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              }
+            >
+              <Icon icon={qaLocked ? "lock" : "lock-open"} className="w-3.5 h-3.5 mr-1.5" />
+              {togglingGate ? "..." : qaLocked ? "Q&A Locked" : "Q&A Open"}
+            </Button>
+          </div>
+        )}
         <ExecQAFeed
           executiveId={selectedExecForQA.id}
           executiveName={selectedExecForQA.name}
           camperId={camperData?.camper?.id ?? 0}
           camperTeamId={camperData?.camper?.team_id ?? null}
-          isLocked={false}
+          isLocked={qaLocked && !isAdmin}
           onBack={() => setSelectedExecForQA(null)}
         />
       </div>

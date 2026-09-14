@@ -1,8 +1,11 @@
 import { useState, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { useApiData } from "@/hooks/useApiData";
+import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import PresentationGrid from "@/components/PresentationGrid/index.js";
 import PresentationDetail from "@/components/PresentationDetail/index.js";
 import PeerFeedbackForm from "@/components/PeerFeedbackForm/index.js";
@@ -18,6 +21,23 @@ export default function PresentationsPage() {
   }, { enabled: !!user?.email });
 
   const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+
+  // Feature gate for peer feedback
+  const { data: gatesData, refetch: refetchGates } = useApiData("GetFeatureGates", {}, { staleTime: 15000 });
+  const { run: updateGate, loading: togglingGate } = useApi("UpdateFeatureGate");
+  const fbGate = (gatesData?.gates ?? []).find((g: any) => g.feature_key === "peer_feedback");
+  const feedbackLocked = fbGate?.is_locked ?? true;
+
+  const handleToggleFeedback = useCallback(async () => {
+    try {
+      await updateGate({ feature_key: "peer_feedback", is_locked: !feedbackLocked, unlock_at: null });
+      toast.success(feedbackLocked ? "🔓 Peer Feedback Unlocked" : "🔒 Peer Feedback Locked");
+      refetchGates();
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
+      toast.error("Failed: " + msg);
+    }
+  }, [feedbackLocked, updateGate, refetchGates]);
   const camperId = camperData?.camper?.id ?? 0;
   const camperTeamId = camperData?.camper?.team_id ?? 0;
 
@@ -79,7 +99,33 @@ export default function PresentationsPage() {
         <PresentationOrderStrip isAdmin={isAdmin} cohortId={1} />
 
         {/* Peer Feedback — cAMPfire Feedback */}
-        <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
+        <div className="relative">
+          {isAdmin && (
+            <div className="flex justify-end mb-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleToggleFeedback}
+                disabled={togglingGate}
+                className={feedbackLocked
+                  ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                }
+              >
+                <Icon icon={feedbackLocked ? "lock" : "lock-open"} className="w-3.5 h-3.5 mr-1.5" />
+                {togglingGate ? "..." : feedbackLocked ? "Feedback Locked" : "Feedback Open"}
+              </Button>
+            </div>
+          )}
+          {feedbackLocked && !isAdmin ? (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-muted-foreground text-sm">
+              <Icon icon="lock" className="w-4 h-4" />
+              Peer feedback will open during presentations
+            </div>
+          ) : (
+            <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
+          )}
+        </div>
 
         <div className={fetching ? "opacity-70" : ""}>
           <PresentationGrid
