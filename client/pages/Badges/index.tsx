@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData.js";
-import BadgesTab from "@/components/BadgesTab/index.js";
+import TrailMap from "@/components/TrailMap/index.js";
 import XPlanationTab from "@/components/XPlanationTab/index.js";
 
-type TabId = "badges" | "xplanation";
+type TabId = "xplanation" | "trailmap";
 
 const tabs: { id: TabId; label: string; icon: string }[] = [
   { id: "xplanation", label: "How Points Work", icon: "sparkles" },
-  { id: "badges", label: "My Badges", icon: "award" },
+  { id: "trailmap", label: "Trail Map", icon: "map" },
 ];
 
 export default function BadgesPage() {
@@ -27,11 +27,11 @@ export default function BadgesPage() {
         <div className="flex items-center gap-6 px-6 pt-5 pb-0">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Icon icon="award" className="w-6 h-6 text-amber-400" />
-              Badges & XP
+              <Icon icon="map" className="w-6 h-6 text-amber-400" />
+              Camp Trail Map
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Earn achievements and understand how points work
+              Your journey through cAMP — earn badges, climb tiers, unlock awards
             </p>
           </div>
         </div>
@@ -55,23 +55,25 @@ export default function BadgesPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 p-6 relative">
-        {activeTab === "badges" && badgesLocked ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center p-6">
-              <div className="text-4xl mb-3">🏕️</div>
-              <h3 className="font-bold text-lg text-foreground">Badges Locked</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                cAMP has closed! Final badges and standings are being revealed during the podium ceremony. Check back soon!
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {activeTab === "badges" && <BadgesTab />}
-            {activeTab === "xplanation" && <XPlanationTab />}
-          </>
-        )}
+      <div className="flex-1 p-6">
+        <div className="max-w-4xl mx-auto">
+          {activeTab === "xplanation" && <XPlanationTab />}
+          {activeTab === "trailmap" && (
+            badgesLocked ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center p-6">
+                  <div className="text-4xl mb-3">🏕️</div>
+                  <h3 className="font-bold text-lg text-foreground">Trail Map Locked</h3>
+                  <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                    cAMP has closed! Final badges and standings are being revealed during the podium ceremony. Check back soon!
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <TrailMap />
+            )
+          )}
+        </div>
       </div>
     </div>
   );

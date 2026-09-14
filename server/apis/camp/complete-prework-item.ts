@@ -27,6 +27,20 @@ export default api({
     let missing_links: { label: string; url: string }[] = [];
     let missing_profile_fields: string[] = [];
 
+    // Check if camp has started — prework earns 0 pts after camp_start_date
+    let campStarted = false;
+    const startDateResult = await ctx.integrations.apps_database.query(
+      `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
+      z.object({ value: z.string() }), undefined,
+      { label: "Check camp_start_date" }
+    );
+    if (startDateResult.length > 0 && startDateResult[0].value) {
+      const startDate = new Date(startDateResult[0].value);
+      if (!isNaN(startDate.getTime()) && new Date() >= startDate) {
+        campStarted = true;
+      }
+    }
+
     // === SPECIAL CASE: Registration/Profile completion ===
     if (item === "complete_registration") {
       const camperRows = await ctx.integrations.apps_database.query(
@@ -222,18 +236,21 @@ export default api({
         );
         penalty_applied = true;
       } else {
-        pointsAwarded = 5;
-        await ctx.integrations.apps_database.execute(
-          `UPDATE camp201_campers SET points = points + 5 WHERE id = $1`,
-          [user_id],
-          { label: "Award pre-work points" }
-        );
-        await ctx.integrations.apps_database.execute(
-          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-           VALUES ($1, 5, $2, 'system')`,
-          [user_id, `Pre-work completed: ${item}`],
-          { label: "Log pre-work points" }
-        );
+        // Award points only if camp hasn't started yet
+        if (!campStarted) {
+          pointsAwarded = 5;
+          await ctx.integrations.apps_database.execute(
+            `UPDATE camp201_campers SET points = points + 5 WHERE id = $1`,
+            [user_id],
+            { label: "Award pre-work points" }
+          );
+          await ctx.integrations.apps_database.execute(
+            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
+             VALUES ($1, 5, $2, 'system')`,
+            [user_id, `Pre-work completed: ${item}`],
+            { label: "Log pre-work points" }
+          );
+        }
       }
     }
 
