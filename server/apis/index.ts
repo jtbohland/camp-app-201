@@ -181,6 +181,7 @@ import AddMemory from './camp/add-memory.js';
 import ToggleMemoryReaction from './camp/toggle-memory-reaction.js';
 import GetCloseCampStatus from './camp/get-close-camp-status.js';
 import CloseCamp from './camp/close-camp.js';
+import SetupCheckinTeamRace from './camp/setup-checkin-team-race.js';
 import RevealTeamStanding from './camp/reveal-team-standing.js';
 import RevealCampVP from './camp/reveal-camp-vp.js';
 import ToggleFinalSurvey from './camp/toggle-final-survey.js';
@@ -363,6 +364,7 @@ const apis = {
   ToggleMemoryReaction,
   GetCloseCampStatus,
   CloseCamp,
+  SetupCheckinTeamRace,
   RevealTeamStanding,
   RevealCampVP,
   ToggleFinalSurvey,

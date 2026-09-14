@@ -47,15 +47,16 @@ const categories: PointCategory[] = [
   {
     icon: "log-in",
     title: "Check-Ins",
-    subtitle: "🚀 Accelerated — the more you check in early, the more each one is worth!",
+    subtitle: "Check-in window opens 5 min before the timer ends",
     color: "bg-emerald-500/10 text-emerald-600",
     items: [
-      { label: "Check in 10+ min early", points: "5 base", positive: true, note: "Earns a Check-In badge + accelerator bonus" },
-      { label: "Check in on time", points: "+3", positive: true },
+      { label: "Check in early (before timer hits 0)", points: "+5", positive: true, note: "Flat +5 every time — earns a Check-In badge" },
+      { label: "Check in on time (grace period)", points: "+3", positive: true, note: "1-minute grace after timer ends" },
       { label: "First team to all check in", points: "+5 team pts", positive: true, note: "Goes to team bonus points, not individual" },
       { label: "2nd team to check in", points: "+3 team pts", positive: true },
       { label: "3rd team", points: "+1 team pt", positive: true },
-      { label: "Check in late", points: "-2", positive: false },
+      { label: "4th+ teams", points: "0 team pts", positive: true },
+      { label: "Check in late (after grace)", points: "-2", positive: false, note: "Late campers get a prompt to check in with PIN" },
     ],
   },
   {

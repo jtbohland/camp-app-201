@@ -51,7 +51,8 @@ export default function CheckInModal({ camperId, onClose }: CheckInModalProps) {
       if (result && result.success) {
         setStep("success");
         const timingLabel = result.timing === "early" ? "🟢 Early!" : result.timing === "on_time" ? "🟡 On time" : "🔴 Late";
-        toast.success(`Checked in! ${timingLabel} (${result.points > 0 ? "+" : ""}${result.points} pts)${result.first_team ? " 🏆 Your team was FIRST!" : result.team_complete ? " ✅ Team complete!" : ""}`);
+        const placeLabel = result.team_place === 1 ? " 🏆 Your team was 1st!" : result.team_place === 2 ? " 🥈 2nd team!" : result.team_place === 3 ? " 🥉 3rd team!" : result.team_complete ? " ✅ Team complete!" : "";
+        toast.success(`Checked in! ${timingLabel} (${result.points > 0 ? "+" : ""}${result.points} pts)${placeLabel}`);
       } else if (result) {
         toast.error(result.error || "Check-in failed");
         if (result.error?.includes("word")) {
