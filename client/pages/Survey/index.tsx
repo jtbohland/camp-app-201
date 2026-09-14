@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import SessionScorecard from "@/components/SessionScorecard/index.js";
 import CampSpiritVote from "@/components/CampSpiritVote/index.js";
@@ -25,7 +26,7 @@ const USEFULNESS_SCALE = [
 type SessionRating = { rating: number; usefulness: number; comment: string };
 type OverallRating = Record<string, number>;
 type OpenResponses = Record<string, string>;
-type DayStatus = { day_number: number; submitted: boolean };
+type DayStatus = { day_number: number; submitted: boolean; locked: boolean };
 type TeamProgress = { team_id: number; team_name: string; team_color: string | null; total_members: number; submitted_count: number };
 
 function CountdownTimer({ deadlineIso }: { deadlineIso: string }) {
@@ -95,7 +96,10 @@ function TeamRaceBoard({ teams, dayNumber }: { teams: TeamProgress[]; dayNumber:
 
 export default function SurveyPage() {
   const user = useSuperblocksUser();
-  const [selectedDay, setSelectedDay] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lateMode = searchParams.get("late") === "true";
+  const lateDayParam = searchParams.get("day");
+  const [selectedDay, setSelectedDay] = useState(lateDayParam ? parseInt(lateDayParam) : 1);
   const [submitted, setSubmitted] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ points: number; late: boolean; teamBonus: number } | null>(null);
 
@@ -126,6 +130,7 @@ export default function SurveyPage() {
   const [overallOpen, setOverallOpen] = useState<OpenResponses>({});
 
   const { run: submitSurvey, loading: submitting } = useApi("SubmitDailySurvey");
+  const { run: toggleDayLock } = useApi("ToggleSurveyDayLock");
 
   const handleDayChange = useCallback((day: number) => {
     setSelectedDay(day);
@@ -136,6 +141,17 @@ export default function SurveyPage() {
     setSubmitted(false);
     setSubmitResult(null);
   }, []);
+
+  const handleToggleDayLock = useCallback(async (day: number, lock: boolean) => {
+    try {
+      await toggleDayLock({ day_number: day, locked: lock });
+      toast.success(`Day ${day} survey ${lock ? "locked" : "unlocked"}`);
+      refetch();
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
+      toast.error(msg);
+    }
+  }, [toggleDayLock, refetch]);
 
   const updateSessionRating = useCallback((sessionId: number, val: SessionRating) => {
     setSessionRatings(prev => ({ ...prev, [sessionId]: val }));
@@ -220,7 +236,7 @@ export default function SurveyPage() {
             <button
               key={ds.day_number}
               onClick={() => handleDayChange(ds.day_number)}
-              className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
+              className={`relative flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
                 isSelected ? "border-primary bg-primary/5" : isDone ? "border-camp-green/40 bg-camp-green/5" : "border-border hover:border-border/80"
               }`}
             >
@@ -230,6 +246,17 @@ export default function SurveyPage() {
                 <Icon icon="check-circle" className="w-4 h-4 text-camp-green" />
               ) : (
                 <Icon icon="circle" className="w-4 h-4 text-muted-foreground/30" />
+              )}
+              {isAdmin && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleToggleDayLock(ds.day_number, !ds.locked); }}
+                  className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${
+                    ds.locked ? "bg-red-500 text-white" : "bg-camp-green/80 text-white hover:bg-camp-green"
+                  }`}
+                  title={ds.locked ? `Unlock Day ${ds.day_number}` : `Lock Day ${ds.day_number}`}
+                >
+                  <Icon icon={ds.locked ? "lock" : "lock-open"} className="w-3 h-3" />
+                </button>
               )}
             </button>
           );
@@ -271,7 +298,7 @@ export default function SurveyPage() {
             </div>
           )}
         </Card>
-      ) : (isLocked && !isAdmin) ? (
+      ) : (isLocked && !isAdmin && !lateMode) ? (
         <Card className="p-8 text-center border-red-200">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-red-50 mb-4">
             <Icon icon="lock" className="w-8 h-8 text-red-400" />
@@ -290,6 +317,19 @@ export default function SurveyPage() {
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
+          {/* Late submission banner */}
+          {lateMode && isLocked && (
+            <Card className="p-4 border-amber-300 bg-amber-50/50">
+              <div className="flex items-center gap-3">
+                <Icon icon="alert-triangle" className="w-5 h-5 text-amber-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Late Submission</p>
+                  <p className="text-xs text-amber-700">This survey is past its deadline. Submitting late will result in reduced individual points and a -3 team penalty.</p>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* Section: Session Ratings */}
           <div className="flex items-center gap-2 mb-1">
             <Icon icon="star" className="w-4 h-4 text-camp-amber" />

@@ -42,9 +42,10 @@ export default api({
     num_days: z.number(),
     is_final_day: z.boolean(),
     locked: z.boolean(),
+    manually_locked: z.boolean(),
     deadline_iso: z.string().nullable(),
     grace_deadline_iso: z.string().nullable(),
-    day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean() })),
+    day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean(), locked: z.boolean() })),
     team_progress: z.array(z.object({
       team_id: z.number(), team_name: z.string(), team_color: z.string().nullable(),
       total_members: z.number(), submitted_count: z.number(),
@@ -91,6 +92,16 @@ export default api({
     let graceDeadlineIso: string | null = null;
     let locked = false;
 
+    // Check manual per-day lock
+    const LockSchema = z.object({ value: z.string() });
+    const manualLock = await ctx.integrations.apps_database.query(
+      `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
+      LockSchema,
+      [`survey_day_${input.day_number}_locked`],
+      { label: "Check manual day lock" }
+    );
+    const manuallyLocked = manualLock.length > 0 && manualLock[0].value === "true";
+
     if (startDateRows.length > 0 && startDateRows[0].value) {
       const startDate = new Date(startDateRows[0].value + "T00:00:00-07:00");
       // Deadline: 9am PT the day after this day_number
@@ -99,13 +110,11 @@ export default api({
       deadline.setHours(9, 0, 0, 0);
       deadlineIso = deadline.toISOString();
 
-      // Grace: 10am PT (1 hour after deadline)
-      const grace = new Date(deadline);
-      grace.setHours(10, 0, 0, 0);
-      graceDeadlineIso = grace.toISOString();
+      // Grace deadline removed — auto-lock at 9am sharp, no buffer
+      graceDeadlineIso = deadlineIso;
 
-      // Lock if past grace period
-      locked = new Date() > grace;
+      // Auto-lock at 9am PT OR manually locked by counselor (whichever first)
+      locked = new Date() > deadline || manuallyLocked;
     }
 
     // Get day statuses (which days has this camper submitted)
@@ -118,9 +127,24 @@ export default api({
     );
     // Fill in missing days
     const statusMap = new Map(dayStatuses.map(d => [d.day_number, true]));
+
+    // Get all per-day lock statuses
+    const DayLockSchema = z.object({ key: z.string(), value: z.string() });
+    const dayLocks = await ctx.integrations.apps_database.query(
+      `SELECT key, value FROM camp201_config WHERE key LIKE 'survey_day_%_locked' LIMIT 10`,
+      DayLockSchema, [],
+      { label: "Get all day lock statuses" }
+    );
+    const lockMap = new Map<number, boolean>();
+    for (const dl of dayLocks) {
+      const match = dl.key.match(/survey_day_(\d+)_locked/);
+      if (match) lockMap.set(parseInt(match[1]), dl.value === "true");
+    }
+
     const allDayStatuses = Array.from({ length: numDays }, (_, i) => ({
       day_number: i + 1,
       submitted: statusMap.get(i + 1) ?? false,
+      locked: lockMap.get(i + 1) ?? false,
     }));
 
     // Team race progress for this day
@@ -170,6 +194,7 @@ export default api({
       num_days: numDays,
       is_final_day: isFinalDay,
       locked,
+      manually_locked: manuallyLocked,
       deadline_iso: deadlineIso,
       grace_deadline_iso: graceDeadlineIso,
       day_statuses: allDayStatuses,
