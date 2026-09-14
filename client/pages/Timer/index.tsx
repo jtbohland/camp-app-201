@@ -88,7 +88,17 @@ const PRESET_TIMES = [
   { label: "30 min", seconds: 1800 },
 ];
 
-const CHECKIN_LABELS = ["Morning", "Post-lunch", "After break", "After breakout"];
+const CHECKIN_LABELS = ["Morning", "Back from Break", "Back from Lunch", "After Breakout", "Post-Presentation"];
+
+const TIMER_MODES = [
+  { value: "checkin", label: "Check-In Timer", icon: "log-in" },
+  { value: "camp_begins", label: "cAMP begins in…", icon: "sunrise" },
+  { value: "break_return", label: "Back from Break", icon: "coffee" },
+  { value: "lunch_return", label: "Back from Lunch", icon: "utensils" },
+  { value: "prep_practice", label: "Prep & Practice ends in…", icon: "pencil" },
+  { value: "presentation", label: "Presentation Timer", icon: "presentation" },
+  { value: "custom", label: "Custom Timer", icon: "clock" },
+];
 
 export default function TimerPage() {
   const [totalSeconds, setTotalSeconds] = useState(600);
@@ -96,7 +106,8 @@ export default function TimerPage() {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [soundIndex, setSoundIndex] = useState(0);
-  const [checkinLabel, setCheckinLabel] = useState("After break");
+  const [checkinLabel, setCheckinLabel] = useState("Back from Break");
+  const [timerMode, setTimerMode] = useState("checkin");
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundsRef = useRef<SoundOption[]>([]);
@@ -229,7 +240,32 @@ export default function TimerPage() {
             Check-in active: {checkinData?.session?.label}
           </p>
         )}
+        {!activeSessionId && timerMode !== "checkin" && (
+          <p className="text-sm text-amber-400 font-medium mt-1">
+            {TIMER_MODES.find((m) => m.value === timerMode)?.label}
+          </p>
+        )}
       </div>
+
+      {/* Timer Mode Selector (admin only, when no active session) */}
+      {isAdmin && !activeSessionId && !running && (
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {TIMER_MODES.map((mode) => (
+            <button
+              key={mode.value}
+              onClick={() => setTimerMode(mode.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                timerMode === mode.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
+              }`}
+            >
+              <Icon icon={mode.icon as any} className="w-3 h-3" />
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Timer Display */}
       <div className="relative flex items-center justify-center">
@@ -266,7 +302,7 @@ export default function TimerPage() {
       <div className="flex items-center gap-3 flex-wrap justify-center">
         {!running ? (
           <>
-            {isAdmin && !activeSessionId && (
+            {isAdmin && !activeSessionId && timerMode === "checkin" && (
               <button
                 onClick={() => startTimer(true)}
                 disabled={remaining <= 0 && !finished}
@@ -303,8 +339,8 @@ export default function TimerPage() {
         </button>
       </div>
 
-      {/* Check-In Label selector (admin only) */}
-      {isAdmin && !activeSessionId && (
+      {/* Check-In Label selector (admin only, checkin mode) */}
+      {isAdmin && !activeSessionId && timerMode === "checkin" && (
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-muted-foreground">Check-in label:</label>
           <select
