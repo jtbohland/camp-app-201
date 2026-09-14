@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
@@ -6,7 +6,6 @@ import { useSuperblocksUser } from "@superblocksteam/library";
 import DailyTrail from "./DailyTrail.js";
 import AchievementTrail from "./AchievementTrail.js";
 import SpecialAwards from "./SpecialAwards.js";
-import XPlanationTab from "@/components/XPlanationTab/index.js";
 import type { IconName } from "lucide-react/dynamic";
 
 // IDs of badges to hide (retired/redundant)
@@ -97,8 +96,6 @@ export default function TrailMap() {
   const totalEarned = earnedBadges.length;
   const totalAvailable = badgeMap.size;
 
-  const [showXPlanation, setShowXPlanation] = useState(false);
-
   if (loadingCamper || loadingBadges) {
     return (
       <div className="space-y-6 p-6">
@@ -111,28 +108,6 @@ export default function TrailMap() {
 
   return (
     <div className="space-y-8">
-      {/* Collapsible XPlanation */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <button
-          onClick={() => setShowXPlanation((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-3.5 bg-card hover:bg-accent/30 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <Icon icon="sparkles" className="w-4.5 h-4.5 text-amber-500" />
-            <span className="text-sm font-semibold text-foreground">How Points Work</span>
-          </div>
-          <Icon
-            icon={showXPlanation ? "chevron-up" : "chevron-down"}
-            className="w-4 h-4 text-muted-foreground"
-          />
-        </button>
-        {showXPlanation && (
-          <div className="px-5 pb-5 pt-2 border-t border-border bg-card/50">
-            <XPlanationTab />
-          </div>
-        )}
-      </div>
-
       {/* Hero stats */}
       <div className="flex items-center gap-6 p-5 rounded-xl bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-rose-500/5 border border-amber-200/30">
         <div className="flex items-center gap-3">
