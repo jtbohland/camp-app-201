@@ -250,6 +250,34 @@ export default api({
             { label: "Log team race bonus" }
           );
         }
+
+        // Auto-check-in absent members (0 pts, timing='absent')
+        const AbsentSchema = z.object({ id: z.number() });
+        const absentMembers = await ctx.integrations.apps_database.query(
+          `SELECT DISTINCT c.id
+           FROM camp201_campers c
+           JOIN camp201_absence_requests ar ON ar.camper_id = c.id
+           WHERE c.team_id = $1
+             AND c.role != 'counselor'
+             AND ar.status = 'approved'
+             AND ar.start_time <= NOW()
+             AND ar.end_time >= NOW()
+             AND c.id NOT IN (SELECT camper_id FROM camp201_checkin_responses WHERE session_id = $2)
+           LIMIT 10`,
+          AbsentSchema,
+          [teamId, session_id],
+          { label: "Find absent team members" }
+        );
+
+        for (const absent of absentMembers) {
+          await ctx.integrations.apps_database.execute(
+            `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
+             VALUES ($1, $2, $3, 'absent', 'ABSENT', 0)
+             ON CONFLICT DO NOTHING`,
+            [session_id, absent.id, teamId],
+            { label: `Auto-check-in absent member ${absent.id}` }
+          );
+        }
       }
     }
 

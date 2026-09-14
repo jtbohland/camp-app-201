@@ -5,6 +5,7 @@ import AppSidebar from "@/components/AppSidebar";
 import ProfileButton from "@/components/ProfileButton/index.js";
 import QuickAwardPoints from "@/components/QuickAwardPoints";
 import CloseCampModal from "@/components/CloseCampModal/index.js";
+import LateCheckInModal from "@/components/LateCheckInModal/index.js";
 
 export default function AppShell() {
   const user = useSuperblocksUser();
@@ -30,6 +31,9 @@ export default function AppShell() {
       )}
       {isAdmin && camper?.id && (
         <CloseCampModal camperId={camper.id} isAdmin={isAdmin} />
+      )}
+      {!isAdmin && camper?.id && (
+        <LateCheckInModal camperId={camper.id} isAdmin={false} />
       )}
     </>
   );
