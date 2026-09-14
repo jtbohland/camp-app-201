@@ -186,6 +186,7 @@ import SubmitLateCheckIn from './camp/submit-late-checkin.js';
 import RevealTeamStanding from './camp/reveal-team-standing.js';
 import RevealCampVP from './camp/reveal-camp-vp.js';
 import ToggleFinalSurvey from './camp/toggle-final-survey.js';
+import ToggleSurveyDayLock from './camp/toggle-survey-day-lock.js';
 
 const apis = {
   SetupDatabase,
@@ -370,6 +371,7 @@ const apis = {
   RevealTeamStanding,
   RevealCampVP,
   ToggleFinalSurvey,
+ToggleSurveyDayLock,
 } as const;
 
 export default apis;

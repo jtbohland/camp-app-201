@@ -42,6 +42,7 @@ export default api({
     num_days: z.number(),
     is_final_day: z.boolean(),
     locked: z.boolean(),
+    manually_locked: z.boolean(),
     deadline_iso: z.string().nullable(),
     grace_deadline_iso: z.string().nullable(),
     day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean() })),
@@ -91,6 +92,16 @@ export default api({
     let graceDeadlineIso: string | null = null;
     let locked = false;
 
+    // Check manual per-day lock
+    const LockSchema = z.object({ value: z.string() });
+    const manualLock = await ctx.integrations.apps_database.query(
+      `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
+      LockSchema,
+      [`survey_day_${input.day_number}_locked`],
+      { label: "Check manual day lock" }
+    );
+    const manuallyLocked = manualLock.length > 0 && manualLock[0].value === "true";
+
     if (startDateRows.length > 0 && startDateRows[0].value) {
       const startDate = new Date(startDateRows[0].value + "T00:00:00-07:00");
       // Deadline: 9am PT the day after this day_number
@@ -104,8 +115,8 @@ export default api({
       grace.setHours(10, 0, 0, 0);
       graceDeadlineIso = grace.toISOString();
 
-      // Lock if past grace period
-      locked = new Date() > grace;
+      // Lock if past grace period OR manually locked by counselor
+      locked = new Date() > grace || manuallyLocked;
     }
 
     // Get day statuses (which days has this camper submitted)
@@ -170,6 +181,7 @@ export default api({
       num_days: numDays,
       is_final_day: isFinalDay,
       locked,
+      manually_locked: manuallyLocked,
       deadline_iso: deadlineIso,
       grace_deadline_iso: graceDeadlineIso,
       day_statuses: allDayStatuses,

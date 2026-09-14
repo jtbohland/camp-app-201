@@ -126,6 +126,7 @@ export default function SurveyPage() {
   const [overallOpen, setOverallOpen] = useState<OpenResponses>({});
 
   const { run: submitSurvey, loading: submitting } = useApi("SubmitDailySurvey");
+  const { run: toggleDayLock } = useApi("ToggleSurveyDayLock");
 
   const handleDayChange = useCallback((day: number) => {
     setSelectedDay(day);
@@ -136,6 +137,17 @@ export default function SurveyPage() {
     setSubmitted(false);
     setSubmitResult(null);
   }, []);
+
+  const handleToggleDayLock = useCallback(async (day: number, lock: boolean) => {
+    try {
+      await toggleDayLock({ day_number: day, locked: lock });
+      toast.success(`Day ${day} survey ${lock ? "locked" : "unlocked"}`);
+      refetch();
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
+      toast.error(msg);
+    }
+  }, [toggleDayLock, refetch]);
 
   const updateSessionRating = useCallback((sessionId: number, val: SessionRating) => {
     setSessionRatings(prev => ({ ...prev, [sessionId]: val }));
@@ -220,7 +232,7 @@ export default function SurveyPage() {
             <button
               key={ds.day_number}
               onClick={() => handleDayChange(ds.day_number)}
-              className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
+              className={`relative flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
                 isSelected ? "border-primary bg-primary/5" : isDone ? "border-camp-green/40 bg-camp-green/5" : "border-border hover:border-border/80"
               }`}
             >
@@ -230,6 +242,17 @@ export default function SurveyPage() {
                 <Icon icon="check-circle" className="w-4 h-4 text-camp-green" />
               ) : (
                 <Icon icon="circle" className="w-4 h-4 text-muted-foreground/30" />
+              )}
+              {isAdmin && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleToggleDayLock(ds.day_number, !isLocked || ds.day_number !== selectedDay); }}
+                  className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] transition-colors ${
+                    (isSelected && isLocked) ? "bg-red-500 text-white" : "bg-muted text-muted-foreground hover:bg-primary hover:text-white"
+                  }`}
+                  title={isSelected && isLocked ? "Unlock this day" : "Lock this day"}
+                >
+                  <Icon icon={isSelected && isLocked ? "lock" : "unlock"} className="w-3 h-3" />
+                </button>
               )}
             </button>
           );
