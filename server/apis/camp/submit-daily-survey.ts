@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { getSurveyPoints, BADGE_IDS } from "../../lib/accelerator.js";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 const LATE_PENALTY = -3;
@@ -36,6 +37,9 @@ export default api({
     team_race_bonus: z.number(),
   }),
   async run(ctx, input) {
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      throw new Error("cAMP is closed — surveys are no longer accepted.");
+    }
     const cohortFilter = `(SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)`;
     const CohortSchema = z.object({ id: z.coerce.number() });
     const ConfigSchema = z.object({ value: z.string() });

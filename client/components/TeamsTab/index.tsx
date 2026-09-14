@@ -6,6 +6,7 @@ import CampVPLeaderboard from "@/components/CampVPLeaderboard/index.js";
 import LogoVoting from "@/components/LogoVoting/index.js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
 
 export default function TeamsTab() {
   const user = useSuperblocksUser();
@@ -28,6 +29,11 @@ export default function TeamsTab() {
     rankedTeams.map((t: any) => t.color).filter(Boolean),
     [rankedTeams]
   );
+
+  // Camp close + reveal awareness
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 10000 });
+  const campClosed = closeStatus?.camp_closed ?? false;
+  const revealedTeamIds = new Set(closeStatus?.revealed_team_ids ?? []);
 
   if (loading) {
     return (
@@ -64,18 +70,32 @@ export default function TeamsTab() {
 
       {/* Teams Grid — sorted by points, 2 columns for competitive feel */}
       <div className={`grid grid-cols-1 md:grid-cols-2 gap-5 ${fetching && !loading ? "opacity-70" : ""}`}>
-        {rankedTeams.map((team, idx) => (
-          <TeamCard
-            key={team.id}
-            team={team}
-            isAdmin={isAdmin}
-            currentCamperId={camperData?.camper?.id}
-            rank={idx + 1}
-            totalTeams={rankedTeams.length}
-            usedColors={usedColors}
-            onRefresh={refetchTeams}
-          />
-        ))}
+        {rankedTeams.map((team, idx) => {
+          const isRevealed = revealedTeamIds.has(team.id);
+          const blurred = campClosed && !isRevealed;
+          return (
+            <div key={team.id} className="relative">
+              {blurred && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-md rounded-xl">
+                  <div className="text-center p-4">
+                    <div className="text-3xl mb-1">🏆</div>
+                    <p className="font-semibold text-sm">#{idx + 1} — Awaiting Reveal</p>
+                    <p className="text-xs text-muted-foreground">Stay tuned for the podium ceremony!</p>
+                  </div>
+                </div>
+              )}
+              <TeamCard
+                team={team}
+                isAdmin={isAdmin}
+                currentCamperId={camperData?.camper?.id}
+                rank={idx + 1}
+                totalTeams={rankedTeams.length}
+                usedColors={usedColors}
+                onRefresh={refetchTeams}
+              />
+            </div>
+          );
+        })}
         {rankedTeams.length === 0 && (
           <div className="col-span-full text-center py-12 text-muted-foreground">
             <Icon icon="tent" className="w-12 h-12 mx-auto mb-3 opacity-30" />

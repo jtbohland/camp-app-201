@@ -23,6 +23,7 @@ import AdminCounselorProfile from "@/components/AdminCounselorProfile/index.js";
 import AdminTeamGenerator from "@/components/AdminTeamGenerator/index.js";
 import AdminCounselorRotation from "@/components/AdminCounselorRotation/index.js";
 import AdminPresentations from "@/components/AdminPresentations/index.js";
+import AdminCloseCamp from "@/components/AdminCloseCamp/index.js";
 
 // New components
 import HubDashboard from "@/components/HubDashboard/index.js";
@@ -66,6 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "flights", label: "Travel & Flights", icon: "plane" },
       { key: "cabin", label: "Counselor Cabin", icon: "tent" },
+      { key: "close-camp", label: "Close cAMP", icon: "flag" },
       { key: "cohort", label: "Cohort Management", icon: "archive" },
       { key: "settings", label: "Settings", icon: "settings" },
     ],
@@ -332,6 +334,9 @@ export default function AdminPage() {
               <AdminCounselorProfile />
               <AdminCounselorRotation />
             </div>
+          )}
+          {view === "close-camp" && (
+            <AdminCloseCamp camperId={0} />
           )}
           {view === "cohort" && (
             <div className="space-y-8">

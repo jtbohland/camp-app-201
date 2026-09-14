@@ -4,6 +4,7 @@ import { useApiData } from "@/hooks/useApiData";
 import AppSidebar from "@/components/AppSidebar";
 import ProfileButton from "@/components/ProfileButton/index.js";
 import QuickAwardPoints from "@/components/QuickAwardPoints";
+import CloseCampModal from "@/components/CloseCampModal/index.js";
 
 export default function AppShell() {
   const user = useSuperblocksUser();
@@ -26,6 +27,9 @@ export default function AppShell() {
       </div>
       {isAdmin && camper?.id && (
         <QuickAwardPoints camperId={camper.id} />
+      )}
+      {isAdmin && camper?.id && (
+        <CloseCampModal camperId={camper.id} isAdmin={isAdmin} />
       )}
     </>
   );

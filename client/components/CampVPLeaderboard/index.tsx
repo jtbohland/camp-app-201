@@ -83,8 +83,24 @@ export default function CampVPLeaderboard({ teams }: Props) {
 
   const topCamper = rankedCampers[0];
 
+  // Camp close + reveal awareness
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 10000 });
+  const campClosed = closeStatus?.camp_closed ?? false;
+  const vpRevealed = closeStatus?.vp_revealed ?? false;
+  const blurred = campClosed && !vpRevealed;
+
   return (
-    <div className="border-2 border-purple-200 rounded-xl overflow-hidden bg-gradient-to-b from-purple-50/50 to-background">
+    <div className="border-2 border-purple-200 rounded-xl overflow-hidden bg-gradient-to-b from-purple-50/50 to-background relative">
+      {/* Blur overlay when camp closed but VP not revealed */}
+      {blurred && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-md rounded-xl">
+          <div className="text-center p-6">
+            <div className="text-4xl mb-2">👑</div>
+            <h3 className="font-bold text-lg text-foreground">cAMP-V-P — Coming Soon</h3>
+            <p className="text-sm text-muted-foreground mt-1">Waiting for the podium ceremony reveal...</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-purple-700 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

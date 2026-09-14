@@ -4,6 +4,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { Icon } from "@/components/ui/icon";
 import { toast } from "sonner";
+import { useTimerContext } from "@/components/TimerContext/index.js";
 
 type SoundOption = { label: string; emoji: string; play: () => void };
 
@@ -108,6 +109,12 @@ export default function TimerPage() {
   const [timerMode, setTimerMode] = useState("morning");
   const currentMode = TIMER_MODES.find((m) => m.value === timerMode);
   const isCheckinMode = currentMode?.checkin ?? false;
+
+  // Sync to global timer context for floating widget
+  const timerCtx = useTimerContext();
+  useEffect(() => {
+    timerCtx.setTimerState({ running, remaining, totalSeconds, finished, label: checkinLabel || currentMode?.label || "" });
+  }, [running, remaining, totalSeconds, finished, checkinLabel, currentMode?.label]);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundsRef = useRef<SoundOption[]>([]);

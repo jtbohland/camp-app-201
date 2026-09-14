@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { BADGE_IDS } from "../../lib/accelerator.js";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 const MAX_QUESTIONS = 5;
@@ -16,6 +17,9 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), id: z.coerce.number().optional(), message: z.string().optional() }),
   async run(ctx, { executive_id, camper_id, question_text }) {
+    if (await isCampClosed(ctx.integrations.camp_db)) {
+      throw new Error("cAMP is closed — Q&A is no longer accepted.");
+    }
     // Check max questions per session
     const CountSchema = z.object({ count: z.coerce.number() });
     const [{ count }] = await ctx.integrations.camp_db.query(

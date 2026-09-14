@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { BADGE_IDS } from "../../lib/accelerator.js";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -30,6 +31,9 @@ export default api({
     xp_awarded: z.number(),
   }),
   async run(ctx, { team_id, author_id, section, item_type, title, content }) {
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      throw new Error("cAMP is closed — no more hub posts accepted.");
+    }
     // Insert the hub item
     const result = await ctx.integrations.apps_database.query(
       `INSERT INTO camp201_hub_items (team_id, author_id, section, item_type, title, content)

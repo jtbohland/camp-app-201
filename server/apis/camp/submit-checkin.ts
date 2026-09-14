@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { BADGE_IDS } from "../../lib/accelerator.js";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
 
@@ -25,6 +26,9 @@ export default api({
     first_team: z.boolean(),
   }),
   async run(ctx, input) {
+    if (await isCampClosed(ctx.integrations.apps_database)) {
+      return { success: false, timing: null, points: 0, error: "cAMP is closed — no more check-ins accepted.", team_complete: false, first_team: false };
+    }
     const { camper_id, session_id, word, pin } = input;
 
     // Verify PIN
