@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function CloseCampModal({ camperId, isAdmin }: Props) {
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem("close_camp_dismissed") === "1");
   const [confirming, setConfirming] = useState(false);
 
   const { data: status, refetch } = useApiData("GetCloseCampStatus", {}, {
@@ -100,7 +100,7 @@ export default function CloseCampModal({ camperId, isAdmin }: Props) {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setDismissed(true)}
+                onClick={() => { sessionStorage.setItem("close_camp_dismissed", "1"); setDismissed(true); }}
               >
                 Not Yet
               </Button>
