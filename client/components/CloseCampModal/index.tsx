@@ -23,8 +23,9 @@ export default function CloseCampModal({ camperId, isAdmin }: Props) {
   const { run: closeCamp, loading: closing } = useApi("CloseCamp");
 
   const campClosed = status?.camp_closed ?? false;
+  const campInSession = status?.camp_in_session ?? false;
   const readyToClose = status?.camp_ready_to_close ?? false;
-  const showModal = isAdmin && readyToClose && !campClosed && !dismissed;
+  const showModal = isAdmin && campInSession && readyToClose && !campClosed && !dismissed;
 
   // Reset dismissed if camp closes (another counselor clicked it)
   useEffect(() => {

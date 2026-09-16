@@ -12,6 +12,7 @@ export default api({
   input: z.object({}),
   output: z.object({
     camp_closed: z.boolean(),
+    camp_in_session: z.boolean(),
     camp_ready_to_close: z.boolean(),
     counselor_count: z.number(),
     team_count: z.number(),
@@ -34,6 +35,16 @@ export default api({
       { label: "Check camp_closed" }
     );
     const campClosed = closedResult.length > 0 && closedResult[0].value === "true";
+
+    // Check if camp is actually in session (has a start date that has passed)
+    const startDateResult = await ctx.integrations.apps_database.query(
+      `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
+      z.object({ value: z.string() }),
+      undefined,
+      { label: "Check camp_start_date" }
+    );
+    const startDateStr = startDateResult.length > 0 ? startDateResult[0].value.trim() : "";
+    const campInSession = startDateStr !== "" && new Date(startDateStr).getTime() <= Date.now();
 
     // Check ready_to_close flag
     const readyResult = await ctx.integrations.apps_database.query(
@@ -136,6 +147,7 @@ export default api({
 
     return {
       camp_closed: campClosed,
+      camp_in_session: campInSession,
       camp_ready_to_close: campReadyToClose,
       counselor_count: counselorCount,
       team_count: teamCount,
