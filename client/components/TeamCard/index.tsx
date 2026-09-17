@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import ImageUpload from "@/components/ImageUpload/index.js";
 import { useApi } from "@/hooks/useApi.js";
 import { toast } from "sonner";
+
+type LogoTab = "upload" | "generate";
 
 type TeamMember = {
   id: number;
@@ -215,8 +217,32 @@ function DesignEditor({
   const [name, setName] = useState(currentName);
   const [color, setColor] = useState(currentColor || "");
   const [logo, setLogo] = useState(currentLogo || "");
+  const [logoTab, setLogoTab] = useState<LogoTab>("upload");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiDescription, setAiDescription] = useState("");
 
   const { run: updateDesign, loading } = useApi("UpdateTeamDesign");
+  const { run: generateLogo, loading: generating } = useApi("GenerateTeamLogo");
+
+  const handleGenerate = useCallback(async () => {
+    if (!aiPrompt.trim()) { toast.error("Enter a concept or theme for your logo"); return; }
+    if (!name.trim()) { toast.error("Enter a team name first"); return; }
+    try {
+      const result = await generateLogo({
+        teamName: name.trim(),
+        prompt: aiPrompt.trim(),
+        color: color || "#2d6a4f",
+      });
+      if (result?.logoDescription) {
+        setAiDescription(result.logoDescription);
+        toast.success("Logo concept generated! Use this as inspiration for your team logo.");
+      }
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message) : String(error);
+      toast.error("AI generation failed: " + message);
+    }
+  }, [aiPrompt, name, color, generateLogo]);
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error("Team name is required"); return; }
@@ -281,14 +307,96 @@ function DesignEditor({
       </div>
       <div>
         <label className="text-xs font-medium text-foreground mb-1 block">Team Logo</label>
-        <ImageUpload
-          value={logo}
-          onChange={setLogo}
-          label=""
-          hint="Upload logo"
-          shape="square"
-          maxSizeMB={2}
-        />
+        <div className="flex gap-1 mb-2">
+          <button
+            type="button"
+            onClick={() => setLogoTab("upload")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+              logoTab === "upload"
+                ? "bg-primary/10 text-primary border border-primary/30"
+                : "text-muted-foreground hover:bg-muted border border-transparent"
+            }`}
+          >
+            <Icon icon="upload" className="w-3.5 h-3.5" />
+            Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => setLogoTab("generate")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+              logoTab === "generate"
+                ? "bg-purple-100 text-purple-700 border border-purple-300"
+                : "text-muted-foreground hover:bg-muted border border-transparent"
+            }`}
+          >
+            <Icon icon="sparkles" className="w-3.5 h-3.5" />
+            AI Assist
+          </button>
+        </div>
+
+        {logoTab === "upload" && (
+          <ImageUpload
+            value={logo}
+            onChange={setLogo}
+            label=""
+            hint="Upload logo"
+            shape="square"
+            maxSizeMB={2}
+          />
+        )}
+
+        {logoTab === "generate" && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] text-muted-foreground">
+              Describe your logo concept and AI will generate a description to inspire your design.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="e.g. fierce bear with a compass…"
+                className="flex-1 px-2.5 py-1.5 border border-border rounded-lg bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-purple-400/40"
+                onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+              />
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating || !aiPrompt.trim() || !name.trim()}
+                className="px-2.5 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+              >
+                {generating ? (
+                  <Icon icon="loader-2" className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Icon icon="sparkles" className="w-3.5 h-3.5" />
+                )}
+                {generating ? "Generating…" : "Generate"}
+              </button>
+            </div>
+
+            {aiDescription && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-2.5">
+                <p className="text-[11px] font-medium text-purple-700 mb-0.5">✨ AI Logo Concept:</p>
+                <p className="text-xs text-purple-900">{aiDescription}</p>
+                <p className="text-[10px] text-purple-500 mt-1.5 italic">
+                  Use this as inspiration — create or find a matching image and upload it!
+                </p>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-border">
+              <p className="text-[11px] text-muted-foreground mb-1.5">Upload your final logo:</p>
+              <ImageUpload
+                value={logo}
+                onChange={setLogo}
+                label=""
+                hint="Upload your logo image here"
+                shape="square"
+                maxSizeMB={2}
+              />
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex gap-2 justify-end">
         <button onClick={onCancel} className="px-3 py-1.5 text-xs border border-border rounded hover:bg-muted">Cancel</button>
