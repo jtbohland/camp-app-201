@@ -3,13 +3,13 @@ import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { BADGE_IDS } from "../../lib/accelerator.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SubmitPeerFeedback",
   description: "Submits live peer feedback during a presentation and awards points",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     session_label: z.string(),
@@ -21,12 +21,12 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), feedback_id: z.number(), points_awarded: z.number() }),
   async run(ctx, input) {
-    if (await isCampClosed(ctx.integrations.apps_database)) {
+    if (await isCampClosed(ctx.integrations.camp_201_db)) {
       throw new Error("cAMP is closed — feedback is no longer accepted.");
     }
 
     // Check peer_feedback feature gate
-    const gateResult = await ctx.integrations.apps_database.query(
+    const gateResult = await ctx.integrations.camp_201_db.query(
       `SELECT is_locked FROM camp201_feature_gates WHERE feature_key = 'peer_feedback' LIMIT 1`,
       z.object({ is_locked: z.boolean() }), undefined,
       { label: "Check peer_feedback gate" }
@@ -37,7 +37,7 @@ export default api({
 
     // Get active cohort
     const CohortSchema = z.object({ id: z.coerce.number() });
-    const cohort = await ctx.integrations.apps_database.query(
+    const cohort = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
       CohortSchema,
       undefined,
@@ -46,7 +46,7 @@ export default api({
     const cohortId = cohort.length > 0 ? cohort[0].id : null;
 
     const InsertSchema = z.object({ id: z.coerce.number() });
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_peer_feedback (session_label, team_id, author_id, category, content, cohort_id, points_awarded)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       InsertSchema,
@@ -56,7 +56,7 @@ export default api({
 
     // Award accelerated Peer Feedback badge to the author
     const badgeResult = await awardRepeatableBadge(
-      ctx.integrations.apps_database,
+      ctx.integrations.camp_201_db,
       input.author_id,
       BADGE_IDS.PEER_FEEDBACK,
       `Peer feedback: ${input.session_label}`,

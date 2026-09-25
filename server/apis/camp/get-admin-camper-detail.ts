@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetAdminCamperDetail",
   description: "Gets full detail for a single camper including points log and check-in history",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -67,7 +67,7 @@ export default api({
       created_at: z.string(),
     });
 
-    const camperResult = await ctx.integrations.apps_database.query(
+    const camperResult = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.role,
               t.name as team_name, c.points, c.profile_completed,
               c.bio, c.fun_fact, c.goal_1, c.goal_2, c.goal_3,
@@ -88,7 +88,7 @@ export default api({
       created_at: z.string(),
     });
 
-    const pointsLog = await ctx.integrations.apps_database.query(
+    const pointsLog = await ctx.integrations.camp_201_db.query(
       `SELECT points, reason, awarded_by, created_at
        FROM camp201_points_log WHERE camper_id = $1
        ORDER BY created_at DESC LIMIT 50`,
@@ -104,7 +104,7 @@ export default api({
       checked_in_at: z.string(),
     });
 
-    const checkins = await ctx.integrations.apps_database.query(
+    const checkins = await ctx.integrations.camp_201_db.query(
       `SELECT s.label as session_label, r.timing, r.points_awarded, r.checked_in_at
        FROM camp201_checkin_responses r
        JOIN camp201_checkin_sessions s ON s.id = r.session_id

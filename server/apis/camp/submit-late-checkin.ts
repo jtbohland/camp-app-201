@@ -1,7 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const LATE_POINTS = -2;
 
@@ -9,7 +9,7 @@ export default api({
   name: "SubmitLateCheckIn",
   description: "Late check-in: camper missed the window, submits PIN only for -2 pts",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -22,13 +22,13 @@ export default api({
     error: z.string().nullable(),
   }),
   async run(ctx, { camper_id, session_id, pin }) {
-    if (await isCampClosed(ctx.integrations.apps_database)) {
+    if (await isCampClosed(ctx.integrations.camp_201_db)) {
       return { success: false, points: 0, error: "cAMP is closed." };
     }
 
     // Verify PIN
     const CamperSchema = z.object({ pin: z.string().nullable(), team_id: z.number().nullable() });
-    const campers = await ctx.integrations.apps_database.query(
+    const campers = await ctx.integrations.camp_201_db.query(
       `SELECT pin, team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
       CamperSchema,
       [camper_id],
@@ -46,7 +46,7 @@ export default api({
 
     // Verify session exists and is closed
     const SessionSchema = z.object({ status: z.string() });
-    const sessions = await ctx.integrations.apps_database.query(
+    const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT status FROM camp201_checkin_sessions WHERE id = $1 LIMIT 1`,
       SessionSchema,
       [session_id],
@@ -62,7 +62,7 @@ export default api({
 
     // Check duplicate
     const ExistingSchema = z.object({ id: z.number() });
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_checkin_responses WHERE session_id = $1 AND camper_id = $2 LIMIT 1`,
       ExistingSchema,
       [session_id, camper_id],
@@ -74,19 +74,19 @@ export default api({
     }
 
     // Deduct points
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
       [LATE_POINTS, camper_id],
       { label: "Deduct late check-in points" }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
       [camper_id, LATE_POINTS, `Check-in: late (session ${session_id})`],
       { label: "Log late penalty" }
     );
 
     // Record the late check-in
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
        VALUES ($1, $2, $3, 'late', 'LATE', $4)`,
       [session_id, camper_id, teamId, LATE_POINTS],

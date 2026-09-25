@@ -1,11 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetRubricTemplate",
   description: "Gets a rubric template with its criteria and any existing scores",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     rubric_template_id: z.number(),
   }),
@@ -14,7 +14,7 @@ export default api({
     scores: z.array(z.any()),
   }),
   async run(ctx, { rubric_template_id }) {
-    const templates = await ctx.integrations.apps_database.query(
+    const templates = await ctx.integrations.camp_201_db.query(
       `SELECT id, name, description, criteria, max_total_points, points_to_award
        FROM camp201_rubric_templates WHERE id = $1 LIMIT 1`,
       z.object({
@@ -33,7 +33,7 @@ export default api({
     template.criteria = typeof template.criteria === "string" ? JSON.parse(template.criteria) : template.criteria;
 
     // Get existing scores for this rubric
-    const scores = await ctx.integrations.apps_database.query(
+    const scores = await ctx.integrations.camp_201_db.query(
       `SELECT rs.id, rs.team_id, t.name AS team_name, rs.scores, rs.total_score, rs.max_score, rs.notes
        FROM camp201_rubric_scores rs
        JOIN camp201_teams t ON t.id = rs.team_id

@@ -1,15 +1,15 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "MigrateHackathon",
   description: "Creates hackathon submissions and votes tables",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_hackathon_submissions (
         id SERIAL PRIMARY KEY,
         presentation_id INTEGER NOT NULL,
@@ -27,7 +27,7 @@ export default api({
       { label: "Create hackathon submissions table" }
     );
 
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_hackathon_votes (
         id SERIAL PRIMARY KEY,
         presentation_id INTEGER NOT NULL,

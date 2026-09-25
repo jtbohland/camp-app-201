@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const ActivitySchema = z.object({
   camper_id: z.coerce.number(),
@@ -15,14 +15,14 @@ export default api({
   name: "GetHubActivity",
   description: "Admin view of hub contributions across all teams",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
     activity: z.array(ActivitySchema),
   }),
   async run(ctx) {
-    const activity = await ctx.integrations.apps_database.query(
+    const activity = await ctx.integrations.camp_201_db.query(
       `SELECT h.author_id as camper_id,
               c.first_name, c.last_name,
               COALESCE(t.name, 'Unassigned') as team_name,

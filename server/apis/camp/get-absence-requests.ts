@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetAbsenceRequests",
   description: "Gets absence requests - for admin view or a specific camper",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number().nullable(),
@@ -38,7 +38,7 @@ export default api({
     const whereClause = camper_id ? `WHERE a.camper_id = $1` : ``;
     const params = camper_id ? [camper_id] : undefined;
 
-    const requests = await ctx.integrations.apps_database.query(
+    const requests = await ctx.integrations.camp_201_db.query(
       `SELECT a.id, a.camper_id, CONCAT(c.first_name, ' ', c.last_name) as camper_name,
               a.start_time, a.end_time, a.reason, a.status, a.created_at
        FROM camp201_absence_requests a

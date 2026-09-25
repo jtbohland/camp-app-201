@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // 1000+ camp/nature themed words (4-8 chars, all distinct, no confusable pairs)
 const CAMP_WORDS = [
@@ -122,7 +122,7 @@ export default api({
   name: "SeedWordBank",
   description: "Seeds the word bank with 1000+ camp/nature words",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({ success: z.boolean(), count: z.number() }),
@@ -135,7 +135,7 @@ export default api({
     for (let i = 0; i < uniqueWords.length; i += 50) {
       const batch = uniqueWords.slice(i, i + 50);
       const values = batch.map((_, idx) => `($${idx + 1})`).join(",");
-      const result = await ctx.integrations.apps_database.execute(
+      const result = await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_word_bank (word) VALUES ${values} ON CONFLICT (word) DO NOTHING`,
         batch,
         { label: `Seed words batch ${Math.floor(i/50) + 1}` }

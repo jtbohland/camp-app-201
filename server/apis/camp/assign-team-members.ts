@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "AssignTeamMembers",
   description: "Assigns campers to a team by updating their team_id",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     team_id: z.number(),
@@ -19,7 +19,7 @@ export default api({
   async run(ctx, { team_id, camper_ids }) {
     // Clear previous assignments for these campers
     if (camper_ids.length > 0) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET team_id = $1 WHERE id = ANY($2::int[])`,
         [team_id, camper_ids],
         { label: "Assign campers to team" }

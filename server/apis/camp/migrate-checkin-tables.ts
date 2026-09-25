@@ -1,25 +1,25 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "MigrateCheckinTables",
   description: "Creates check-in system tables and adds PIN column to campers",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
     // Add PIN column to campers
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `ALTER TABLE camp201_campers ADD COLUMN IF NOT EXISTS pin TEXT`,
       undefined,
       { label: "Add PIN column to campers" }
     );
 
     // Check-in sessions — created by counselor when they start a timer with check-in
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_checkin_sessions (
         id SERIAL PRIMARY KEY,
         label TEXT NOT NULL,
@@ -38,7 +38,7 @@ export default api({
     );
 
     // Check-in responses — individual check-in records
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_checkin_responses (
         id SERIAL PRIMARY KEY,
         session_id INTEGER NOT NULL REFERENCES camp201_checkin_sessions(id),
@@ -55,7 +55,7 @@ export default api({
     );
 
     // Absence requests — camper submits time-off
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_absence_requests (
         id SERIAL PRIMARY KEY,
         camper_id INTEGER NOT NULL REFERENCES camp201_campers(id),
@@ -70,7 +70,7 @@ export default api({
     );
 
     // Word bank — 1000+ camp/nature words
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_word_bank (
         id SERIAL PRIMARY KEY,
         word TEXT UNIQUE NOT NULL

@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const HubItemSchema = z.object({
   id: z.coerce.number(),
@@ -19,7 +19,7 @@ export default api({
   name: "GetTeamHub",
   description: "Fetches all hub items for a specific team",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     team_id: z.number(),
@@ -28,7 +28,7 @@ export default api({
     items: z.array(HubItemSchema),
   }),
   async run(ctx, { team_id }) {
-    const items = await ctx.integrations.apps_database.query(
+    const items = await ctx.integrations.camp_201_db.query(
       `SELECT h.id, h.team_id, h.author_id,
               (c.first_name || ' ' || c.last_name) as author_name,
               h.section, h.item_type, h.title, h.content,

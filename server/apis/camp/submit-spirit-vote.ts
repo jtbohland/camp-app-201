@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SubmitSpiritVote",
   description: "Submits a Camp Spirit peer vote",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     voter_id: z.number(),
     nominee_id: z.number(),
@@ -14,11 +14,11 @@ export default api({
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, { voter_id, nominee_id, note }) {
-    if (await isCampClosed(ctx.integrations.apps_database)) {
+    if (await isCampClosed(ctx.integrations.camp_201_db)) {
       throw new Error("cAMP is closed — voting is no longer accepted.");
     }
     if (voter_id === nominee_id) throw new Error("You cannot vote for yourself");
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_spirit_votes (voter_id, nominee_id, note, cohort_id)
        VALUES ($1, $2, $3, 1)
        ON CONFLICT (voter_id, cohort_id) DO UPDATE

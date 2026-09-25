@@ -3,7 +3,7 @@ import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { BADGE_IDS } from "../../lib/accelerator.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Item types that earn silent XP (notes & ideas — not resources/links/documents)
 const XP_ELIGIBLE_TYPES = new Set(["note", "idea"]);
@@ -15,7 +15,7 @@ export default api({
   name: "AddHubItem",
   description: "Adds a note, resource, or idea to a team hub section with silent XP for contributions",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     team_id: z.number(),
@@ -31,11 +31,11 @@ export default api({
     xp_awarded: z.number(),
   }),
   async run(ctx, { team_id, author_id, section, item_type, title, content }) {
-    if (await isCampClosed(ctx.integrations.apps_database)) {
+    if (await isCampClosed(ctx.integrations.camp_201_db)) {
       throw new Error("cAMP is closed — no more hub posts accepted.");
     }
     // Insert the hub item
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_hub_items (team_id, author_id, section, item_type, title, content)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
@@ -51,7 +51,7 @@ export default api({
     const combinedLength = (title.trim().length) + ((content ?? "").trim().length);
     if (XP_ELIGIBLE_TYPES.has(item_type) && combinedLength >= MIN_CHARS_FOR_XP) {
       // Check daily cap: count hub_contribution points for this camper today
-      const todayCount = await ctx.integrations.apps_database.query(
+      const todayCount = await ctx.integrations.camp_201_db.query(
         `SELECT COUNT(*)::int AS cnt
          FROM camp201_points_log
          WHERE camper_id = $1
@@ -64,7 +64,7 @@ export default api({
 
       if (todayCount[0].cnt < HUB_XP_DAILY_CAP) {
         const badgeResult = await awardRepeatableBadge(
-          ctx.integrations.apps_database,
+          ctx.integrations.camp_201_db,
           author_id,
           BADGE_IDS.HUB_POST,
           `Hub ${item_type}: ${title.slice(0, 50)}`,

@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetPresentationResponses",
   description: "Gets a camper's saved responses for a presentation workspace",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     presentation_id: z.number(),
@@ -17,7 +17,7 @@ export default api({
     hasResponses: z.boolean(),
   }),
   async run(ctx, { presentation_id, camper_id }) {
-    const rows = await ctx.integrations.apps_database.query(
+    const rows = await ctx.integrations.camp_201_db.query(
       `SELECT responses FROM camp201_presentation_responses
        WHERE presentation_id = $1 AND camper_id = $2 LIMIT 1`,
       z.object({ responses: z.any() }),

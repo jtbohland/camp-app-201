@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetActiveCheckIn",
   description: "Gets the active check-in session with current word and team progress",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -44,7 +44,7 @@ export default api({
       status: z.string(),
     });
 
-    const sessions = await ctx.integrations.apps_database.query(
+    const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT id, label, duration_minutes, started_at, timer_ends_at, checkin_opens_at, status
        FROM camp201_checkin_sessions
        WHERE status = 'active'
@@ -77,7 +77,7 @@ export default api({
       const WordSchema = z.object({ word: z.string() });
       
       const CountSchema = z.object({ count: z.coerce.number() });
-      const countResult = await ctx.integrations.apps_database.query(
+      const countResult = await ctx.integrations.camp_201_db.query(
         `SELECT COUNT(*) as count FROM camp201_word_bank`,
         CountSchema,
         undefined,
@@ -90,7 +90,7 @@ export default api({
         const currentIndex = ((session.id * 7919) + (currentSlot * 104729)) % totalWords;
         const previousIndex = ((session.id * 7919) + (previousSlot * 104729)) % totalWords;
 
-        const currentWords = await ctx.integrations.apps_database.query(
+        const currentWords = await ctx.integrations.camp_201_db.query(
           `SELECT word FROM camp201_word_bank ORDER BY id LIMIT 1 OFFSET $1`,
           WordSchema,
           [currentIndex],
@@ -99,7 +99,7 @@ export default api({
         currentWord = currentWords.length > 0 ? currentWords[0].word : null;
 
         if (currentSlot > 0) {
-          const prevWords = await ctx.integrations.apps_database.query(
+          const prevWords = await ctx.integrations.camp_201_db.query(
             `SELECT word FROM camp201_word_bank ORDER BY id LIMIT 1 OFFSET $1`,
             WordSchema,
             [previousIndex],
@@ -120,7 +120,7 @@ export default api({
       completed_at: z.string().nullable(),
     });
 
-    const teamsProgress = await ctx.integrations.apps_database.query(
+    const teamsProgress = await ctx.integrations.camp_201_db.query(
       `SELECT
         t.id as team_id,
         t.name as team_name,

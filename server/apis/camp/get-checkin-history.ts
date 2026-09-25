@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetCheckInHistory",
   description: "Gets a camper's check-in history for their profile",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -36,7 +36,7 @@ export default api({
       points_awarded: z.number(),
     });
 
-    const history = await ctx.integrations.apps_database.query(
+    const history = await ctx.integrations.camp_201_db.query(
       `SELECT r.session_id, s.label, r.timing, r.checked_in_at, r.points_awarded
        FROM camp201_checkin_responses r
        JOIN camp201_checkin_sessions s ON s.id = r.session_id
@@ -57,7 +57,7 @@ export default api({
       late_count: z.coerce.number(),
     });
 
-    const stats = await ctx.integrations.apps_database.query(
+    const stats = await ctx.integrations.camp_201_db.query(
       `SELECT
         (SELECT COUNT(*) FROM camp201_checkin_sessions WHERE status = 'closed') as total_sessions,
         COUNT(*) as attended,

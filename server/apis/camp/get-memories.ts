@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const MemorySchema = z.object({
   id: z.coerce.number(),
@@ -19,7 +19,7 @@ const MemorySchema = z.object({
 export default api({
   name: "GetMemories",
   description: "Fetches memories feed with reactions for the active cohort",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     day_filter: z.number().nullable(),
     viewer_camper_id: z.number().nullable(),
@@ -46,7 +46,7 @@ export default api({
     const dayClause = day_filter ? `AND combined.day_number = ${day_filter}` : "";
 
     // UNION camp201_memories with legacy camp201_gallery into one feed
-    const rows = await ctx.integrations.apps_database.query(
+    const rows = await ctx.integrations.camp_201_db.query(
       `WITH combined AS (
         SELECT m.id, m.camper_id, m.memory_type, m.content, m.image_url, m.day_number, m.created_at
         FROM camp201_memories m

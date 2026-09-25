@@ -1,15 +1,15 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SetupWheelTables",
   description: "Creates wheel_rounds and wheel_scores tables if they don't exist",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({}),
   output: z.object({ success: z.boolean() }),
   async run(ctx) {
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_wheel_rounds (
         id SERIAL PRIMARY KEY,
         pitcher_id INTEGER NOT NULL REFERENCES camp201_campers(id),
@@ -31,7 +31,7 @@ export default api({
       { label: "Create wheel_rounds table" }
     );
 
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_wheel_scores (
         id SERIAL PRIMARY KEY,
         round_id INTEGER NOT NULL REFERENCES camp201_wheel_rounds(id),

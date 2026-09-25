@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const CohortSchema = z.object({
   id: z.coerce.number(),
@@ -16,7 +16,7 @@ export default api({
   name: "GetCohorts",
   description: "Lists all cohorts with camper counts",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -24,7 +24,7 @@ export default api({
     active_cohort: CohortSchema.nullable(),
   }),
   async run(ctx) {
-    const cohorts = await ctx.integrations.apps_database.query(
+    const cohorts = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.name, c.start_date, c.end_date, c.is_active, c.created_at,
               COUNT(cm.id)::int as camper_count
        FROM camp201_cohorts c

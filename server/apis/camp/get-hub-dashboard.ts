@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const StatSchema = z.object({ count: z.coerce.number() });
 const CamperSchema = z.object({ name: z.string(), xp: z.coerce.number() });
@@ -10,7 +10,7 @@ export default api({
   name: "GetHubDashboard",
   description: "Fetches real-time dashboard stats for the Counselor Hub",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -30,7 +30,7 @@ export default api({
     gates_total: z.number(),
   }),
   async run(ctx) {
-    const db = ctx.integrations.apps_database;
+    const db = ctx.integrations.camp_201_db;
 
     // Safe query helper — returns default on failure so one bad stat doesn't kill the dashboard
     async function safeStat(sql: string, label: string): Promise<number> {

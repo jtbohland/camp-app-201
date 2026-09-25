@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const CriterionSchema = z.object({
   id: z.string(),
@@ -22,7 +22,7 @@ export default api({
   name: "GetRubricTemplates",
   description: "Gets all rubric templates for the active cohort",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -38,7 +38,7 @@ export default api({
       points_to_award: z.coerce.number(),
     });
 
-    const raw = await ctx.integrations.apps_database.query(
+    const raw = await ctx.integrations.camp_201_db.query(
       `SELECT id, name, description, criteria, max_total_points, points_to_award
        FROM camp201_rubric_templates
        ORDER BY created_at DESC LIMIT 20`,

@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const CamperMetricSchema = z.object({
   id: z.coerce.number(),
@@ -28,7 +28,7 @@ export default api({
   name: "GetAdminCampers",
   description: "Gets all campers with metrics for admin dashboard, filtered by cohort",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     cohort_id: z.number().nullable(),
@@ -43,7 +43,7 @@ export default api({
     let effectiveCohortId = cohort_id;
     if (!effectiveCohortId) {
       const ActiveSchema = z.object({ id: z.coerce.number() });
-      const active = await ctx.integrations.apps_database.query(
+      const active = await ctx.integrations.camp_201_db.query(
         `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
         ActiveSchema,
         undefined,
@@ -55,7 +55,7 @@ export default api({
     const cohortFilter = effectiveCohortId ? `AND c.cohort_id = $1` : ``;
     const params = effectiveCohortId ? [effectiveCohortId] : undefined;
 
-    const campers = await ctx.integrations.apps_database.query(
+    const campers = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.role, c.team_id,
               t.name as team_name, c.points, c.profile_completed,
               c.goal_1, c.goal_2, c.goal_3,

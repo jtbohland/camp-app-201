@@ -1,11 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "UpdateNewHireStatus",
   description: "Updates a new hire's status (invited/accepted/declined). On accept, creates camper record.",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     hire_id: z.number(),
     status: z.string(), // invited | accepted | declined
@@ -13,7 +13,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), camper_id: z.coerce.number().nullable() }),
   async run(ctx, { hire_id, status, cohort_id }) {
-    const db = ctx.integrations.apps_database;
+    const db = ctx.integrations.camp_201_db;
 
     // Get the hire
     const hires = await db.query(

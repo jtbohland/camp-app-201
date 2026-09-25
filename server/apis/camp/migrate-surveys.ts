@@ -1,18 +1,18 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "MigrateSurveys",
   description: "Creates survey tables for end-of-day surveys",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
     // Surveys table - admin creates surveys per day
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_surveys (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -32,7 +32,7 @@ export default api({
     );
 
     // Survey responses - one per camper per survey
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_survey_responses (
         id SERIAL PRIMARY KEY,
         survey_id INT NOT NULL REFERENCES camp201_surveys(id),

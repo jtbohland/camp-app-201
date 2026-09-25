@@ -1,11 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetHackathonResults",
   description: "Gets all hackathon submissions and vote tallies",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({ presentation_id: z.number(), camper_id: z.number() }),
   output: z.object({
     submissions: z.array(z.object({
@@ -25,7 +25,7 @@ export default api({
     total_campers: z.coerce.number(),
   }),
   async run(ctx, { presentation_id, camper_id }) {
-    const submissions = await ctx.integrations.apps_database.query(
+    const submissions = await ctx.integrations.camp_201_db.query(
       `SELECT hs.team_id, t.name AS team_name, t.color AS team_color,
               hs.app_name, hs.description, hs.use_case, hs.how_it_works, hs.who_uses_it,
               COALESCE(hs.app_link, '') AS app_link,
@@ -50,7 +50,7 @@ export default api({
       { label: "Get hackathon submissions + votes" }
     );
 
-    const myVoteRows = await ctx.integrations.apps_database.query(
+    const myVoteRows = await ctx.integrations.camp_201_db.query(
       `SELECT voted_for_team_id FROM camp201_hackathon_votes
        WHERE presentation_id = $1 AND voter_camper_id = $2 LIMIT 1`,
       z.object({ voted_for_team_id: z.coerce.number() }),
@@ -58,14 +58,14 @@ export default api({
       { label: "Check my vote" }
     );
 
-    const voterCount = await ctx.integrations.apps_database.query(
+    const voterCount = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(DISTINCT voter_camper_id) AS cnt FROM camp201_hackathon_votes WHERE presentation_id = $1 LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       [presentation_id],
       { label: "Count voters" }
     );
 
-    const camperCount = await ctx.integrations.apps_database.query(
+    const camperCount = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) AS cnt FROM camp201_campers WHERE role NOT IN ('counselor', 'admin') LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       undefined,

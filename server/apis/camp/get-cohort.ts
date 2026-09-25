@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const CohortMemberSchema = z.object({
   id: z.coerce.number(),
@@ -27,14 +27,14 @@ export default api({
   name: "GetCohort",
   description: "Fetches all registered campers for the cohort directory",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
     members: z.array(CohortMemberSchema),
   }),
   async run(ctx) {
-    const members = await ctx.integrations.apps_database.query(
+    const members = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.role, c.manager,
               c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.fun_fact,
               c.points, c.team_id, c.start_date,

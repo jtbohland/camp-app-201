@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Wheel & Deal valid score range (hidden from campers)
 const WD_MIN = 4;
@@ -13,7 +13,7 @@ export default api({
   name: "SubmitPreworkValidation",
   description: "Submit Wheel & Deal scores or Challenger screenshots for pre-work validation",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -56,7 +56,7 @@ export default api({
     }
 
     // Save submission (does NOT auto-complete — camper must click Mark Complete)
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_prework_submissions (camper_id, item_key, submission_data, flagged)
        VALUES ($1, $2, $3::jsonb, $4)
        ON CONFLICT (camper_id, item_key) DO UPDATE

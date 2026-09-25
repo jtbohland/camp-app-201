@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "RequestAbsence",
   description: "Camper submits an absence request with time range",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -17,7 +17,7 @@ export default api({
   output: z.object({ success: z.boolean(), id: z.number() }),
   async run(ctx, input) {
     const IdSchema = z.object({ id: z.number() });
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_absence_requests (camper_id, start_time, end_time, reason)
        VALUES ($1, $2, $3, $4) RETURNING id`,
       IdSchema,

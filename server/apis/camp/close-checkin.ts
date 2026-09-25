@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "CloseCheckIn",
   description: "Counselor closes a check-in session and calculates final scores",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     session_id: z.number(),
@@ -25,7 +25,7 @@ export default api({
   }),
   async run(ctx, { session_id }) {
     // Close the session
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_checkin_sessions SET status = 'closed', closed_at = NOW() WHERE id = $1`,
       [session_id],
       { label: "Close check-in session" }
@@ -38,7 +38,7 @@ export default api({
       on_time_count: z.coerce.number(),
       late_count: z.coerce.number(),
     });
-    const stats = await ctx.integrations.apps_database.query(
+    const stats = await ctx.integrations.camp_201_db.query(
       `SELECT
         COUNT(*) as total_checked_in,
         COUNT(*) FILTER (WHERE timing = 'early') as early_count,
@@ -51,7 +51,7 @@ export default api({
     );
 
     const TotalSchema = z.object({ total: z.coerce.number() });
-    const totalResult = await ctx.integrations.apps_database.query(
+    const totalResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) as total FROM camp201_campers WHERE role != 'counselor'`,
       TotalSchema,
       undefined,
@@ -60,7 +60,7 @@ export default api({
 
     // Get first team name
     const TeamSchema = z.object({ name: z.string() });
-    const firstTeam = await ctx.integrations.apps_database.query(
+    const firstTeam = await ctx.integrations.camp_201_db.query(
       `SELECT t.name FROM camp201_teams t
        JOIN camp201_checkin_sessions s ON s.first_team_id = t.id
        WHERE s.id = $1 LIMIT 1`,

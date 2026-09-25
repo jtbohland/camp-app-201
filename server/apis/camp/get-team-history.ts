@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const TeamHistorySchema = z.object({
   id: z.coerce.number(),
@@ -19,7 +19,7 @@ export default api({
   name: "GetTeamHistory",
   description: "Gets all historical team names/logos from past cohorts for inspiration and dedup",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     search: z.string().nullable(),
@@ -31,7 +31,7 @@ export default api({
   async run(ctx, { search }) {
     // Get all team names for dedup checking
     const NameSchema = z.object({ team_name: z.string() });
-    const allNames = await ctx.integrations.apps_database.query(
+    const allNames = await ctx.integrations.camp_201_db.query(
       `SELECT DISTINCT team_name FROM camp201_team_history ORDER BY team_name LIMIT 200`,
       NameSchema,
       undefined,
@@ -39,7 +39,7 @@ export default api({
     );
 
     // Also get current active team names
-    const currentNames = await ctx.integrations.apps_database.query(
+    const currentNames = await ctx.integrations.camp_201_db.query(
       `SELECT name as team_name FROM camp201_teams LIMIT 50`,
       NameSchema,
       undefined,
@@ -58,7 +58,7 @@ export default api({
          FROM camp201_team_history
          ORDER BY cohort_year DESC, placement ASC NULLS LAST LIMIT 50`;
 
-    const teams = await ctx.integrations.apps_database.query(
+    const teams = await ctx.integrations.camp_201_db.query(
       query,
       TeamHistorySchema,
       search ? [`%${search}%`] : undefined,

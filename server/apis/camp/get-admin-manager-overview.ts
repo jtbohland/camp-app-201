@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const ManagerOverviewSchema = z.object({
   id: z.coerce.number(),
@@ -31,7 +31,7 @@ export default api({
   name: "GetAdminManagerOverview",
   description: "Gets all managers with their hires, comments, and activity for admin view",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -39,7 +39,7 @@ export default api({
     recent_comments: z.array(ManagerCommentDetailSchema),
   }),
   async run(ctx) {
-    const managers = await ctx.integrations.apps_database.query(
+    const managers = await ctx.integrations.camp_201_db.query(
       `SELECT m.id, m.email, m.first_name, m.last_name, m.title, m.region,
               (SELECT COUNT(*) FROM camp201_manager_hires mh WHERE mh.manager_id = m.id)::integer as hire_count,
               (SELECT COUNT(*) FROM camp201_manager_comments mc WHERE mc.manager_id = m.id)::integer as comment_count,
@@ -53,7 +53,7 @@ export default api({
       { label: "Get all managers overview" }
     );
 
-    const recentComments = await ctx.integrations.apps_database.query(
+    const recentComments = await ctx.integrations.camp_201_db.query(
       `SELECT mc.id,
               m.first_name as manager_first_name, m.last_name as manager_last_name,
               c.first_name as camper_first_name, c.last_name as camper_last_name,

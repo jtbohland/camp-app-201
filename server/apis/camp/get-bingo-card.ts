@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const SquareSchema = z.object({
   idx: z.number(),
@@ -22,7 +22,7 @@ const CardOutputSchema = z.object({
 export default api({
   name: "GetBingoCard",
   description: "Gets or generates a shuffled bingo card for a camper",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
     camper_id: z.number(),
@@ -31,7 +31,7 @@ export default api({
   output: CardOutputSchema,
   async run(ctx, { presentation_id, camper_id, is_admin }) {
     // Check for existing card
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT card, found_squares, last_wrong_guess_camper_id, score, bingos_claimed, penalty_count
        FROM camp201_bingo_cards WHERE presentation_id = $1 AND camper_id = $2 LIMIT 1`,
       z.object({
@@ -43,7 +43,7 @@ export default api({
     );
 
     // Always get camper names for the dropdown
-    const campers = await ctx.integrations.apps_database.query(
+    const campers = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin') AND id != $1
        ORDER BY first_name LIMIT 50`,
@@ -73,7 +73,7 @@ export default api({
     }
 
     // Generate a new card — gather fun facts from all non-admin campers
-    const facts = await ctx.integrations.apps_database.query(
+    const facts = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, fun_fact, ice_breaker_q1, ice_breaker_q2, ice_breaker_q3, city, region
        FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
@@ -154,7 +154,7 @@ export default api({
     card.splice(12, 0, { idx: 12, fact: "🏕️ FREE", owner_camper_id: 0, is_free: true });
 
     // Save to DB
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_bingo_cards (presentation_id, camper_id, card, found_squares, score, bingos_claimed, penalty_count, updated_at)
        VALUES ($1, $2, $3::jsonb, '{}'::jsonb, 0, '[]'::jsonb, 0, NOW())
        ON CONFLICT (presentation_id, camper_id)

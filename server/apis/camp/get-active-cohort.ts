@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetActiveCohort",
   description: "Returns the currently active cohort details",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -29,7 +29,7 @@ export default api({
       created_at: z.string(),
     });
 
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `SELECT id, name, start_date, end_date, is_active, created_at
        FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
       CohortSchema,

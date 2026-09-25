@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const LeaderboardTeamSchema = z.object({
   id: z.coerce.number(),
@@ -24,7 +24,7 @@ export default api({
   name: "GetLeaderboard",
   description: "Fetches team rankings, top contributors per team, and aMpVP",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -42,7 +42,7 @@ export default api({
   }),
   async run(ctx) {
     // Team rankings
-    const teams = await ctx.integrations.apps_database.query(
+    const teams = await ctx.integrations.camp_201_db.query(
       `SELECT t.id, t.name, t.logo_url, t.color,
               COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) as total_points,
               COUNT(c.id) as member_count
@@ -59,7 +59,7 @@ export default api({
     // Top contributor per team
     const topContributors = [];
     for (const team of teams) {
-      const top = await ctx.integrations.apps_database.query(
+      const top = await ctx.integrations.camp_201_db.query(
         `SELECT id, first_name, last_name, points, team_id, photo_url
          FROM camp201_campers
          WHERE team_id = $1
@@ -79,7 +79,7 @@ export default api({
     }
 
     // Overall MVP (aMpVP) - top individual earner
-    const mvpResult = await ctx.integrations.apps_database.query(
+    const mvpResult = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name, points, team_id, photo_url
        FROM camp201_campers
        ORDER BY points DESC
@@ -94,7 +94,7 @@ export default api({
       id: z.coerce.number(), first_name: z.string(), last_name: z.string(), points: z.coerce.number(),
       team_name: z.string().nullable(), team_logo_url: z.string().nullable(), team_color: z.string().nullable(),
     });
-    const allCampers = await ctx.integrations.apps_database.query(
+    const allCampers = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.points,
               t.name as team_name, t.logo_url as team_logo_url, t.color as team_color
        FROM camp201_campers c

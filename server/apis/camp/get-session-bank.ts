@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const SessionBankItemSchema = z.object({
   id: z.coerce.number(),
@@ -15,14 +15,14 @@ export default api({
   name: "GetSessionBank",
   description: "Fetches all sessions in the reusable session bank",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
     sessions: z.array(SessionBankItemSchema),
   }),
   async run(ctx) {
-    const sessions = await ctx.integrations.apps_database.query(
+    const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT id, title, description, duration_minutes, session_type, created_by
        FROM camp201_session_bank
        ORDER BY title ASC

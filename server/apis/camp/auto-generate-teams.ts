@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 /**
  * Distributes campers into N balanced teams, diversifying by region and role.
@@ -49,7 +49,7 @@ export default api({
   name: "AutoGenerateTeams",
   description: "Auto-creates balanced teams from registered campers, distributed by region and role",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     num_teams: z.number().min(2).max(10),
@@ -65,7 +65,7 @@ export default api({
   }),
   async run(ctx, { num_teams }) {
     // Get all registered campers (not counselors/admins)
-    const campers = await ctx.integrations.apps_database.query(
+    const campers = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name, region, role
        FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
@@ -91,7 +91,7 @@ export default api({
     }
 
     // Check if teams already exist
-    const existingTeams = await ctx.integrations.apps_database.query(
+    const existingTeams = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as cnt FROM camp201_teams LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       undefined,
@@ -109,7 +109,7 @@ export default api({
 
     for (let i = 0; i < num_teams; i++) {
       const teamName = `Team ${i + 1}`;
-      const teamResult = await ctx.integrations.apps_database.query(
+      const teamResult = await ctx.integrations.camp_201_db.query(
         `INSERT INTO camp201_teams (name, logo_url, color)
          VALUES ($1, '', '')
          RETURNING id`,
@@ -123,7 +123,7 @@ export default api({
 
       if (memberIds.length > 0) {
         // Assign all members to this team
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `UPDATE camp201_campers SET team_id = $1 WHERE id = ANY($2::int[])`,
           [teamId, memberIds],
           { label: `Assign ${memberIds.length} members to ${teamName}` }

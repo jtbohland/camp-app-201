@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const DEFAULT_GATES = [
   { key: "journey", label: "Journey / Pre-work", default_locked: false },
@@ -19,12 +19,12 @@ export default api({
   name: "MigrateFeatureGates",
   description: "Creates feature gates table and seeds default gate entries",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_feature_gates (
         id SERIAL PRIMARY KEY,
         feature_key TEXT NOT NULL UNIQUE,
@@ -40,7 +40,7 @@ export default api({
 
     // Seed defaults (skip existing)
     for (const gate of DEFAULT_GATES) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_feature_gates (feature_key, label, is_locked)
          VALUES ($1, $2, $3)
          ON CONFLICT (feature_key) DO NOTHING`,

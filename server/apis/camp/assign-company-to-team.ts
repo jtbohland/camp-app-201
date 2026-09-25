@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Company catalog with real branding
 export const COMPANY_CATALOG = [
@@ -13,7 +13,7 @@ export const COMPANY_CATALOG = [
 export default api({
   name: "AssignCompanyToTeam",
   description: "Assigns a company from the catalog to a team",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     team_id: z.number(),
     company_slug: z.string(),
@@ -25,7 +25,7 @@ export default api({
       return { success: false, message: "Company not found in catalog" };
     }
 
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_teams SET assigned_company = $2::jsonb WHERE id = $1`,
       [team_id, JSON.stringify(company)],
       { label: `Assign ${company.name} to team ${team_id}` }

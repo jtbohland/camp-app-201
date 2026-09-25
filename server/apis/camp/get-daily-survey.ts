@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const AgendaSessionSchema = z.object({
   id: z.coerce.number(),
@@ -27,7 +27,7 @@ export default api({
   name: "GetDailySurvey",
   description: "Gets the dynamic survey for a given day with team race and deadline data",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -59,7 +59,7 @@ export default api({
     const cohortFilter = `(SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)`;
 
     // Get num_days
-    const configRows = await ctx.integrations.apps_database.query(
+    const configRows = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'num_days' LIMIT 1`,
       ConfigSchema, undefined, { label: "Get num_days" }
     );
@@ -67,7 +67,7 @@ export default api({
     const isFinalDay = input.day_number === numDays;
 
     // Get sessions for this day (exclude non-learning sessions)
-    const sessions = await ctx.integrations.apps_database.query(
+    const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT id, title, session_type, start_time, end_time
        FROM camp201_agenda WHERE day_number = $1 AND session_type NOT IN ('lunch','break','core')
        ORDER BY start_time LIMIT 30`,
@@ -75,7 +75,7 @@ export default api({
     );
 
     // Check if already submitted
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_daily_survey_submissions
        WHERE camper_id = $1 AND day_number = $2 AND cohort_id = ${cohortFilter} LIMIT 1`,
       z.object({ id: z.coerce.number() }), [input.camper_id, input.day_number],
@@ -83,7 +83,7 @@ export default api({
     );
 
     // Compute deadlines based on camp_start_date
-    const startDateRows = await ctx.integrations.apps_database.query(
+    const startDateRows = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
       ConfigSchema, undefined, { label: "Get camp start date" }
     );
@@ -94,7 +94,7 @@ export default api({
 
     // Check manual per-day lock
     const LockSchema = z.object({ value: z.string() });
-    const manualLock = await ctx.integrations.apps_database.query(
+    const manualLock = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
       LockSchema,
       [`survey_day_${input.day_number}_locked`],
@@ -118,7 +118,7 @@ export default api({
     }
 
     // Get day statuses (which days has this camper submitted)
-    const dayStatuses = await ctx.integrations.apps_database.query(
+    const dayStatuses = await ctx.integrations.camp_201_db.query(
       `SELECT day_number, true as submitted
        FROM camp201_daily_survey_submissions
        WHERE camper_id = $1 AND cohort_id = ${cohortFilter}
@@ -130,7 +130,7 @@ export default api({
 
     // Get all per-day lock statuses
     const DayLockSchema = z.object({ key: z.string(), value: z.string() });
-    const dayLocks = await ctx.integrations.apps_database.query(
+    const dayLocks = await ctx.integrations.camp_201_db.query(
       `SELECT key, value FROM camp201_config WHERE key LIKE 'survey_day_%_locked' LIMIT 10`,
       DayLockSchema, [],
       { label: "Get all day lock statuses" }
@@ -148,7 +148,7 @@ export default api({
     }));
 
     // Team race progress for this day
-    const teamProgress = await ctx.integrations.apps_database.query(
+    const teamProgress = await ctx.integrations.camp_201_db.query(
       `SELECT t.id as team_id, t.name as team_name, t.color as team_color,
               COUNT(DISTINCT c.id)::integer as total_members,
               COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN c.id END)::integer as submitted_count

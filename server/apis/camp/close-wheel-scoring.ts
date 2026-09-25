@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const AvgSchema = z.object({
   avg_clarity: z.coerce.number(),
@@ -15,7 +15,7 @@ const AvgSchema = z.object({
 export default api({
   name: "CloseWheelScoring",
   description: "Counselor closes scoring, calculates room averages, awards points",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     round_id: z.number(),
   }),
@@ -29,7 +29,7 @@ export default api({
   async run(ctx, { round_id }) {
     // 1. Get self-eval scores
     const SelfSchema = z.object({ total: z.number(), pitcher_id: z.number() });
-    const selfRows = await ctx.integrations.apps_database.query(
+    const selfRows = await ctx.integrations.camp_201_db.query(
       `SELECT s.total, r.pitcher_id
        FROM camp201_wheel_scores s
        JOIN camp201_wheel_rounds r ON r.id = s.round_id
@@ -43,7 +43,7 @@ export default api({
     const pitcherId = selfRows.length > 0 ? selfRows[0].pitcher_id : 0;
 
     // 2. Calculate room averages (non-self-eval only, fully submitted scores)
-    const avgRows = await ctx.integrations.apps_database.query(
+    const avgRows = await ctx.integrations.camp_201_db.query(
       `SELECT
         ROUND(AVG(clarity)::numeric, 1) as avg_clarity,
         ROUND(AVG(tone)::numeric, 1) as avg_tone,
@@ -85,7 +85,7 @@ export default api({
       total: avg.avg_total,
     };
 
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_wheel_rounds
        SET status = 'closed',
            self_scores = (SELECT row_to_json(s) FROM (SELECT clarity, tone, credibility, close_score, completion, total FROM camp201_wheel_scores WHERE round_id = $1 AND is_self_eval = TRUE LIMIT 1) s),
@@ -100,7 +100,7 @@ export default api({
 
     // 5. Award points to the pitcher
     if (pitcherId > 0) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
         [points, pitcherId],
         { label: "Award wheel points to pitcher" }

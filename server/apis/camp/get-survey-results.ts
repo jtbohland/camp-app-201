@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetSurveyResults",
   description: "Gets survey results and completion tracking for admin view",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     survey_id: z.number().nullable(),
@@ -40,7 +40,7 @@ export default api({
       created_at: z.string(),
     });
 
-    const surveys = await ctx.integrations.apps_database.query(
+    const surveys = await ctx.integrations.camp_201_db.query(
       `SELECT s.id, s.title, s.day_number, s.is_active, s.created_at,
               (SELECT COUNT(*) FROM camp201_survey_responses WHERE survey_id = s.id)::int as response_count,
               (SELECT COUNT(*) FROM camp201_campers c WHERE c.cohort_id = s.cohort_id AND c.role != 'counselor')::int as total_campers
@@ -65,7 +65,7 @@ export default api({
         submitted_at: z.string(),
       });
 
-      responses = await ctx.integrations.apps_database.query(
+      responses = await ctx.integrations.camp_201_db.query(
         `SELECT CONCAT(c.first_name, ' ', c.last_name) as camper_name,
                 t.name as team_name, sr.answers, sr.submitted_at
          FROM camp201_survey_responses sr

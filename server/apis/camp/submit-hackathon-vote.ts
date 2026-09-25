@@ -1,11 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SubmitHackathonVote",
   description: "Cast a vote for best hackathon project (can't vote for own team)",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
     camper_id: z.number(),
@@ -14,7 +14,7 @@ export default api({
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx, { presentation_id, camper_id, team_id }) {
     // Check voter's team — can't vote for own
-    const camper = await ctx.integrations.apps_database.query(
+    const camper = await ctx.integrations.camp_201_db.query(
       `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
       z.object({ team_id: z.coerce.number().nullable() }),
       [camper_id],
@@ -25,7 +25,7 @@ export default api({
     }
 
     // Check if already voted
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_hackathon_votes
        WHERE presentation_id = $1 AND voter_camper_id = $2 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
@@ -37,7 +37,7 @@ export default api({
     }
 
     // Cast vote
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_hackathon_votes (presentation_id, voter_camper_id, voted_for_team_id)
        VALUES ($1, $2, $3)`,
       [presentation_id, camper_id, team_id],
@@ -45,13 +45,13 @@ export default api({
     );
 
     // Check if all campers have voted → award points
-    const totalCampers = await ctx.integrations.apps_database.query(
+    const totalCampers = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) AS cnt FROM camp201_campers WHERE role NOT IN ('counselor', 'admin') LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       undefined,
       { label: "Count campers" }
     );
-    const totalVotes = await ctx.integrations.apps_database.query(
+    const totalVotes = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) AS cnt FROM camp201_hackathon_votes WHERE presentation_id = $1 LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       [presentation_id],
@@ -60,7 +60,7 @@ export default api({
 
     if (totalVotes[0].cnt >= totalCampers[0].cnt) {
       // Award points: 1st=+20, 2nd=+15, 3rd=+10, 4th=+5
-      const ranked = await ctx.integrations.apps_database.query(
+      const ranked = await ctx.integrations.camp_201_db.query(
         `SELECT voted_for_team_id, COUNT(*) AS votes
          FROM camp201_hackathon_votes WHERE presentation_id = $1
          GROUP BY voted_for_team_id ORDER BY votes DESC LIMIT 10`,
@@ -72,7 +72,7 @@ export default api({
       const pointTiers = [20, 15, 10, 5];
       for (let i = 0; i < ranked.length; i++) {
         const pts = pointTiers[i] ?? 3;
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `UPDATE camp201_teams SET total_points = total_points + $2 WHERE id = $1`,
           [ranked[i].voted_for_team_id, pts],
           { label: `Award ${pts}pts to rank ${i + 1}` }

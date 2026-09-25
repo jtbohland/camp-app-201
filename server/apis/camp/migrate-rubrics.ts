@@ -1,18 +1,18 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "MigrateRubrics",
   description: "Creates rubric tables for presentation scoring",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
     // Rubric templates - define criteria for each presentation type
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_rubric_templates (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
@@ -29,7 +29,7 @@ export default api({
     );
 
     // Rubric submissions - actual scores given by counselors
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_rubric_scores (
         id SERIAL PRIMARY KEY,
         template_id INT NOT NULL REFERENCES camp201_rubric_templates(id),
@@ -49,7 +49,7 @@ export default api({
 
     // Seed a default presentation rubric
     const ExistsSchema = z.object({ count: z.coerce.number() });
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_rubric_templates`,
       ExistsSchema,
       undefined,
@@ -65,7 +65,7 @@ export default api({
         { id: "delivery", name: "Delivery & Presence", description: "Confident, engaging, good use of time, team collaboration", max_score: 20 },
       ]);
 
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_rubric_templates (name, description, criteria, max_total_points, points_to_award)
          VALUES ('Group Presentation', 'Standard rubric for team group presentations', $1::jsonb, 100, 10)`,
         [defaultCriteria],
