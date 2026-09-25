@@ -124,7 +124,8 @@ export default api({
           const data = typeof row.row_data === "string" ? JSON.parse(row.row_data) : row.row_data;
           const placeholders: string[] = [];
           for (const col of colNames) {
-            params.push(data[col] ?? null);
+            const val = data[col] ?? null;
+            params.push(val !== null && typeof val === "object" ? JSON.stringify(val) : val);
             placeholders.push(`$${paramIdx++}`);
           }
           valueClauses.push(`(${placeholders.join(", ")})`);
