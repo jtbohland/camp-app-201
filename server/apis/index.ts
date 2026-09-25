@@ -187,6 +187,8 @@ import RevealTeamStanding from './camp/reveal-team-standing.js';
 import RevealCampVP from './camp/reveal-camp-vp.js';
 import ToggleFinalSurvey from './camp/toggle-final-survey.js';
 import ToggleSurveyDayLock from './camp/toggle-survey-day-lock.js';
+import GetMigrationStatus from './camp/get-migration-status.js';
+import MigrateTable from './camp/migrate-table.js';
 
 const apis = {
   SetupDatabase,
@@ -372,6 +374,8 @@ const apis = {
   RevealCampVP,
   ToggleFinalSurvey,
 ToggleSurveyDayLock,
+GetMigrationStatus,
+MigrateTable,
 } as const;
 
 export default apis;
