@@ -1,18 +1,18 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SetupDatabase",
   description: "Creates all cAMP 201 database tables if they don't exist",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
     // Campers table - core registration and profile data
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_campers (
         id SERIAL PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -46,7 +46,7 @@ export default api({
     );
 
     // Points log - tracks all point awards/deductions
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_points_log (
         id SERIAL PRIMARY KEY,
         camper_id INTEGER NOT NULL,
@@ -60,7 +60,7 @@ export default api({
     );
 
     // Pre-work completions - tracks which items each camper has completed
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_prework (
         id SERIAL PRIMARY KEY,
         camper_id INTEGER NOT NULL,
@@ -73,7 +73,7 @@ export default api({
     );
 
     // Session bank - reusable sessions that counselors can drag into the schedule
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_session_bank (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -88,7 +88,7 @@ export default api({
     );
 
     // Scheduled sessions - sessions placed on the agenda
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_agenda (
         id SERIAL PRIMARY KEY,
         session_bank_id INTEGER REFERENCES camp201_session_bank(id),
@@ -104,7 +104,7 @@ export default api({
     );
 
     // Camp configuration (number of days, etc.)
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_config (
         id SERIAL PRIMARY KEY,
         key TEXT UNIQUE NOT NULL,
@@ -116,7 +116,7 @@ export default api({
     );
 
     // Teams
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_teams (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
@@ -129,7 +129,7 @@ export default api({
     );
 
     // Team hub items (collaborative workspace content)
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_hub_items (
         id SERIAL PRIMARY KEY,
         team_id INTEGER NOT NULL REFERENCES camp201_teams(id),
@@ -146,7 +146,7 @@ export default api({
     );
 
     // Executives / speaker bank
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `CREATE TABLE IF NOT EXISTS camp201_executives (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,

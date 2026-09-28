@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const PreworkItemSchema = z.object({
   item: z.string(),
@@ -11,7 +11,7 @@ export default api({
   name: "GetPreworkStatus",
   description: "Gets the pre-work completion status for a camper",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     user_id: z.number(),
@@ -20,7 +20,7 @@ export default api({
     completedItems: z.array(PreworkItemSchema),
   }),
   async run(ctx, { user_id }) {
-    const completedItems = await ctx.integrations.apps_database.query(
+    const completedItems = await ctx.integrations.camp_201_db.query(
       `SELECT item, completed_at::text FROM camp201_prework WHERE user_id = $1 AND completed = true`,
       PreworkItemSchema,
       [user_id],

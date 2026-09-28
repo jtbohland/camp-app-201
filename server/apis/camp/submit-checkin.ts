@@ -1,7 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Flat check-in points (no accelerator)
 const EARLY_POINTS = 5;
@@ -20,7 +20,7 @@ export default api({
   name: "SubmitCheckIn",
   description: "Camper submits check-in with word + PIN. Flat points: early +5, on-time +3, late -2",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -37,14 +37,14 @@ export default api({
     team_place: z.number().nullable(), // 1st, 2nd, 3rd, or null
   }),
   async run(ctx, input) {
-    if (await isCampClosed(ctx.integrations.apps_database)) {
+    if (await isCampClosed(ctx.integrations.camp_201_db)) {
       return { success: false, timing: null, points: 0, error: "cAMP is closed — no more check-ins accepted.", team_complete: false, team_place: null };
     }
     const { camper_id, session_id, word, pin } = input;
 
     // ─── Verify PIN ───
     const CamperSchema = z.object({ pin: z.string().nullable(), team_id: z.number().nullable() });
-    const campers = await ctx.integrations.apps_database.query(
+    const campers = await ctx.integrations.camp_201_db.query(
       `SELECT pin, team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
       CamperSchema,
       [camper_id],
@@ -63,7 +63,7 @@ export default api({
 
     // ─── Check duplicate ───
     const ExistingSchema = z.object({ id: z.number() });
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_checkin_responses WHERE session_id = $1 AND camper_id = $2 LIMIT 1`,
       ExistingSchema,
       [session_id, camper_id],
@@ -81,7 +81,7 @@ export default api({
       status: z.string(),
       teams_finished: z.coerce.number(),
     });
-    const sessions = await ctx.integrations.apps_database.query(
+    const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT timer_ends_at, checkin_opens_at, status, COALESCE(teams_finished, 0) as teams_finished
        FROM camp201_checkin_sessions WHERE id = $1 LIMIT 1`,
       SessionSchema,
@@ -108,7 +108,7 @@ export default api({
     const previousSlot = Math.max(0, currentSlot - 1);
 
     const CountSchema = z.object({ count: z.coerce.number() });
-    const countResult = await ctx.integrations.apps_database.query(
+    const countResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) as count FROM camp201_word_bank`,
       CountSchema,
       undefined,
@@ -120,7 +120,7 @@ export default api({
     const currentIndex = ((session_id * 7919) + (currentSlot * 104729)) % totalWords;
     const previousIndex = ((session_id * 7919) + (previousSlot * 104729)) % totalWords;
 
-    const currentWords = await ctx.integrations.apps_database.query(
+    const currentWords = await ctx.integrations.camp_201_db.query(
       `SELECT word FROM camp201_word_bank ORDER BY id LIMIT 1 OFFSET $1`,
       WordSchema,
       [currentIndex],
@@ -131,7 +131,7 @@ export default api({
     if (currentWords.length > 0) validWords.push(currentWords[0].word.toUpperCase());
 
     if (currentSlot > 0) {
-      const prevWords = await ctx.integrations.apps_database.query(
+      const prevWords = await ctx.integrations.camp_201_db.query(
         `SELECT word FROM camp201_word_bank ORDER BY id LIMIT 1 OFFSET $1`,
         WordSchema,
         [previousIndex],
@@ -163,12 +163,12 @@ export default api({
     }
 
     // ─── Award/deduct individual points ───
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
       [points, camper_id],
       { label: `Award check-in points (${timing}: ${points})` }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
       [camper_id, points, `Check-in: ${timing} (session ${session_id})`],
       { label: "Log check-in points" }
@@ -176,7 +176,7 @@ export default api({
 
     // ─── Award Check-In badge for early check-ins (no accelerator, just badge count) ───
     if (timing === "early") {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, earn_count)
          VALUES ($1, 133, NOW(), 1)
          ON CONFLICT (camper_id, badge_id) DO UPDATE SET earn_count = camp201_camper_badges.earn_count + 1`,
@@ -186,7 +186,7 @@ export default api({
     }
 
     // ─── Insert check-in response ───
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [session_id, camper_id, teamId, timing, submittedWord, points],
@@ -199,7 +199,7 @@ export default api({
 
     if (teamId) {
       const TeamStatusSchema = z.object({ checked_in: z.coerce.number(), total: z.coerce.number(), absent_approved: z.coerce.number() });
-      const teamStatus = await ctx.integrations.apps_database.query(
+      const teamStatus = await ctx.integrations.camp_201_db.query(
         `SELECT
           (SELECT COUNT(*) FROM camp201_checkin_responses WHERE session_id = $1 AND team_id = $2) as checked_in,
           (SELECT COUNT(*) FROM camp201_campers WHERE team_id = $2 AND role != 'counselor') as total,
@@ -222,7 +222,7 @@ export default api({
 
         // Atomically increment teams_finished counter and get the new value
         const PlaceSchema = z.object({ teams_finished: z.coerce.number() });
-        const placeResult = await ctx.integrations.apps_database.query(
+        const placeResult = await ctx.integrations.camp_201_db.query(
           `UPDATE camp201_checkin_sessions
            SET teams_finished = COALESCE(teams_finished, 0) + 1
            WHERE id = $1
@@ -238,12 +238,12 @@ export default api({
         // Award team race bonus (1st=+5, 2nd=+3, 3rd=+1, 4th+=0)
         const bonus = place <= TEAM_RACE_BONUSES.length ? TEAM_RACE_BONUSES[place - 1] : 0;
         if (bonus > 0) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
             [bonus, teamId],
             { label: `Award team race bonus (place ${place}: +${bonus})` }
           );
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_team_points_log (team_id, points, reason)
              VALUES ($1, $2, $3)`,
             [teamId, bonus, `Check-in race: ${place === 1 ? '1st' : place === 2 ? '2nd' : '3rd'} team (session ${session_id})`],
@@ -253,7 +253,7 @@ export default api({
 
         // Auto-check-in absent members (0 pts, timing='absent')
         const AbsentSchema = z.object({ id: z.number() });
-        const absentMembers = await ctx.integrations.apps_database.query(
+        const absentMembers = await ctx.integrations.camp_201_db.query(
           `SELECT DISTINCT c.id
            FROM camp201_campers c
            JOIN camp201_absence_requests ar ON ar.camper_id = c.id
@@ -270,7 +270,7 @@ export default api({
         );
 
         for (const absent of absentMembers) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
              VALUES ($1, $2, $3, 'absent', 'ABSENT', 0)
              ON CONFLICT DO NOTHING`,
@@ -288,7 +288,7 @@ export default api({
         start_date: z.string(),
         end_date: z.string(),
       });
-      const cohortInfo = await ctx.integrations.apps_database.query(
+      const cohortInfo = await ctx.integrations.camp_201_db.query(
         `SELECT c.cohort_id, co.start_date::text, co.end_date::text
          FROM camp201_campers c
          JOIN camp201_cohorts co ON co.id = c.cohort_id
@@ -309,7 +309,7 @@ export default api({
           session_id: z.coerce.number(),
           timing: z.string().nullable(),
         });
-        const history = await ctx.integrations.apps_database.query(
+        const history = await ctx.integrations.camp_201_db.query(
           `SELECT cs.id as session_id, cr.timing
            FROM camp201_checkin_sessions cs
            LEFT JOIN camp201_checkin_responses cr
@@ -334,7 +334,7 @@ export default api({
             else { currentStreak = 0; }
           }
           if (maxStreak >= 3) {
-            await ctx.integrations.apps_database.execute(
+            await ctx.integrations.camp_201_db.execute(
               `INSERT INTO camp201_camper_badges (camper_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
               [camper_id, EARLY_BIRD_BADGE_ID],
               { label: "Award Early Bird" }
@@ -346,7 +346,7 @@ export default api({
         const allEarly = earlyFlags.length > 0 && earlyFlags.every(Boolean);
         if (allEarly && totalSessions >= campDays) {
           const ExistingBadge = z.object({ id: z.number() });
-          const existingIron = await ctx.integrations.apps_database.query(
+          const existingIron = await ctx.integrations.camp_201_db.query(
             `SELECT id FROM camp201_camper_badges WHERE camper_id = $1 AND badge_id = $2 LIMIT 1`,
             ExistingBadge,
             [camper_id, IRON_CAMPER_BADGE_ID],
@@ -354,17 +354,17 @@ export default api({
           );
 
           if (existingIron.length === 0) {
-            await ctx.integrations.apps_database.execute(
+            await ctx.integrations.camp_201_db.execute(
               `INSERT INTO camp201_camper_badges (camper_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
               [camper_id, IRON_CAMPER_BADGE_ID],
               { label: "Award Iron Camper" }
             );
-            await ctx.integrations.apps_database.execute(
+            await ctx.integrations.camp_201_db.execute(
               `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
               [IRON_CAMPER_POINTS, camper_id],
               { label: "Award Iron Camper points" }
             );
-            await ctx.integrations.apps_database.execute(
+            await ctx.integrations.camp_201_db.execute(
               `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
               [camper_id, IRON_CAMPER_POINTS, "Iron Camper — early every session"],
               { label: "Log Iron Camper points" }

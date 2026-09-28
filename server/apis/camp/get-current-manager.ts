@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetCurrentManager",
   description: "Checks if current user is a registered manager and returns their data",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     email: z.string(),
@@ -32,7 +32,7 @@ export default api({
       hire_count: z.coerce.number(),
     });
 
-    const managers = await ctx.integrations.apps_database.query(
+    const managers = await ctx.integrations.camp_201_db.query(
       `SELECT m.id, m.first_name, m.last_name, m.title, m.region,
               (SELECT COUNT(*) FROM camp201_manager_hires mh WHERE mh.manager_id = m.id)::integer as hire_count
        FROM camp201_managers m

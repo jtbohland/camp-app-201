@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetActiveSurvey",
   description: "Gets the currently active survey and completion status for a camper",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number().nullable(),
@@ -39,7 +39,7 @@ export default api({
       team_bonus_points: z.coerce.number(),
     });
 
-    const surveys = await ctx.integrations.apps_database.query(
+    const surveys = await ctx.integrations.camp_201_db.query(
       `SELECT id, title, description, questions, day_number, points_per_completion, team_bonus_points
        FROM camp201_surveys WHERE is_active = true LIMIT 1`,
       SurveySchema,
@@ -57,7 +57,7 @@ export default api({
     let alreadySubmitted = false;
     if (camper_id) {
       const CountSchema = z.object({ count: z.coerce.number() });
-      const submitted = await ctx.integrations.apps_database.query(
+      const submitted = await ctx.integrations.camp_201_db.query(
         `SELECT COUNT(*)::int as count FROM camp201_survey_responses WHERE survey_id = $1 AND camper_id = $2`,
         CountSchema,
         [survey.id, camper_id],
@@ -70,7 +70,7 @@ export default api({
     let teamCompletion = null;
     if (camper_id) {
       const TeamSchema = z.object({ team_id: z.coerce.number().nullable() });
-      const camperTeam = await ctx.integrations.apps_database.query(
+      const camperTeam = await ctx.integrations.camp_201_db.query(
         `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
         TeamSchema,
         [camper_id],
@@ -80,7 +80,7 @@ export default api({
       if (camperTeam.length > 0 && camperTeam[0].team_id) {
         const teamId = camperTeam[0].team_id;
         const CompletionSchema = z.object({ total: z.coerce.number(), submitted: z.coerce.number() });
-        const completion = await ctx.integrations.apps_database.query(
+        const completion = await ctx.integrations.camp_201_db.query(
           `SELECT
             COUNT(c.id)::int as total,
             COUNT(sr.id)::int as submitted

@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetAnnouncements",
   description: "Gets recent announcements for the active cohort",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -31,7 +31,7 @@ export default api({
       created_at: z.string(),
     });
 
-    const announcements = await ctx.integrations.apps_database.query(
+    const announcements = await ctx.integrations.camp_201_db.query(
       `SELECT a.id, a.title, a.body, a.priority, a.pinned, a.created_at,
               CONCAT(c.first_name, ' ', c.last_name) as author_name
        FROM camp201_announcements a

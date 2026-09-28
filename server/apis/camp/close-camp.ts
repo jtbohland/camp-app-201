@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Badge IDs
 const SUMMIT_SEEKER_ID = 2;   // 100+ points
@@ -20,7 +20,7 @@ const MILESTONE_BADGES = [
 export default api({
   name: "CloseCamp",
   description: "Idempotent close-camp: awards final badges, determines winners, freezes points",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     closer_camper_id: z.number(),
   }),
@@ -36,7 +36,7 @@ export default api({
   }),
   async run(ctx, { closer_camper_id }) {
     // ─── Idempotency check ───────────────────────────
-    const closedResult = await ctx.integrations.apps_database.query(
+    const closedResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_closed' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -44,11 +44,11 @@ export default api({
     );
     if (closedResult.length > 0 && closedResult[0].value === "true") {
       // Already closed — return stored results
-      const vpResult = await ctx.integrations.apps_database.query(
+      const vpResult = await ctx.integrations.camp_201_db.query(
         `SELECT value FROM camp201_config WHERE key = 'camp_vp_camper_id' LIMIT 1`,
         z.object({ value: z.string() }), undefined, { label: "Get stored VP" }
       );
-      const champResult = await ctx.integrations.apps_database.query(
+      const champResult = await ctx.integrations.camp_201_db.query(
         `SELECT value FROM camp201_config WHERE key = 'camp_champ_team_id' LIMIT 1`,
         z.object({ value: z.string() }), undefined, { label: "Get stored Champ" }
       );
@@ -65,7 +65,7 @@ export default api({
     }
 
     // ─── Set camp_closed FIRST (prevents race condition) ──
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_closed', 'true', NOW())
        ON CONFLICT (key) DO UPDATE SET value = 'true', updated_at = NOW()`,
       undefined,
@@ -73,14 +73,14 @@ export default api({
     );
 
     // Get active cohort
-    const cohort = await ctx.integrations.apps_database.query(
+    const cohort = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
       z.object({ id: z.coerce.number() }), undefined, { label: "Get active cohort" }
     );
     const cohortId = cohort.length > 0 ? cohort[0].id : 1;
 
     // Lock all presentations
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_presentations SET is_locked = true`,
       undefined,
       { label: "Lock all presentations" }
@@ -93,7 +93,7 @@ export default api({
       first_name: z.string(),
       last_name: z.string(),
     });
-    const allCampers = await ctx.integrations.apps_database.query(
+    const allCampers = await ctx.integrations.camp_201_db.query(
       `SELECT id, points, first_name, last_name FROM camp201_campers
        WHERE cohort_id = $1 AND role NOT IN ('counselor', 'admin')
        LIMIT 200`,
@@ -107,26 +107,26 @@ export default api({
       const qualifying = allCampers.filter((c) => c.points >= badge.threshold);
       for (const camper of qualifying) {
         // Idempotent: check if already awarded
-        const existing = await ctx.integrations.apps_database.query(
+        const existing = await ctx.integrations.camp_201_db.query(
           `SELECT id FROM camp201_camper_badges WHERE camper_id = $1 AND badge_id = $2 LIMIT 1`,
           z.object({ id: z.coerce.number() }),
           [camper.id, badge.id],
           { label: `Check milestone ${badge.id} for camper ${camper.id}` }
         );
         if (existing.length === 0) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, awarded_by)
              VALUES ($1, $2, NOW(), $3)`,
             [camper.id, badge.id, closer_camper_id],
             { label: `Award milestone ${badge.id}` }
           );
           if (badge.points > 0) {
-            await ctx.integrations.apps_database.execute(
+            await ctx.integrations.camp_201_db.execute(
               `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
               [badge.points, camper.id],
               { label: `Add milestone points ${badge.points}` }
             );
-            await ctx.integrations.apps_database.execute(
+            await ctx.integrations.camp_201_db.execute(
               `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
                VALUES ($1, $2, $3, 'badge', $4)`,
               [camper.id, badge.points, `Milestone badge: ${badge.threshold}+ points`, cohortId],
@@ -140,7 +140,7 @@ export default api({
 
     // ─── 2. Award Wheel Dealer to Top Dealer ────────────
     let wheelDealerAwarded = false;
-    const topDealer = await ctx.integrations.apps_database.query(
+    const topDealer = await ctx.integrations.camp_201_db.query(
       `SELECT r.pitcher_id as camper_id, COALESCE(SUM(DISTINCT r.points_awarded), 0) as total_points
        FROM camp201_wheel_rounds r
        WHERE r.status = 'closed'
@@ -153,14 +153,14 @@ export default api({
     );
     if (topDealer.length > 0) {
       const dealerId = topDealer[0].camper_id;
-      const existingWD = await ctx.integrations.apps_database.query(
+      const existingWD = await ctx.integrations.camp_201_db.query(
         `SELECT id FROM camp201_camper_badges WHERE camper_id = $1 AND badge_id = $2 LIMIT 1`,
         z.object({ id: z.coerce.number() }),
         [dealerId, WHEEL_DEALER_ID],
         { label: "Check Wheel Dealer already awarded" }
       );
       if (existingWD.length === 0) {
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, awarded_by)
            VALUES ($1, $2, NOW(), $3)`,
           [dealerId, WHEEL_DEALER_ID, closer_camper_id],
@@ -172,7 +172,7 @@ export default api({
 
     // ─── 3. Determine cAMP-V-P (top individual points) ──
     // Re-read campers with final points (milestone badges may have added points)
-    const finalCampers = await ctx.integrations.apps_database.query(
+    const finalCampers = await ctx.integrations.camp_201_db.query(
       `SELECT id, points, first_name, last_name FROM camp201_campers
        WHERE cohort_id = $1 AND role NOT IN ('counselor', 'admin')
        ORDER BY points DESC
@@ -188,7 +188,7 @@ export default api({
         name: `${finalCampers[0].first_name} ${finalCampers[0].last_name}`,
         points: finalCampers[0].points,
       };
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_vp_camper_id', $1, NOW())
          ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
         [String(campVp.camper_id)],
@@ -196,7 +196,7 @@ export default api({
       );
 
       // Award cAMP-V-P badge
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, earn_count)
          VALUES ($1, $2, NOW(), 1)
          ON CONFLICT (camper_id, badge_id) DO NOTHING`,
@@ -211,7 +211,7 @@ export default api({
       team_name: z.string(),
       total: z.coerce.number(),
     });
-    const teamTotals = await ctx.integrations.apps_database.query(
+    const teamTotals = await ctx.integrations.camp_201_db.query(
       `SELECT t.id as team_id, t.name as team_name,
               COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) as total
        FROM camp201_teams t
@@ -231,7 +231,7 @@ export default api({
         name: teamTotals[0].team_name,
         total: teamTotals[0].total,
       };
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_champ_team_id', $1, NOW())
          ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
         [String(campChamp.team_id)],
@@ -245,7 +245,7 @@ export default api({
     if (campVp) {
       const vpId = campVp.camper_id;
       // Check if VP also has Wheel Dealer and Camp Spirit badges
-      const vpBadges = await ctx.integrations.apps_database.query(
+      const vpBadges = await ctx.integrations.camp_201_db.query(
         `SELECT badge_id FROM camp201_camper_badges
          WHERE camper_id = $1 AND badge_id = ANY($2::int[])`,
         z.object({ badge_id: z.coerce.number() }),
@@ -255,26 +255,26 @@ export default api({
       const hasBadgeIds = new Set(vpBadges.map((b) => b.badge_id));
       if (hasBadgeIds.has(WHEEL_DEALER_ID) && hasBadgeIds.has(CAMP_SPIRIT_ID)) {
         // Award Alpine Legend idempotently
-        const existingAL = await ctx.integrations.apps_database.query(
+        const existingAL = await ctx.integrations.camp_201_db.query(
           `SELECT id FROM camp201_camper_badges WHERE camper_id = $1 AND badge_id = $2 LIMIT 1`,
           z.object({ id: z.coerce.number() }),
           [vpId, ALPINE_LEGEND_ID],
           { label: "Check Alpine Legend exists" }
         );
         if (existingAL.length === 0) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, awarded_by)
              VALUES ($1, $2, NOW(), $3)`,
             [vpId, ALPINE_LEGEND_ID, closer_camper_id],
             { label: "Award Alpine Legend" }
           );
           // +25 points
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `UPDATE camp201_campers SET points = points + 25 WHERE id = $1`,
             [vpId],
             { label: "Add Alpine Legend points" }
           );
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
              VALUES ($1, 25, 'Alpine Legend — the rarest badge at cAMP!', 'badge', $2)`,
             [vpId, cohortId],
@@ -286,13 +286,13 @@ export default api({
     }
 
     // ─── 6. Initialize reveal state (all hidden) ────────
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_config (key, value, updated_at) VALUES ('revealed_team_ids', '[]', NOW())
        ON CONFLICT (key) DO UPDATE SET value = '[]', updated_at = NOW()`,
       undefined,
       { label: "Init revealed_team_ids" }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_config (key, value, updated_at) VALUES ('vp_revealed', 'false', NOW())
        ON CONFLICT (key) DO UPDATE SET value = 'false', updated_at = NOW()`,
       undefined,
@@ -300,13 +300,13 @@ export default api({
     );
 
     // ─── 7. Log the close event ─────────────────────────
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_closed_at', NOW()::text, NOW())
        ON CONFLICT (key) DO UPDATE SET value = NOW()::text, updated_at = NOW()`,
       undefined,
       { label: "Log close timestamp" }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_closed_by', $1, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
       [String(closer_camper_id)],

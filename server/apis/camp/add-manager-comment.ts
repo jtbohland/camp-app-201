@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "AddManagerComment",
   description: "Adds a comment or reaction from a manager about a cAMPer",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     manager_email: z.string(),
@@ -18,7 +18,7 @@ export default api({
   output: z.object({ success: z.boolean(), comment_id: z.number() }),
   async run(ctx, input) {
     // Get manager ID
-    const managers = await ctx.integrations.apps_database.query(
+    const managers = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_managers WHERE email = $1 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
       [input.manager_email],
@@ -30,7 +30,7 @@ export default api({
     }
 
     // Verify this camper is linked to this manager
-    const link = await ctx.integrations.apps_database.query(
+    const link = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_manager_hires WHERE manager_id = $1 AND camper_id = $2 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
       [managers[0].id, input.camper_id],
@@ -41,7 +41,7 @@ export default api({
       throw new Error("This cAMPer is not linked to your account");
     }
 
-    const inserted = await ctx.integrations.apps_database.query(
+    const inserted = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_manager_comments (manager_id, camper_id, comment_type, sentiment, content)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,

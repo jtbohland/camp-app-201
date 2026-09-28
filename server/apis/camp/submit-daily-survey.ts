@@ -3,7 +3,7 @@ import { getSurveyPoints, BADGE_IDS } from "../../lib/accelerator.js";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const LATE_PENALTY = -3;
 const TEAM_RACE_REWARDS = [5, 3, 1, 0]; // 1st=+5, 2nd=+3, 3rd=+1, 4th+=0 (flat to team_points)
 
@@ -11,7 +11,7 @@ export default api({
   name: "SubmitDailySurvey",
   description: "Submits a daily survey with deadline enforcement and team race logic",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -39,8 +39,8 @@ export default api({
   async run(ctx, input) {
     // Check camp closed — allow if final_survey_unlocked, but flag for zero-point mode
     let isFinalSurvey = false;
-    if (await isCampClosed(ctx.integrations.apps_database)) {
-      const finalUnlocked = await ctx.integrations.apps_database.query(
+    if (await isCampClosed(ctx.integrations.camp_201_db)) {
+      const finalUnlocked = await ctx.integrations.camp_201_db.query(
         `SELECT value FROM camp201_config WHERE key = 'final_survey_unlocked' LIMIT 1`,
         z.object({ value: z.string() }), undefined, { label: "Check final survey unlock" }
       );
@@ -54,14 +54,14 @@ export default api({
     const CohortSchema = z.object({ id: z.coerce.number() });
     const ConfigSchema = z.object({ value: z.string() });
 
-    const cohorts = await ctx.integrations.apps_database.query(
+    const cohorts = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
       CohortSchema, undefined, { label: "Get active cohort" }
     );
     const cohortId = cohorts.length > 0 ? cohorts[0].id : null;
 
     // Check duplicate
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_daily_survey_submissions
        WHERE camper_id = $1 AND day_number = $2 AND cohort_id = $3 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
@@ -73,7 +73,7 @@ export default api({
     }
 
     // Compute deadline + grace
-    const startDateRows = await ctx.integrations.apps_database.query(
+    const startDateRows = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
       ConfigSchema, undefined, { label: "Get camp start date" }
     );
@@ -107,7 +107,7 @@ export default api({
     const latePenalty = late ? LATE_PENALTY : 0;
 
     // Insert submission
-    const inserted = await ctx.integrations.apps_database.query(
+    const inserted = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_daily_survey_submissions (camper_id, day_number, cohort_id, points_awarded)
        VALUES ($1, $2, $3, $4) RETURNING id`,
       z.object({ id: z.coerce.number() }),
@@ -118,7 +118,7 @@ export default api({
 
     // Insert session ratings
     for (const sr of input.session_ratings) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_session_ratings (submission_id, agenda_item_id, session_title, session_type, rating, usefulness, comment)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [submissionId, sr.agenda_item_id, sr.session_title, sr.session_type, sr.rating, sr.usefulness, sr.comment ?? ""],
@@ -129,7 +129,7 @@ export default api({
     // Insert open responses
     for (const or_ of input.open_responses) {
       if (or_.response.trim()) {
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_survey_open_responses (submission_id, question_key, response)
            VALUES ($1, $2, $3)`,
           [submissionId, or_.key, or_.response.trim()],
@@ -141,7 +141,7 @@ export default api({
     // Insert overall ratings (final day)
     if (input.overall_ratings) {
       for (const oRating of input.overall_ratings) {
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_survey_overall_ratings (submission_id, aspect_key, rating)
            VALUES ($1, $2, $3)`,
           [submissionId, oRating.aspect_key, oRating.rating],
@@ -154,7 +154,7 @@ export default api({
     if (input.overall_open_responses) {
       for (const oor of input.overall_open_responses) {
         if (oor.response.trim()) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_survey_open_responses (submission_id, question_key, response)
              VALUES ($1, $2, $3)`,
             [submissionId, oor.key, oor.response.trim()],
@@ -173,7 +173,7 @@ if (!isFinalSurvey) {
 // Award Survey Complete badge (earn_count only, no accelerator points — surveys use escalating)
 if (onTime) {
   // Just increment the badge earn count, don't award accelerator points
-  await ctx.integrations.apps_database.execute(
+  await ctx.integrations.camp_201_db.execute(
     `INSERT INTO camp201_camper_badges (camper_id, badge_id, earn_count)
      VALUES ($1, $2, 1)
      ON CONFLICT (camper_id, badge_id) DO UPDATE SET earn_count = camp201_camper_badges.earn_count + 1`,
@@ -184,11 +184,11 @@ if (onTime) {
 
 // For surveys, award escalating points directly (Day 1=2, Day 2=4, etc.)
 if (pointsAwarded > 0) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
         [pointsAwarded, input.camper_id], { label: "Award escalating survey points" }
       );
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
          VALUES ($1, $2, $3, 'system', $4)`,
         [input.camper_id, pointsAwarded, `Day ${input.day_number} survey completed (on time)`, cohortId],
@@ -198,11 +198,11 @@ if (pointsAwarded > 0) {
 
     // Apply late penalty separately
     if (latePenalty < 0) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
         [latePenalty, input.camper_id], { label: "Apply late penalty" }
       );
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
          VALUES ($1, $2, $3, 'system', $4)`,
         [input.camper_id, latePenalty, `Day ${input.day_number} survey submitted late`, cohortId],
@@ -217,7 +217,7 @@ if (pointsAwarded > 0) {
 
     if (!isFinalSurvey) {
     const CamperTeamSchema = z.object({ team_id: z.coerce.number() });
-    const camperTeam = await ctx.integrations.apps_database.query(
+    const camperTeam = await ctx.integrations.camp_201_db.query(
       `SELECT team_id FROM camp201_campers WHERE id = $1 AND team_id IS NOT NULL LIMIT 1`,
       CamperTeamSchema, [input.camper_id], { label: "Get camper team" }
     );
@@ -225,7 +225,7 @@ if (pointsAwarded > 0) {
     if (camperTeam.length > 0) {
       const teamId = camperTeam[0].team_id;
       const CountSchema = z.object({ total: z.coerce.number(), submitted: z.coerce.number() });
-      const teamCounts = await ctx.integrations.apps_database.query(
+      const teamCounts = await ctx.integrations.camp_201_db.query(
         `SELECT
            COUNT(c.id)::integer as total,
            COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN c.id END)::integer as submitted
@@ -238,7 +238,7 @@ if (pointsAwarded > 0) {
 
       if (teamCounts.length > 0 && teamCounts[0].total === teamCounts[0].submitted) {
         const CompletedTeamsSchema = z.object({ completed_teams: z.coerce.number() });
-        const completedResult = await ctx.integrations.apps_database.query(
+        const completedResult = await ctx.integrations.camp_201_db.query(
           `SELECT COUNT(DISTINCT sub.team_id)::integer as completed_teams FROM (
              SELECT c.team_id,
                     COUNT(c.id) as total,
@@ -259,11 +259,11 @@ if (pointsAwarded > 0) {
 
         if (bonus > 0) {
           // Award to TEAM points (not individual members)
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
             [bonus, teamId], { label: "Award team race bonus to team_points" }
           );
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_team_points_log (team_id, points, reason, cohort_id)
              VALUES ($1, $2, $3, $4)`,
             [teamId, bonus, `Day ${input.day_number} survey: Team finished ${rank}${rank === 1 ? "st" : rank === 2 ? "nd" : rank === 3 ? "rd" : "th"}!`, cohortId],

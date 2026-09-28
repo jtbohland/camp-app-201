@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const POINTS_PER_SQUARE = 2;
 const BINGO_BONUSES = [15, 10, 7, 3, 3, 3, 3, 3, 3, 3, 3, 3];
@@ -18,7 +18,7 @@ const BINGO_LINES = [
 export default api({
   name: "SubmitBingoGuess",
   description: "Validates a bingo square guess with anti-cheat enforcement",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
     camper_id: z.number(),
@@ -36,7 +36,7 @@ export default api({
   }),
   async run(ctx, { presentation_id, camper_id, square_idx, guessed_camper_id }) {
     // Get the card
-    const cards = await ctx.integrations.apps_database.query(
+    const cards = await ctx.integrations.camp_201_db.query(
       `SELECT card, found_squares, last_wrong_guess_camper_id, score, bingos_claimed, penalty_count
        FROM camp201_bingo_cards WHERE presentation_id = $1 AND camper_id = $2 LIMIT 1`,
       z.object({
@@ -71,14 +71,14 @@ export default api({
     if (row.last_wrong_guess_camper_id !== null && row.last_wrong_guess_camper_id === guessed_camper_id) {
       const newPenalty = row.penalty_count + 1;
       const newScore = row.score + CHEAT_PENALTY;
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_bingo_cards SET penalty_count = $3, score = $4, updated_at = NOW()
          WHERE presentation_id = $1 AND camper_id = $2`,
         [presentation_id, camper_id, newPenalty, newScore],
         { label: "Apply cheat penalty" }
       );
       // Log event
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_bingo_events (presentation_id, camper_id, event_type, detail)
          VALUES ($1, $2, 'penalty', $3::jsonb)`,
         [presentation_id, camper_id, JSON.stringify({ guessed_camper_id, square_idx })],
@@ -96,7 +96,7 @@ export default api({
 
     if (!isCorrect) {
       // Wrong guess — remember who they guessed for anti-cheat
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_bingo_cards SET last_wrong_guess_camper_id = $3, updated_at = NOW()
          WHERE presentation_id = $1 AND camper_id = $2`,
         [presentation_id, camper_id, guessed_camper_id],
@@ -144,14 +144,14 @@ export default api({
 
     // Auto-award Fireside Finder badge to the FIRST camper who ever gets a bingo
     if (newBingos.length > 0) {
-      const alreadyAwarded = await ctx.integrations.apps_database.query(
+      const alreadyAwarded = await ctx.integrations.camp_201_db.query(
         `SELECT COUNT(*)::int as count FROM camp201_camper_badges WHERE badge_id = $1 LIMIT 1`,
         z.object({ count: z.coerce.number() }),
         [FIRESIDE_FINDER_BADGE_ID],
         { label: "Check if Fireside Finder badge already awarded" }
       );
       if (alreadyAwarded[0].count === 0) {
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_camper_badges (camper_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
           [camper_id, FIRESIDE_FINDER_BADGE_ID],
           { label: "Award Fireside Finder badge" }
@@ -160,7 +160,7 @@ export default api({
     }
 
     // Update card
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_bingo_cards
        SET found_squares = $3::jsonb, score = $4, bingos_claimed = $5::jsonb,
            last_wrong_guess_camper_id = NULL, updated_at = NOW()
@@ -170,7 +170,7 @@ export default api({
     );
 
     // Log events
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_bingo_events (presentation_id, camper_id, event_type, detail)
        VALUES ($1, $2, 'correct', $3::jsonb)`,
       [presentation_id, camper_id, JSON.stringify({ square_idx, guessed_camper_id, points: pointsDelta })],
@@ -182,13 +182,13 @@ export default api({
       const reason = newBingos.length > 0
         ? `Fireside Finder: correct guess + BINGO!`
         : `Fireside Finder: correct guess`;
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
          VALUES ($1, $2, $3, 'bingo', 4)`,
         [camper_id, pointsDelta, reason],
         { label: "Award bingo points" }
       );
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET points = points + $2 WHERE id = $1`,
         [camper_id, pointsDelta],
         { label: "Update camper total points" }

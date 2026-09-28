@@ -1,16 +1,16 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SeedPastCohorts",
   description: "Creates past cohort tables and seeds all historical data",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({}),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx) {
     // Create tables
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       CREATE TABLE IF NOT EXISTS camp201_past_cohorts (
         id SERIAL PRIMARY KEY,
         cohort_number INTEGER NOT NULL UNIQUE,
@@ -45,7 +45,7 @@ export default api({
     `, undefined, { label: "Create past cohort tables" });
 
     // Seed cohorts
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_cohorts (cohort_number, date_label, month, year, num_teams, has_team_names, has_logos, has_points, notes)
       VALUES
         (1, 'March 2025', 'March', 2025, 4, false, false, false, NULL),
@@ -60,7 +60,7 @@ export default api({
 
     // Get cohort IDs
     const CohortIdSchema = z.object({ id: z.coerce.number(), cohort_number: z.coerce.number() });
-    const cohorts = await ctx.integrations.apps_database.query(
+    const cohorts = await ctx.integrations.camp_201_db.query(
       "SELECT id, cohort_number FROM camp201_past_cohorts ORDER BY cohort_number",
       CohortIdSchema, undefined, { label: "Get cohort IDs" }
     );
@@ -68,21 +68,21 @@ export default api({
     for (const c of cohorts) cMap[c.cohort_number] = c.id;
 
     // COHORT 1 teams
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_teams (cohort_id, team_name, place) VALUES
         ($1, 'Group One', NULL), ($1, 'Group Two', NULL), ($1, 'Group Three', NULL), ($1, 'Group Four', NULL)
       ON CONFLICT DO NOTHING;
     `, [cMap[1]], { label: "C1 teams" });
 
     // COHORT 2 teams
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_teams (cohort_id, team_name, place) VALUES
         ($1, 'Group One', NULL), ($1, 'Group Two', NULL), ($1, 'Group Three', NULL), ($1, 'Group Four', NULL)
       ON CONFLICT DO NOTHING;
     `, [cMap[2]], { label: "C2 teams" });
 
     // COHORT 4 teams
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_teams (cohort_id, team_name, logo_url, points, points_note, place, is_winner, tagline) VALUES
         ($1, 'Value Drivers', '/logos/c4-value-drivers.png', 141, 'Pre-finals', 1, true, 'Always Driving Value'),
         ($1, 'Campliteers', '/logos/c4-campliteers.png', 140, 'Pre-finals', 2, false, 'Camp, Connect, Amplify!'),
@@ -91,7 +91,7 @@ export default api({
     `, [cMap[4]], { label: "C4 teams" });
 
     // COHORT 5 teams
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_teams (cohort_id, team_name, logo_url, points, place, is_winner, tagline) VALUES
         ($1, 'The DataPuff Girls', '/logos/c5-datapuff-girls.png', 209, 1, true, 'Sugar, Spice & Everything Insights'),
         ($1, 'The English Breakfast Club', '/logos/c5-english-breakfast-club.png', 187, 2, false, NULL),
@@ -100,7 +100,7 @@ export default api({
     `, [cMap[5]], { label: "C5 teams" });
 
     // COHORT 6 teams
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_teams (cohort_id, team_name, logo_url, points, place, is_winner, tagline, presentation_company) VALUES
         ($1, 'chAMPiones', '/logos/c6-championies.png', 186, 1, true, 'We came. We camped. We closed.', 'Intuit QuickBooks'),
         ($1, 'cAMPfire Insights', '/logos/c6-campfire-insights.png', 158, 2, false, 'The team gathered around the fire.', 'Zillow'),
@@ -109,7 +109,7 @@ export default api({
     `, [cMap[6]], { label: "C6 teams" });
 
     // COHORT 7 teams
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_teams (cohort_id, team_name, logo_url, points, place, is_winner, tagline) VALUES
         ($1, 'Five Wavemakers', '/logos/c7-five-wavemakers.png', 127, 1, true, 'Waves and Wipeouts'),
         ($1, 'Wave Makers', '/logos/c7-wave-makers.png', 108, 2, false, 'Self-improving product experts'),
@@ -120,7 +120,7 @@ export default api({
 
     // Now get all team IDs for member seeding
     const TeamIdSchema = z.object({ id: z.coerce.number(), team_name: z.string(), cohort_id: z.coerce.number() });
-    const teams = await ctx.integrations.apps_database.query(
+    const teams = await ctx.integrations.camp_201_db.query(
       "SELECT id, team_name, cohort_id FROM camp201_past_teams ORDER BY id",
       TeamIdSchema, undefined, { label: "Get team IDs" }
     );
@@ -136,7 +136,7 @@ export default api({
     const c1g3 = findTeam(1, "Group Three");
     const c1g4 = findTeam(1, "Group Four");
 
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_members (team_id, full_name) VALUES
         ($1,'Amanda Grennan'),($1,'Cara DeForge'),($1,'Harshivl Shah'),($1,'Emrah Çetin'),
         ($2,'Fe Hmelar'),($2,'Katie Williams'),($2,'Kurt Fitterer'),($2,'Javier Alvarado'),($2,'Adam Yapkowitz'),
@@ -150,7 +150,7 @@ export default api({
     const c2g3 = findTeam(2, "Group Three");
     const c2g4 = findTeam(2, "Group Four");
 
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_members (team_id, full_name) VALUES
         ($1,'Christy Barnett'),($1,'Zach Gould'),($1,'Anastasia Tkachuk'),($1,'Gina Bradley'),($1,'Youssef Bengelloun'),($1,'Cassandra Tang'),
         ($2,'Nate Harrison'),($2,'Noumouké N''Diaye'),($2,'Uelton Dias/Moura'),($2,'Yusuf Ali'),($2,'Kristin Rooke'),($2,'Dave Brown'),
@@ -163,7 +163,7 @@ export default api({
     const c4cm = findTeam(4, "Campliteers");
     const c4tb = findTeam(4, "Trailblazers");
 
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_members (team_id, full_name) VALUES
         ($1,'Heeren Gandhi'),($1,'Chris Slovak'),($1,'Edward Chiang'),($1,'Sharon Mertens'),($1,'Warren Villanueva'),($1,'Maddy Agrawal'),
         ($2,'Hope Flower'),($2,'Chris Landon'),($2,'Nitin Sethi'),($2,'Sonia Ardeel'),($2,'Michael Pakter'),
@@ -175,7 +175,7 @@ export default api({
     const c5eb = findTeam(5, "The English Breakfast Club");
     const c5cf = findTeam(5, "The cAMPtastic Four");
 
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_members (team_id, full_name) VALUES
         ($1,'Sophia Fellner'),($1,'Yi Shiean Tan'),($1,'Ariana Henck'),
         ($2,'Allyssa Cruz'),($2,'Alice Steels'),($2,'Jackson Yang'),($2,'Philip Norblad'),
@@ -187,7 +187,7 @@ export default api({
     const c6ci = findTeam(6, "cAMPfire Insights");
     const c6sc = findTeam(6, "S'more Conversions");
 
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_members (team_id, full_name, role, region) VALUES
         ($1,'Miguel Gonzalez','SDR','NAMER'),($1,'Inci Ovat','SDR','EMEA'),($1,'Cameron Curran','AE','NAMER'),($1,'Erin Shields','SE','NAMER'),($1,'Nayeem Shaik','CSA','APJ'),($1,'Kritika Gadia','Renewals','APJ'),
         ($2,'Leah McGhee','AE','NAMER'),($2,'Mariana Kakarakis','SDR','LATAM'),($2,'Anthony Ho Cheuk Kiu','SDR','APJ'),($2,'Renato Limao','AE','LATAM'),($2,'Perla Lobera','SE','NAMER'),($2,'Lucas Cyr','CSA','NAMER'),
@@ -200,7 +200,7 @@ export default api({
     const c7kp = findTeam(7, "K-POP Data Hunters");
     const c7fs = findTeam(7, "Funnel Scouts");
 
-    await ctx.integrations.apps_database.execute(`
+    await ctx.integrations.camp_201_db.execute(`
       INSERT INTO camp201_past_members (team_id, full_name, role, region) VALUES
         ($1,'Mo Bouzari','SE','NAMER'),($1,'Alex Sgueglia','TSM','NAMER'),($1,'Levi Verry','AE','NAMER'),($1,'Salim Al Sabaa','AE','NAMER'),($1,'Kabir Rai','AE','APAC'),
         ($2,'Cole Craig','Renewals','NAMER'),($2,'Yukyung Roh','AE','APAC'),($2,'Scott Wilson','TSM','NAMER'),($2,'Brett Bogle','AE','NAMER'),($2,'Andre Woodroffe','AE','NAMER'),

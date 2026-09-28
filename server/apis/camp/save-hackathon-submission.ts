@@ -1,11 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SaveHackathonSubmission",
   description: "Saves or updates a team's hackathon submission",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
     team_id: z.number(),
@@ -19,7 +19,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, input) {
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_hackathon_submissions (presentation_id, team_id, app_name, description, use_case, how_it_works, who_uses_it, app_link, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
        ON CONFLICT (team_id)

@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SubmitSurvey",
   description: "Submits a survey response and awards points, including team bonus if all complete",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     survey_id: z.number(),
@@ -22,7 +22,7 @@ export default api({
   async run(ctx, { survey_id, camper_id, answers }) {
     // Check if already submitted
     const CountSchema = z.object({ count: z.coerce.number() });
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_survey_responses WHERE survey_id = $1 AND camper_id = $2`,
       CountSchema,
       [survey_id, camper_id],
@@ -38,7 +38,7 @@ export default api({
       team_bonus_points: z.coerce.number(),
       cohort_id: z.coerce.number().nullable(),
     });
-    const survey = await ctx.integrations.apps_database.query(
+    const survey = await ctx.integrations.camp_201_db.query(
       `SELECT points_per_completion, team_bonus_points, cohort_id FROM camp201_surveys WHERE id = $1 LIMIT 1`,
       SurveySchema,
       [survey_id],
@@ -51,19 +51,19 @@ export default api({
     const { points_per_completion, team_bonus_points, cohort_id } = survey[0];
 
     // Insert response
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_survey_responses (survey_id, camper_id, answers) VALUES ($1, $2, $3::jsonb)`,
       [survey_id, camper_id, JSON.stringify(answers)],
       { label: "Insert survey response" }
     );
 
     // Award individual completion points
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
       [points_per_completion, camper_id],
       { label: "Award survey completion points" }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
        VALUES ($1, $2, 'End of day survey completed', 'system', $3)`,
       [camper_id, points_per_completion, cohort_id],
@@ -73,7 +73,7 @@ export default api({
     // Check if whole team has now completed
     let teamBonusAwarded = false;
     const TeamSchema = z.object({ team_id: z.coerce.number().nullable() });
-    const camperTeam = await ctx.integrations.apps_database.query(
+    const camperTeam = await ctx.integrations.camp_201_db.query(
       `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
       TeamSchema,
       [camper_id],
@@ -83,7 +83,7 @@ export default api({
     if (camperTeam.length > 0 && camperTeam[0].team_id) {
       const teamId = camperTeam[0].team_id;
       const CompSchema = z.object({ total: z.coerce.number(), submitted: z.coerce.number() });
-      const comp = await ctx.integrations.apps_database.query(
+      const comp = await ctx.integrations.camp_201_db.query(
         `SELECT
           COUNT(c.id)::int as total,
           COUNT(sr.id)::int as submitted
@@ -98,7 +98,7 @@ export default api({
       if (comp[0].submitted >= comp[0].total && comp[0].total > 0) {
         // Award team bonus to all members
         const MembersSchema = z.object({ id: z.coerce.number() });
-        const members = await ctx.integrations.apps_database.query(
+        const members = await ctx.integrations.camp_201_db.query(
           `SELECT id FROM camp201_campers WHERE team_id = $1 AND role != 'counselor'`,
           MembersSchema,
           [teamId],
@@ -106,12 +106,12 @@ export default api({
         );
 
         for (const member of members) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
             [team_bonus_points, member.id],
             { label: `Award team survey bonus to ${member.id}` }
           );
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
              VALUES ($1, $2, 'Team survey completion bonus', 'system', $3)`,
             [member.id, team_bonus_points, cohort_id],

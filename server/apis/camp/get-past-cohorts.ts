@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const MemberSchema = z.object({ id: z.coerce.number(), full_name: z.string(), role: z.string().nullable(), region: z.string().nullable() });
 const TeamSchema = z.object({
@@ -16,7 +16,7 @@ const CohortSchema = z.object({
 export default api({
   name: "GetPastCohorts",
   description: "Fetches all past cohort history with teams and members",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({}),
   output: z.object({
     cohorts: z.array(z.object({
@@ -31,15 +31,15 @@ export default api({
     })),
   }),
   async run(ctx) {
-    const cohorts = await ctx.integrations.apps_database.query(
+    const cohorts = await ctx.integrations.camp_201_db.query(
       "SELECT * FROM camp201_past_cohorts ORDER BY cohort_number DESC",
       CohortSchema, undefined, { label: "Get cohorts" }
     );
-    const teams = await ctx.integrations.apps_database.query(
+    const teams = await ctx.integrations.camp_201_db.query(
       "SELECT * FROM camp201_past_teams ORDER BY place ASC NULLS LAST, id",
       TeamSchema, undefined, { label: "Get teams" }
     );
-    const members = await ctx.integrations.apps_database.query(
+    const members = await ctx.integrations.camp_201_db.query(
       "SELECT * FROM camp201_past_members ORDER BY id",
       MemberSchema, undefined, { label: "Get members" }
     );
@@ -53,7 +53,7 @@ export default api({
 
     // Need team_id in member query
     const MemberWithTeamSchema = z.object({ id: z.coerce.number(), team_id: z.coerce.number(), full_name: z.string(), role: z.string().nullable(), region: z.string().nullable() });
-    const membersWithTeam = await ctx.integrations.apps_database.query(
+    const membersWithTeam = await ctx.integrations.camp_201_db.query(
       "SELECT id, team_id, full_name, role, region FROM camp201_past_members ORDER BY id",
       MemberWithTeamSchema, undefined, { label: "Get members with team" }
     );

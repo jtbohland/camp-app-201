@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const AssignmentSchema = z.object({
   id: z.coerce.number(),
@@ -17,7 +17,7 @@ export default api({
   name: "GetEBRRoleAssignments",
   description: "Gets counselor role assignments for a team's EBR presentation",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     presentation_id: z.number(),
@@ -35,7 +35,7 @@ export default api({
   }),
   async run(ctx, { presentation_id, team_id }) {
     // Get existing assignments
-    const assignments = await ctx.integrations.apps_database.query(
+    const assignments = await ctx.integrations.camp_201_db.query(
       `SELECT ra.id, ra.counselor_id, ra.company_name, ra.executive_role, ra.notes,
               c.first_name || ' ' || c.last_name AS counselor_name,
               c.email AS counselor_email,
@@ -50,7 +50,7 @@ export default api({
     );
 
     // Get available counselors (visible for current cohort)
-    const counselors = await ctx.integrations.apps_database.query(
+    const counselors = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.photo_url
        FROM camp201_campers c
        WHERE c.role IN ('counselor', 'admin')

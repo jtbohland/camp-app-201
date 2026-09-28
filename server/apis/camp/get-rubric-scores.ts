@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const ScoreRecordSchema = z.object({
   id: z.coerce.number(),
@@ -18,7 +18,7 @@ export default api({
   name: "GetRubricScores",
   description: "Gets rubric score history for admin view",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     team_id: z.number().nullable(),
@@ -31,7 +31,7 @@ export default api({
     let effectiveCohortId = cohort_id;
     if (!effectiveCohortId) {
       const ActiveSchema = z.object({ id: z.coerce.number() });
-      const active = await ctx.integrations.apps_database.query(
+      const active = await ctx.integrations.camp_201_db.query(
         `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
         ActiveSchema,
         undefined,
@@ -55,7 +55,7 @@ export default api({
       paramIndex++;
     }
 
-    const scores = await ctx.integrations.apps_database.query(
+    const scores = await ctx.integrations.camp_201_db.query(
       `SELECT rs.id, rt.name as template_name, t.name as team_name,
               CONCAT(c.first_name, ' ', c.last_name) as scored_by_name,
               rs.total_score, rs.max_score, rs.points_awarded, rs.notes, rs.created_at

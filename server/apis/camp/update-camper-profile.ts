@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const CamperSchema = z.object({
   id: z.coerce.number(),
@@ -35,7 +35,7 @@ export default api({
   name: "UpdateCamperProfile",
   description: "Updates a camper's profile information and awards points if profile is newly completed",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     email: z.string(),
@@ -58,7 +58,7 @@ export default api({
   }),
   async run(ctx, input) {
     // Check if profile was already completed
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT profile_completed FROM camp201_campers WHERE email = $1 LIMIT 1`,
       z.object({ profile_completed: z.boolean() }),
       [input.email],
@@ -74,7 +74,7 @@ export default api({
     const isComplete = !!(input.bio && input.fun_fact && input.goal_1 && input.goal_2 && input.goal_3 && iceBreakerComplete);
 
     // Update profile fields
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_campers SET
         photo_url = $2,
         bio = $3,
@@ -99,12 +99,12 @@ export default api({
     let pointsAwarded = 0;
     if (isComplete && !wasAlreadyCompleted) {
       pointsAwarded = 15;
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET points = points + 15 WHERE email = $1`,
         [input.email],
         { label: "Award profile completion points" }
       );
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
          SELECT id, 15, 'Profile completed', 'system'
          FROM camp201_campers WHERE email = $1`,
@@ -114,7 +114,7 @@ export default api({
     }
 
     // Fetch and return updated camper
-    const campers = await ctx.integrations.apps_database.query(
+    const campers = await ctx.integrations.camp_201_db.query(
       `SELECT * FROM camp201_campers WHERE email = $1 LIMIT 1`,
       CamperSchema,
       [input.email],

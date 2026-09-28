@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "CreateAnnouncement",
   description: "Posts a new counselor announcement to the active cohort",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     title: z.string(),
@@ -18,7 +18,7 @@ export default api({
   output: z.object({ success: z.boolean(), announcement_id: z.number() }),
   async run(ctx, input) {
     const CohortSchema = z.object({ id: z.coerce.number() });
-    const cohort = await ctx.integrations.apps_database.query(
+    const cohort = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
       CohortSchema,
       undefined,
@@ -27,7 +27,7 @@ export default api({
     const cohortId = cohort.length > 0 ? cohort[0].id : null;
 
     const InsertSchema = z.object({ id: z.coerce.number() });
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_announcements (title, body, priority, pinned, created_by, cohort_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
       InsertSchema,

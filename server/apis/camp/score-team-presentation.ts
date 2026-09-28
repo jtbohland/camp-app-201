@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "ScoreTeamPresentation",
   description: "Counselor scores a team on a presentation rubric, awarding points to the team",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
     rubric_template_id: z.number(),
@@ -22,7 +22,7 @@ export default api({
     const totalScore = Object.values(parsedScores).reduce((sum, v) => sum + v, 0);
 
     // Get rubric max
-    const rubrics = await ctx.integrations.apps_database.query(
+    const rubrics = await ctx.integrations.camp_201_db.query(
       `SELECT max_total_points FROM camp201_rubric_templates WHERE id = $1 LIMIT 1`,
       z.object({ max_total_points: z.coerce.number() }),
       [rubric_template_id],
@@ -31,7 +31,7 @@ export default api({
     const maxScore = rubrics[0]?.max_total_points ?? 15;
 
     // Check if already scored
-    const existing = await ctx.integrations.apps_database.query(
+    const existing = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_rubric_scores WHERE template_id = $1 AND team_id = $2 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
       [rubric_template_id, team_id],
@@ -40,7 +40,7 @@ export default api({
 
     if (existing.length > 0) {
       // Update existing score
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_rubric_scores SET scores = $3::jsonb, total_score = $4, max_score = $5, scored_by = $6
          WHERE template_id = $1 AND team_id = $2`,
         [rubric_template_id, team_id, JSON.stringify(parsedScores), totalScore, maxScore, scorer_camper_id],
@@ -50,7 +50,7 @@ export default api({
     }
 
     // Insert new score
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_rubric_scores (template_id, team_id, scored_by, scores, total_score, max_score, points_awarded, cohort_id)
        VALUES ($1, $2, $3, $4::jsonb, $5, $6, $5, 2)`,
       [rubric_template_id, team_id, scorer_camper_id, JSON.stringify(parsedScores), totalScore, maxScore],
@@ -58,12 +58,12 @@ export default api({
     );
 
     // Award rubric score to TEAM points (not individual members)
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
       [totalScore, team_id],
       { label: "Award rubric score to team_points" }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_team_points_log (team_id, points, reason, cohort_id)
        VALUES ($1, $2, $3, 2)`,
       [team_id, totalScore, `Presentation rubric: ${totalScore}/${maxScore}`],
@@ -72,19 +72,19 @@ export default api({
 
     // Check for improvement bonus
     const improvement = await awardRubricImprovementBonus(
-      ctx.integrations.apps_database, team_id, totalScore, maxScore, 2
+      ctx.integrations.camp_201_db, team_id, totalScore, maxScore, 2
     );
 
     // Award MVP if selected
     if (mvp_camper_id) {
       const MVP_POINTS = 10;
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
          VALUES ($1, $2, 'MVP — Most Valuable Presenter', 'presentation', 2)`,
         [mvp_camper_id, MVP_POINTS],
         { label: "Award MVP points" }
       );
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET points = points + $2 WHERE id = $1`,
         [mvp_camper_id, MVP_POINTS],
         { label: "Update MVP total" }

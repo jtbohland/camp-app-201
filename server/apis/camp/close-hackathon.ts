@@ -1,13 +1,13 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const INNOVATION_BADGE_ID = 12;
 const TEAM_POINTS = 15;
 
 export default api({
   name: "CloseHackathon",
   description: "Closes hackathon voting, awards team points + Innovation badge to winning team",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
     awarded_by: z.number(),
@@ -21,7 +21,7 @@ export default api({
   }),
   async run(ctx, { presentation_id, awarded_by }) {
     // Find the winning team (most votes)
-    const winners = await ctx.integrations.apps_database.query(
+    const winners = await ctx.integrations.camp_201_db.query(
       `SELECT hs.team_id, t.name as team_name, COALESCE(v.vote_count, 0) as vote_count
        FROM camp201_hackathon_submissions hs
        JOIN camp201_teams t ON t.id = hs.team_id
@@ -42,7 +42,7 @@ export default api({
     const winner = winners[0];
 
     // Get all members of the winning team
-    const members = await ctx.integrations.apps_database.query(
+    const members = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_campers WHERE team_id = $1 LIMIT 20`,
       z.object({ id: z.number() }),
       [winner.team_id],
@@ -51,7 +51,7 @@ export default api({
 
     // Award Innovation badge to each member (skip if already awarded)
     for (const m of members) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_by)
          VALUES ($1, $2, $3)
          ON CONFLICT DO NOTHING`,
@@ -60,12 +60,12 @@ export default api({
     }
 
     // Award TEAM_POINTS to the team (not individual members)
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
       [TEAM_POINTS, winner.team_id],
       { label: "Award hackathon team points" }
     );
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_team_points_log (team_id, points, reason)
        VALUES ($1, $2, $3)`,
       [winner.team_id, TEAM_POINTS, `AI Hackathon Winner - ${winner.team_name}`],

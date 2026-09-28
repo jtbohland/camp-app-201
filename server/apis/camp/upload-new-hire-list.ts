@@ -1,11 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "UploadNewHireList",
   description: "Parses CSV data and upserts new hires into the staging table",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     csv_rows: z.array(z.object({
       first_name: z.string(),
@@ -23,7 +23,7 @@ export default api({
   }),
   output: z.object({ inserted: z.number(), skipped: z.number() }),
   async run(ctx, { csv_rows, uploaded_by, cohort_id }) {
-    const db = ctx.integrations.apps_database;
+    const db = ctx.integrations.camp_201_db;
     let inserted = 0;
     let skipped = 0;
 

@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const FeedbackSchema = z.object({
   id: z.coerce.number(),
@@ -16,7 +16,7 @@ export default api({
   name: "GetPeerFeedback",
   description: "Gets the public peer feedback board for a given session or all",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     session_label: z.string().nullable(),
@@ -29,7 +29,7 @@ export default api({
   async run(ctx, { session_label, team_id }) {
     // Get distinct sessions
     const SessionSchema = z.object({ session_label: z.string() });
-    const sessions = await ctx.integrations.apps_database.query(
+    const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT DISTINCT session_label FROM camp201_peer_feedback
        JOIN camp201_cohorts co ON co.id = camp201_peer_feedback.cohort_id AND co.is_active = true
        ORDER BY session_label LIMIT 50`,
@@ -64,7 +64,7 @@ export default api({
     }
     query += " ORDER BY pf.created_at DESC LIMIT 100";
 
-    const feedback = await ctx.integrations.apps_database.query(
+    const feedback = await ctx.integrations.camp_201_db.query(
       query,
       FeedbackSchema,
       params.length > 0 ? params : undefined,

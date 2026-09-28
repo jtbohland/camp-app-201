@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "QuickAwardPoints",
   description: "Awards points to a camper. Supports team-unique reasons (one per team).",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -18,7 +18,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), id: z.coerce.number(), already_found: z.boolean() }),
   async run(ctx, { camper_id, points, reason, awarded_by, category, team_unique }) {
-    const db = ctx.integrations.apps_database;
+    const db = ctx.integrations.camp_201_db;
 
     // Team-unique check: prevent duplicate easter eggs per team
     // If camper isn't on a team, fall back to per-camper duplicate check

@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "ToggleGoalAchieved",
   description: "Toggles a camper's goal as achieved or not achieved",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -18,7 +18,7 @@ export default api({
   }),
   async run(ctx, { camper_id, goal_number, achieved }) {
     const column = `goal_${goal_number}_achieved`;
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_campers SET ${column} = $1, updated_at = NOW() WHERE id = $2`,
       [achieved, camper_id],
       { label: `Toggle goal ${goal_number} achieved` }

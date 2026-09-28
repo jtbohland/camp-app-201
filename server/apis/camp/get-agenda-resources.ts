@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const ResourceSchema = z.object({
   id: z.coerce.number(),
@@ -17,7 +17,7 @@ export default api({
   name: "GetAgendaResources",
   description: "Gets all resources attached to agenda items",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     agenda_item_id: z.number().nullable(),
@@ -41,7 +41,7 @@ export default api({
 
     const params = agenda_item_id ? [agenda_item_id] : undefined;
 
-    const resources = await ctx.integrations.apps_database.query(
+    const resources = await ctx.integrations.camp_201_db.query(
       query,
       ResourceSchema,
       params,

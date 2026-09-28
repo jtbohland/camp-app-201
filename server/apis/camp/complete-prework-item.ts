@@ -1,13 +1,13 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const PENALTY_POINTS = -3;
 
 export default api({
   name: "CompletePreworkItem",
   description: "Marks pre-work complete with link validation. Warning first, penalty on repeat skip.",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     user_id: z.number(),
@@ -29,7 +29,7 @@ export default api({
 
     // Check if camp has started — prework earns 0 pts after camp_start_date
     let campStarted = false;
-    const startDateResult = await ctx.integrations.apps_database.query(
+    const startDateResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
       z.object({ value: z.string() }), undefined,
       { label: "Check camp_start_date" }
@@ -43,7 +43,7 @@ export default api({
 
     // === SPECIAL CASE: Registration/Profile completion ===
     if (item === "complete_registration") {
-      const camperRows = await ctx.integrations.apps_database.query(
+      const camperRows = await ctx.integrations.camp_201_db.query(
         `SELECT bio, fun_fact, goal_1, goal_2, goal_3, ice_breaker_answers
          FROM camp201_campers WHERE id = $1 LIMIT 1`,
         z.object({
@@ -80,7 +80,7 @@ export default api({
 
       // If forcing with missing fields, check for prior attempts (penalty logic)
       if (missing_profile_fields.length > 0 && force && content_id) {
-        const attempts = await ctx.integrations.apps_database.query(
+        const attempts = await ctx.integrations.camp_201_db.query(
           `SELECT COUNT(*)::int AS cnt FROM camp201_completion_attempts
            WHERE camper_id = $1 AND content_id = $2 AND links_missing > 0`,
           z.object({ cnt: z.coerce.number() }),
@@ -88,7 +88,7 @@ export default api({
           { label: "Count prior profile skip attempts" }
         );
 
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_completion_attempts (camper_id, content_id, links_missing)
            VALUES ($1, $2, $3)`,
           [user_id, content_id, missing_profile_fields.length],
@@ -96,12 +96,12 @@ export default api({
         );
 
         if (attempts[0].cnt >= 1) {
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
             [PENALTY_POINTS, user_id],
             { label: "Apply profile skip penalty" }
           );
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
              VALUES ($1, $2, $3, 'system')`,
             [user_id, PENALTY_POINTS, "Marked registration complete with incomplete profile"],
@@ -115,7 +115,7 @@ export default api({
     const SUBMISSION_GATED = ["wheel_and_deal", "challenger_sales"];
     let submissionFlagged = false;
     if (SUBMISSION_GATED.includes(item)) {
-      const submissions = await ctx.integrations.apps_database.query(
+      const submissions = await ctx.integrations.camp_201_db.query(
         `SELECT flagged FROM camp201_prework_submissions WHERE camper_id = $1 AND item_key = $2 LIMIT 1`,
         z.object({ flagged: z.boolean() }),
         [user_id, item],
@@ -134,7 +134,7 @@ export default api({
     // === LINK-BASED VALIDATION (for non-registration, non-submission-gated items) ===
     if (item !== "complete_registration" && !SUBMISSION_GATED.includes(item) && content_id && content_id > 0) {
       // Get the content item's links
-      const contentRows = await ctx.integrations.apps_database.query(
+      const contentRows = await ctx.integrations.camp_201_db.query(
         "SELECT links FROM camp201_journey_content WHERE id = $1 LIMIT 1",
         z.object({ links: z.any() }),
         [content_id],
@@ -147,7 +147,7 @@ export default api({
 
       if (allLinks.length > 0) {
         // Get which links this camper has clicked
-        const clickedRows = await ctx.integrations.apps_database.query(
+        const clickedRows = await ctx.integrations.camp_201_db.query(
           "SELECT link_url FROM camp201_link_clicks WHERE camper_id = $1 AND content_id = $2 LIMIT 50",
           z.object({ link_url: z.string() }),
           [user_id, content_id],
@@ -175,7 +175,7 @@ export default api({
     let penalty_applied = false;
     if (missing_links.length > 0 && force && content_id) {
       // Count prior failed attempts
-      const attempts = await ctx.integrations.apps_database.query(
+      const attempts = await ctx.integrations.camp_201_db.query(
         `SELECT COUNT(*)::int AS cnt FROM camp201_completion_attempts
          WHERE camper_id = $1 AND content_id = $2 AND links_missing > 0`,
         z.object({ cnt: z.coerce.number() }),
@@ -184,7 +184,7 @@ export default api({
       );
 
       // Log this attempt
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_completion_attempts (camper_id, content_id, links_missing)
          VALUES ($1, $2, $3)`,
         [user_id, content_id, missing_links.length],
@@ -194,12 +194,12 @@ export default api({
       // If this is the 2nd+ attempt, apply penalty
       if (attempts[0].cnt >= 1) {
         penalty_applied = true;
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
           [PENALTY_POINTS, user_id],
           { label: "Apply skip penalty" }
         );
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
            VALUES ($1, $2, $3, 'system')`,
           [user_id, PENALTY_POINTS, `Marked "${item}" complete without finishing required links`],
@@ -209,7 +209,7 @@ export default api({
     }
 
     // Insert completion (ignore if already done)
-    const result = await ctx.integrations.apps_database.execute(
+    const result = await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_prework (user_id, item, completed)
        VALUES ($1, $2, true)
        ON CONFLICT (user_id, item) DO NOTHING`,
@@ -223,12 +223,12 @@ export default api({
       if (submissionFlagged) {
         // Flagged submission — deduct points
         pointsAwarded = PENALTY_POINTS;
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
           [PENALTY_POINTS, user_id],
           { label: "Deduct flagged submission penalty" }
         );
-        await ctx.integrations.apps_database.execute(
+        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
            VALUES ($1, $2, $3, 'system')`,
           [user_id, PENALTY_POINTS, `Flagged pre-work submission: ${item}`],
@@ -239,12 +239,12 @@ export default api({
         // Award points only if camp hasn't started yet
         if (!campStarted) {
           pointsAwarded = 5;
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `UPDATE camp201_campers SET points = points + 5 WHERE id = $1`,
             [user_id],
             { label: "Award pre-work points" }
           );
-          await ctx.integrations.apps_database.execute(
+          await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
              VALUES ($1, 5, $2, 'system')`,
             [user_id, `Pre-work completed: ${item}`],

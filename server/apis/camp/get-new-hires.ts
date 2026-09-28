@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const HireSchema = z.object({
   id: z.coerce.number(),
@@ -20,7 +20,7 @@ const HireSchema = z.object({
 export default api({
   name: "GetNewHires",
   description: "Returns all new hires from the staging table, with optional status filter",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     cohort_id: z.number().nullable(),
     status: z.string().nullable(),
@@ -42,14 +42,14 @@ export default api({
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const hires = await ctx.integrations.apps_database.query(
+    const hires = await ctx.integrations.camp_201_db.query(
       `SELECT * FROM camp201_new_hires ${where} ORDER BY last_name, first_name LIMIT 200`,
       HireSchema,
       params,
       { label: "Get new hires" }
     );
 
-    const countResult = await ctx.integrations.apps_database.query(
+    const countResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int AS cnt FROM camp201_new_hires ${where}`,
       z.object({ cnt: z.coerce.number() }),
       params,

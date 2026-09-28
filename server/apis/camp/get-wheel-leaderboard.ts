@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const LeaderSchema = z.object({
   camper_id: z.number(),
@@ -17,11 +17,11 @@ const LeaderSchema = z.object({
 export default api({
   name: "GetWheelLeaderboard",
   description: "Returns Wheel & Deal stats per pitcher for the leaderboard",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({}),
   output: z.object({ leaders: z.array(LeaderSchema) }),
   async run(ctx) {
-    const leaders = await ctx.integrations.apps_database.query(
+    const leaders = await ctx.integrations.camp_201_db.query(
       `SELECT
          r.pitcher_id as camper_id,
          c.first_name, c.last_name,

@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetGallery",
   description: "Gets photo gallery entries for the active cohort",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     day_number: z.number().nullable(),
@@ -48,7 +48,7 @@ export default api({
          JOIN camp201_cohorts co ON co.id = g.cohort_id AND co.is_active = true
          ORDER BY g.created_at DESC LIMIT 50`;
 
-    const photos = await ctx.integrations.apps_database.query(
+    const photos = await ctx.integrations.camp_201_db.query(
       query,
       PhotoSchema,
       day_number ? [day_number] : undefined,

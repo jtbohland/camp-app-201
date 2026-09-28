@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const CAMP_201_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const TeamMemberSchema = z.object({
   id: z.coerce.number(),
@@ -23,7 +23,7 @@ export default api({
   name: "GetTeams",
   description: "Fetches all teams with their members and point totals",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(CAMP_201_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -38,7 +38,7 @@ export default api({
     })),
   }),
   async run(ctx) {
-    const teams = await ctx.integrations.apps_database.query(
+    const teams = await ctx.integrations.camp_201_db.query(
       `SELECT id, name, logo_url, color, assigned_company, COALESCE(team_points, 0) as team_points FROM camp201_teams ORDER BY name LIMIT 50`,
       TeamSchema.extend({ team_points: z.coerce.number() }),
       undefined,
@@ -47,7 +47,7 @@ export default api({
 
     const result = [];
     for (const team of teams) {
-      const members = await ctx.integrations.apps_database.query(
+      const members = await ctx.integrations.camp_201_db.query(
         `SELECT id, first_name, last_name, email, points, photo_url
          FROM camp201_campers WHERE team_id = $1 ORDER BY first_name LIMIT 50`,
         TeamMemberSchema,

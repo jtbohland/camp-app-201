@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const GateSchema = z.object({
   feature_key: z.string(),
@@ -15,7 +15,7 @@ export default api({
   name: "GetFeatureGates",
   description: "Gets all feature gates with auto-unlock check",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({}),
   output: z.object({
@@ -28,7 +28,7 @@ export default api({
   }),
   async run(ctx) {
     // Auto-unlock any gates whose unlock_at has passed
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_feature_gates
        SET is_locked = false, updated_by = 'auto-unlock', updated_at = NOW()
        WHERE is_locked = true AND unlock_at IS NOT NULL AND unlock_at <= NOW()`,
@@ -36,7 +36,7 @@ export default api({
       { label: "Auto-unlock expired gates" }
     );
 
-    const gates = await ctx.integrations.apps_database.query(
+    const gates = await ctx.integrations.camp_201_db.query(
       `SELECT feature_key, label, is_locked, unlock_at::text, updated_by, updated_at::text
        FROM camp201_feature_gates
        ORDER BY id

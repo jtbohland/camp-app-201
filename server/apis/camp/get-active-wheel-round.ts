@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const RoundSchema = z.object({
   id: z.number(),
@@ -19,7 +19,7 @@ const RoundSchema = z.object({
 export default api({
   name: "GetActiveWheelRound",
   description: "Returns the current active scoring round, if any",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     camper_id: z.number(),
   }),
@@ -29,7 +29,7 @@ export default api({
   }),
   async run(ctx, { camper_id }) {
     // Get the most recent round that is still in 'scoring' status
-    const rounds = await ctx.integrations.apps_database.query(
+    const rounds = await ctx.integrations.camp_201_db.query(
       `SELECT r.id, r.pitcher_id, r.product_id, r.product_name,
               r.challenge_type, r.challenge_prompt, r.completion_score,
               r.pitch_time_seconds, r.status,
@@ -50,7 +50,7 @@ export default api({
 
     // Check if this camper already scored this round
     const ExistsSchema = z.object({ exists: z.boolean() });
-    const [check] = await ctx.integrations.apps_database.query(
+    const [check] = await ctx.integrations.camp_201_db.query(
       `SELECT EXISTS(SELECT 1 FROM camp201_wheel_scores WHERE round_id = $1 AND scorer_id = $2) as exists`,
       ExistsSchema,
       [round.id, camper_id],

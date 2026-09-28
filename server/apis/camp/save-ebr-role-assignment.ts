@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SaveEBRRoleAssignment",
   description: "Assigns a counselor an executive role for a team's EBR presentation",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     presentation_id: z.number(),
@@ -19,7 +19,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), id: z.coerce.number() }),
   async run(ctx, { presentation_id, team_id, counselor_id, company_name, executive_role, notes, assigned_by }) {
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_ebr_role_assignments (presentation_id, team_id, counselor_id, company_name, executive_role, notes, assigned_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (presentation_id, team_id, counselor_id)

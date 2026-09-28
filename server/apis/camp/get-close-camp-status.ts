@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Mini EBR is the final scored presentation (rubric_template_id = 100)
 const MINI_EBR_TEMPLATE_ID = 100;
@@ -8,7 +8,7 @@ const MINI_EBR_TEMPLATE_ID = 100;
 export default api({
   name: "GetCloseCampStatus",
   description: "Checks if all Mini EBR rubrics are submitted and returns close-camp readiness",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({}),
   output: z.object({
     camp_closed: z.boolean(),
@@ -28,7 +28,7 @@ export default api({
     const CountSchema = z.object({ count: z.coerce.number() });
 
     // Check if camp is already closed
-    const closedResult = await ctx.integrations.apps_database.query(
+    const closedResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_closed' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -37,7 +37,7 @@ export default api({
     const campClosed = closedResult.length > 0 && closedResult[0].value === "true";
 
     // Check if camp is actually in session (has a start date that has passed)
-    const startDateResult = await ctx.integrations.apps_database.query(
+    const startDateResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -47,7 +47,7 @@ export default api({
     const campInSession = startDateStr !== "" && new Date(startDateStr).getTime() <= Date.now();
 
     // Check ready_to_close flag
-    const readyResult = await ctx.integrations.apps_database.query(
+    const readyResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_ready_to_close' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -56,7 +56,7 @@ export default api({
     const readyFlag = readyResult.length > 0 && readyResult[0].value === "true";
 
     // Get active cohort
-    const cohort = await ctx.integrations.apps_database.query(
+    const cohort = await ctx.integrations.camp_201_db.query(
       `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
       z.object({ id: z.coerce.number() }),
       undefined,
@@ -65,7 +65,7 @@ export default api({
     const cohortId = cohort.length > 0 ? cohort[0].id : null;
 
     // Count counselors in cohort
-    const counselors = await ctx.integrations.apps_database.query(
+    const counselors = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_campers
        WHERE role = 'counselor' AND cohort_id = $1`,
       CountSchema,
@@ -75,7 +75,7 @@ export default api({
     const counselorCount = counselors[0]?.count ?? 0;
 
     // Count teams in cohort (non-test teams)
-    const teams = await ctx.integrations.apps_database.query(
+    const teams = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_teams
        WHERE cohort_id = $1 AND name != 'TEST'`,
       CountSchema,
@@ -85,7 +85,7 @@ export default api({
     const teamCount = teams[0]?.count ?? 0;
 
     // Count submitted Mini EBR scores
-    const scores = await ctx.integrations.apps_database.query(
+    const scores = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_rubric_scores
        WHERE template_id = $1 AND cohort_id = $2`,
       CountSchema,
@@ -99,7 +99,7 @@ export default api({
     const campReadyToClose = readyFlag || (scoresNeeded > 0 && scoresSubmitted >= scoresNeeded);
 
     // Get stored winners (after close)
-    const vpResult = await ctx.integrations.apps_database.query(
+    const vpResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_vp_camper_id' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -107,7 +107,7 @@ export default api({
     );
     const campVpCamperId = vpResult.length > 0 ? parseInt(vpResult[0].value, 10) || null : null;
 
-    const champResult = await ctx.integrations.apps_database.query(
+    const champResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_champ_team_id' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -116,7 +116,7 @@ export default api({
     const campChampTeamId = champResult.length > 0 ? parseInt(champResult[0].value, 10) || null : null;
 
     // Get revealed team IDs
-    const revealedResult = await ctx.integrations.apps_database.query(
+    const revealedResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'revealed_team_ids' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -128,7 +128,7 @@ export default api({
     }
 
     // Check if VP is revealed
-    const vpRevealedResult = await ctx.integrations.apps_database.query(
+    const vpRevealedResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'vp_revealed' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,
@@ -137,7 +137,7 @@ export default api({
     const vpRevealed = vpRevealedResult.length > 0 && vpRevealedResult[0].value === "true";
 
     // Check if final survey is unlocked
-    const finalSurveyResult = await ctx.integrations.apps_database.query(
+    const finalSurveyResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'final_survey_unlocked' LIMIT 1`,
       z.object({ value: z.string() }),
       undefined,

@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "UpdateTeamDesign",
   description: "Updates a team's name, logo, and color (team members only)",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     team_id: z.number(),
@@ -18,7 +18,7 @@ export default api({
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx, { team_id, camper_id, name, logo_url, color }) {
     // Verify camper is on this team
-    const check = await ctx.integrations.apps_database.query(
+    const check = await ctx.integrations.camp_201_db.query(
       `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
       z.object({ team_id: z.coerce.number().nullable() }),
       [camper_id],
@@ -28,7 +28,7 @@ export default api({
       return { success: false, message: "You can only design your own team" };
     }
 
-    await ctx.integrations.apps_database.execute(
+    await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_teams SET name = $2, logo_url = $3, color = $4 WHERE id = $1`,
       [team_id, name, logo_url, color],
       { label: "Update team design" }

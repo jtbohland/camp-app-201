@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetDailySurveyResults",
   description: "Gets survey results for counselor hub, with averages, per-camper data, and open responses",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     day_number: z.number(),
@@ -55,7 +55,7 @@ export default api({
     // If manager_email is set, get their hire IDs for filtering
     let hireFilter = "";
     if (input.manager_email) {
-      const hires = await ctx.integrations.apps_database.query(
+      const hires = await ctx.integrations.camp_201_db.query(
         `SELECT mh.camper_id FROM camp201_manager_hires mh
          JOIN camp201_managers m ON m.id = mh.manager_id
          WHERE m.email = $1 LIMIT 50`,
@@ -72,7 +72,7 @@ export default api({
 
     // Completion stats
     const CountSchema = z.object({ count: z.coerce.number() });
-    const totalResult = await ctx.integrations.apps_database.query(
+    const totalResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) as count FROM camp201_campers WHERE cohort_id = ${cohortFilter} AND role NOT IN ('counselor','admin')`,
       CountSchema,
       undefined,
@@ -80,7 +80,7 @@ export default api({
     );
     const totalCampers = input.manager_email ? 0 : (totalResult[0]?.count ?? 0); // managers see their own count
 
-    const submittedResult = await ctx.integrations.apps_database.query(
+    const submittedResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) as count FROM camp201_daily_survey_submissions s
        WHERE s.day_number = $1 AND s.cohort_id = ${cohortFilter}${hireFilter}`,
       CountSchema,
@@ -97,7 +97,7 @@ export default api({
       avg_usefulness: z.coerce.number(),
       response_count: z.coerce.number(),
     });
-    const sessionAvgs = await ctx.integrations.apps_database.query(
+    const sessionAvgs = await ctx.integrations.camp_201_db.query(
       `SELECT sr.session_title, sr.session_type,
               ROUND(AVG(sr.rating)::numeric, 2)::float as avg_rating,
               ROUND(AVG(sr.usefulness)::numeric, 2)::float as avg_usefulness,
@@ -121,7 +121,7 @@ export default api({
       submitted_at: z.string(),
       points_awarded: z.coerce.number(),
     });
-    const subs = await ctx.integrations.apps_database.query(
+    const subs = await ctx.integrations.camp_201_db.query(
       `SELECT s.id, s.camper_id,
               (c.first_name || ' ' || c.last_name) as camper_name,
               s.submitted_at::text, s.points_awarded
@@ -144,7 +144,7 @@ export default api({
 
     const camperSubmissions = [];
     for (const sub of subs) {
-      const ratings = await ctx.integrations.apps_database.query(
+      const ratings = await ctx.integrations.camp_201_db.query(
         `SELECT session_title, rating, usefulness, comment
          FROM camp201_session_ratings WHERE submission_id = $1 ORDER BY id LIMIT 30`,
         RatingSchema,
@@ -161,7 +161,7 @@ export default api({
       response: z.string(),
       submitted_at: z.string(),
     });
-    const openResponses = await ctx.integrations.apps_database.query(
+    const openResponses = await ctx.integrations.camp_201_db.query(
       `SELECT o.question_key, (c.first_name || ' ' || c.last_name) as camper_name,
               o.response, s.submitted_at::text
        FROM camp201_survey_open_responses o
@@ -181,7 +181,7 @@ export default api({
       avg_rating: z.coerce.number(),
       response_count: z.coerce.number(),
     });
-    const overallAvgs = await ctx.integrations.apps_database.query(
+    const overallAvgs = await ctx.integrations.camp_201_db.query(
       `SELECT ov.aspect_key,
               ROUND(AVG(ov.rating)::numeric, 2)::float as avg_rating,
               COUNT(*)::integer as response_count

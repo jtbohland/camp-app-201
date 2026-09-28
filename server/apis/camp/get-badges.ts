@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const BadgeSchema = z.object({
   id: z.coerce.number(),
@@ -33,7 +33,7 @@ export default api({
   name: "GetBadges",
   description: "Gets all badges and which ones a camper has earned",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number().nullable(),
@@ -43,7 +43,7 @@ export default api({
     earned_badges: z.array(EarnedBadgeSchema),
   }),
   async run(ctx, { camper_id }) {
-    const allBadges = await ctx.integrations.apps_database.query(
+    const allBadges = await ctx.integrations.camp_201_db.query(
       `SELECT id, name, description, icon, color, category, requirement_type, requirement_value, points_reward, badge_type, base_points
        FROM camp201_badges ORDER BY badge_type DESC, category, name LIMIT 50`,
       BadgeSchema,
@@ -53,7 +53,7 @@ export default api({
 
     let earnedBadges: z.infer<typeof EarnedBadgeSchema>[] = [];
     if (camper_id) {
-      earnedBadges = await ctx.integrations.apps_database.query(
+      earnedBadges = await ctx.integrations.camp_201_db.query(
         `SELECT cb.badge_id, b.name as badge_name, b.icon as badge_icon, b.color as badge_color,
                 b.description as badge_description, b.category as badge_category, b.badge_type,
                 cb.awarded_at, COALESCE(cb.earn_count, 1) as earn_count,

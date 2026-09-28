@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetGraduationStats",
   description: "Compiles end-of-program stats for a camper's graduation summary",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -28,7 +28,7 @@ export default api({
   }),
   async run(ctx, { camper_id }) {
     const CamperSchema = z.object({ first_name: z.string(), last_name: z.string(), points: z.coerce.number(), team_name: z.string().nullable() });
-    const camper = await ctx.integrations.apps_database.query(
+    const camper = await ctx.integrations.camp_201_db.query(
       `SELECT c.first_name, c.last_name, c.points,
               t.name as team_name
        FROM camp201_campers c
@@ -51,43 +51,43 @@ export default api({
     const CountSchema = z.object({ count: z.coerce.number() });
 
     // Rank
-    const rankResult = await ctx.integrations.apps_database.query(
+    const rankResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_campers WHERE points > (SELECT points FROM camp201_campers WHERE id = $1)`,
       CountSchema, [camper_id], { label: "Calculate rank" }
     );
     const rank = rankResult[0].count + 1;
 
-    const totalResult = await ctx.integrations.apps_database.query(
+    const totalResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_campers`, CountSchema, undefined, { label: "Total campers" }
     );
 
     // Badges earned
-    const badgesResult = await ctx.integrations.apps_database.query(
+    const badgesResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_camper_badges WHERE camper_id = $1`,
       CountSchema, [camper_id], { label: "Badge count" }
     );
 
     // Check-ins
-    const checkinsResult = await ctx.integrations.apps_database.query(
+    const checkinsResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_checkin_responses WHERE camper_id = $1`,
       CountSchema, [camper_id], { label: "Checkin count" }
     );
 
     // Surveys
-    const surveysResult = await ctx.integrations.apps_database.query(
+    const surveysResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_survey_responses WHERE camper_id = $1`,
       CountSchema, [camper_id], { label: "Survey count" }
     );
 
     // Prework
-    const preworkResult = await ctx.integrations.apps_database.query(
+    const preworkResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_prework WHERE camper_id = $1 AND completed = true`,
       CountSchema, [camper_id], { label: "Prework count" }
     );
 
     // Top badge
     const TopBadgeSchema = z.object({ name: z.string() });
-    const topBadgeResult = await ctx.integrations.apps_database.query(
+    const topBadgeResult = await ctx.integrations.camp_201_db.query(
       `SELECT b.name FROM camp201_camper_badges cb JOIN camp201_badges b ON b.id = cb.badge_id
        WHERE cb.camper_id = $1 ORDER BY b.points_reward DESC LIMIT 1`,
       TopBadgeSchema, [camper_id], { label: "Top badge" }

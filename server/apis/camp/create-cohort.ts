@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "CreateCohort",
   description: "Creates a new cohort and optionally sets it as active",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     name: z.string(),
@@ -19,7 +19,7 @@ export default api({
   async run(ctx, input) {
     // If setting as active, deactivate all others first
     if (input.set_active) {
-      await ctx.integrations.apps_database.execute(
+      await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_cohorts SET is_active = false WHERE is_active = true`,
         undefined,
         { label: "Deactivate current cohort" }
@@ -27,7 +27,7 @@ export default api({
     }
 
     const IdSchema = z.object({ id: z.coerce.number() });
-    const result = await ctx.integrations.apps_database.query(
+    const result = await ctx.integrations.camp_201_db.query(
       `INSERT INTO camp201_cohorts (name, start_date, end_date, is_active, created_by)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       IdSchema,

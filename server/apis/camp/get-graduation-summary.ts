@@ -1,12 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetGraduationSummary",
   description: "Compiles a camper's full end-of-program stats for graduation",
   integrations: {
-    apps_database: postgres(APPS_DB),
+    camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
     camper_id: z.number(),
@@ -39,7 +39,7 @@ export default api({
       team_name: z.string().nullable(),
       points: z.coerce.number(),
     });
-    const camperInfo = await ctx.integrations.apps_database.query(
+    const camperInfo = await ctx.integrations.camp_201_db.query(
       `SELECT CONCAT(c.first_name, ' ', c.last_name) as name, t.name as team_name, c.points
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON t.id = c.team_id
@@ -54,13 +54,13 @@ export default api({
 
     // Get rank
     const CountSchema = z.object({ count: z.coerce.number() });
-    const rankResult = await ctx.integrations.apps_database.query(
+    const rankResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_campers WHERE points > (SELECT points FROM camp201_campers WHERE id = $1)`,
       CountSchema,
       [camper_id],
       { label: "Get rank" }
     );
-    const totalResult = await ctx.integrations.apps_database.query(
+    const totalResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_campers`,
       CountSchema,
       undefined,
@@ -68,13 +68,13 @@ export default api({
     );
 
     // Stats
-    const badgesResult = await ctx.integrations.apps_database.query(
+    const badgesResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_camper_badges WHERE camper_id = $1`,
       CountSchema,
       [camper_id],
       { label: "Count badges" }
     );
-    const badgeList = await ctx.integrations.apps_database.query(
+    const badgeList = await ctx.integrations.camp_201_db.query(
       `SELECT b.id, b.name, COALESCE(b.description, '') as description, COALESCE(b.icon, 'award') as icon, COALESCE(b.color, 'amber') as color
        FROM camp201_camper_badges cb
        JOIN camp201_badges b ON b.id = cb.badge_id
@@ -85,19 +85,19 @@ export default api({
       [camper_id],
       { label: "Get badge list" }
     );
-    const checkinsResult = await ctx.integrations.apps_database.query(
+    const checkinsResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_checkin_responses WHERE camper_id = $1`,
       CountSchema,
       [camper_id],
       { label: "Count check-ins" }
     );
-    const surveysResult = await ctx.integrations.apps_database.query(
+    const surveysResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_survey_responses WHERE camper_id = $1`,
       CountSchema,
       [camper_id],
       { label: "Count surveys" }
     );
-    const preworkResult = await ctx.integrations.apps_database.query(
+    const preworkResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as count FROM camp201_prework WHERE user_id = $1 AND completed = true`,
       CountSchema,
       [camper_id],
@@ -106,7 +106,7 @@ export default api({
 
     // Top point events
     const HighlightSchema = z.object({ reason: z.string(), points: z.coerce.number() });
-    const highlights = await ctx.integrations.apps_database.query(
+    const highlights = await ctx.integrations.camp_201_db.query(
       `SELECT reason, points FROM camp201_points_log WHERE camper_id = $1 ORDER BY points DESC LIMIT 10`,
       HighlightSchema,
       [camper_id],
@@ -121,7 +121,7 @@ export default api({
     let totalTeams = 0;
     let teamMembers: { name: string; points: number }[] = [];
 
-    const teamInfo = await ctx.integrations.apps_database.query(
+    const teamInfo = await ctx.integrations.camp_201_db.query(
       `SELECT t.id, t.name, t.logo_data, t.color FROM camp201_team_members tm
        JOIN camp201_teams t ON t.id = tm.team_id
        WHERE tm.user_id = $1 LIMIT 1`,
@@ -137,7 +137,7 @@ export default api({
       teamColor = team.color;
 
       // Team members
-      teamMembers = await ctx.integrations.apps_database.query(
+      teamMembers = await ctx.integrations.camp_201_db.query(
         `SELECT CONCAT(c.first_name, ' ', c.last_name) AS name, c.points
          FROM camp201_team_members tm JOIN camp201_campers c ON c.id = tm.user_id
          WHERE tm.team_id = $1 ORDER BY c.points DESC LIMIT 10`,
@@ -147,7 +147,7 @@ export default api({
       );
 
       // Team rank (by sum of member points + team_points)
-      const teamRanks = await ctx.integrations.apps_database.query(
+      const teamRanks = await ctx.integrations.camp_201_db.query(
         `SELECT t.id as team_id, COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
          FROM camp201_teams t
          LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'

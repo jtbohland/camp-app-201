@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 
-const APPS_DB = "c6e32cf4-ca66-42ae-aeb3-58c84ffae574";
+const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const WinnerSchema = z.object({
   camper_id: z.number(),
@@ -18,7 +18,7 @@ const MyVotesSchema = z.object({
 export default api({
   name: "GetSpiritVoteResults",
   description: "Gets Camp Spirit vote results and personal vote data",
-  integrations: { apps_database: postgres(APPS_DB) },
+  integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     camper_id: z.number(),
   }),
@@ -31,7 +31,7 @@ export default api({
   }),
   async run(ctx, { camper_id }) {
     // Total votes cast
-    const countResult = await ctx.integrations.apps_database.query(
+    const countResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as total FROM camp201_spirit_votes WHERE cohort_id = 1`,
       z.object({ total: z.number() }),
       undefined,
@@ -40,7 +40,7 @@ export default api({
     const totalVotes = countResult[0]?.total ?? 0;
 
     // Total eligible voters (non-counselors)
-    const voterResult = await ctx.integrations.apps_database.query(
+    const voterResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as total FROM camp201_campers
        WHERE (role IS NULL OR role NOT IN ('counselor', 'admin'))`,
       z.object({ total: z.number() }),
@@ -51,7 +51,7 @@ export default api({
     const votingComplete = totalVotes >= totalEligible && totalEligible > 0;
 
     // Top nominees (ranked by votes, tiebreaker = most notes)
-    const winners = await ctx.integrations.apps_database.query(
+    const winners = await ctx.integrations.camp_201_db.query(
       `SELECT
          sv.nominee_id as camper_id,
          c.first_name, c.last_name,
@@ -69,7 +69,7 @@ export default api({
     );
 
     // Did this camper already vote?
-    const myVote = await ctx.integrations.apps_database.query(
+    const myVote = await ctx.integrations.camp_201_db.query(
       `SELECT nominee_id FROM camp201_spirit_votes
        WHERE voter_id = $1 AND cohort_id = 1 LIMIT 1`,
       z.object({ nominee_id: z.number() }),
@@ -78,7 +78,7 @@ export default api({
     );
 
     // Votes received by this camper + anonymous notes
-    const votesForMe = await ctx.integrations.apps_database.query(
+    const votesForMe = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as vote_count FROM camp201_spirit_votes
        WHERE nominee_id = $1 AND cohort_id = 1`,
       z.object({ vote_count: z.number() }),
@@ -86,7 +86,7 @@ export default api({
       { label: "Votes received by me" }
     );
 
-    const notesForMe = await ctx.integrations.apps_database.query(
+    const notesForMe = await ctx.integrations.camp_201_db.query(
       `SELECT note FROM camp201_spirit_votes
        WHERE nominee_id = $1 AND cohort_id = 1 AND note IS NOT NULL AND note != ''
        LIMIT 20`,
