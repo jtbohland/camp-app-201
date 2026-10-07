@@ -26,6 +26,7 @@ export default function AdminCloseCamp({ camperId }: Props) {
   const revealedTeamIds = status?.revealed_team_ids ?? [];
   const vpRevealed = status?.vp_revealed ?? false;
   const finalSurveyUnlocked = status?.final_survey_unlocked ?? false;
+  const closeIncomplete = status?.close_incomplete ?? false;
 
   const handleClose = useCallback(async () => {
     try {
@@ -145,6 +146,23 @@ export default function AdminCloseCamp({ camperId }: Props) {
         </Card>
       )}
 
+      {/* Close failed part-way: let a counselor finish it (every step is safe to repeat) */}
+      {closeIncomplete && (
+        <Card className="p-4 border-red-200 bg-red-50">
+          <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+            <Icon icon="triangle-alert" className="w-4 h-4" />
+            Closing cAMP didn't finish
+          </p>
+          <p className="text-xs text-red-800 mt-1 mb-3">
+            Points are frozen, but winners and badges may not be final. Finish closing to complete the remaining steps.
+          </p>
+          <Button className="bg-red-600 text-white hover:bg-red-700" onClick={handleClose} disabled={closing}>
+            {closing ? <Icon icon="loader-2" className="w-4 h-4 mr-1 animate-spin" /> : <Icon icon="rotate-cw" className="w-4 h-4 mr-1" />}
+            Finish closing cAMP
+          </Button>
+        </Card>
+      )}
+
       {/* Post-Close: Podium Reveal Controls */}
       {campClosed && (
         <Card className="p-4 border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30">
@@ -244,7 +262,7 @@ export default function AdminCloseCamp({ camperId }: Props) {
         </Card>
       )}
 
-      {campClosed && (
+      {campClosed && !closeIncomplete && (
         <CohortWrapUpCard
           legacyWallNumber={status?.legacy_wall_cohort_number ?? null}
           onChanged={refetch}

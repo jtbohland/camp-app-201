@@ -35,6 +35,16 @@ export default api({
     const cohortId = await getActiveCohortId(db);
     if (cohortId === null) throw new Error("No active cohort.");
 
+    const finished = await db.query(
+      `SELECT value FROM camp201_config WHERE key = 'camp_close_finished_cohort' LIMIT 1`,
+      z.object({ value: z.string() }),
+      undefined,
+      { label: "Check close finished" }
+    );
+    if (finished[0]?.value !== String(cohortId)) {
+      throw new Error("Closing cAMP didn't finish. Run Close cAMP again before adding to the Legacy Wall.");
+    }
+
     const champ = await db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_champ_team_id' LIMIT 1`,
       z.object({ value: z.string() }),

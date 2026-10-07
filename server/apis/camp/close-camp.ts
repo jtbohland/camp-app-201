@@ -42,7 +42,18 @@ export default api({
       undefined,
       { label: "Idempotency check" }
     );
-    if (closedResult.length > 0 && closedResult[0].value === "true") {
+    // The close only counts as finished once the last step records the cohort id.
+    // If an earlier run failed part-way, camp_closed is true but this marker is missing,
+    // so we finish the remaining steps (every step below is safe to repeat).
+    const finishedResult = await ctx.integrations.camp_201_db.query(
+      `SELECT (SELECT value FROM camp201_config WHERE key = 'camp_close_finished_cohort' LIMIT 1) =
+              (SELECT id::text FROM camp201_cohorts WHERE is_active = true ORDER BY id DESC LIMIT 1) AS finished`,
+      z.object({ finished: z.boolean().nullable() }),
+      undefined,
+      { label: "Check close finished" }
+    );
+    const closeFinished = finishedResult[0]?.finished === true;
+    if (closedResult.length > 0 && closedResult[0].value === "true" && closeFinished) {
       // Already closed — change nothing.
       return {
         success: true,
@@ -305,6 +316,12 @@ export default api({
        ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
       [String(closer_camper_id)],
       { label: "Log closer" }
+    );
+    await ctx.integrations.camp_201_db.execute(
+      `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_close_finished_cohort', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [String(cohortId)],
+      { label: "Mark close finished" }
     );
 
     return {

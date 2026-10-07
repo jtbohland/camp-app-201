@@ -24,6 +24,7 @@ export default api({
     vp_revealed: z.boolean(),
     final_survey_unlocked: z.boolean(),
     legacy_wall_cohort_number: z.number().nullable(),
+    close_incomplete: z.boolean(),
   }),
   async run(ctx) {
     const CountSchema = z.object({ count: z.coerce.number() });
@@ -155,6 +156,15 @@ export default api({
     );
     const legacyWallCohortNumber = legacyResult.length > 0 ? parseInt(legacyResult[0].value, 10) || null : null;
 
+    // camp_closed is set first; this marker is set last. Closed without the marker = a close that failed part-way.
+    const finishedResult = await ctx.integrations.camp_201_db.query(
+      `SELECT value FROM camp201_config WHERE key = 'camp_close_finished_cohort' LIMIT 1`,
+      z.object({ value: z.string() }),
+      undefined,
+      { label: "Check close finished" }
+    );
+    const closeFinished = finishedResult.length > 0 && cohortId !== null && finishedResult[0].value === String(cohortId);
+
     return {
       camp_closed: campClosed,
       camp_in_session: campInSession,
@@ -169,6 +179,7 @@ export default api({
       vp_revealed: vpRevealed,
       final_survey_unlocked: finalSurveyUnlocked,
       legacy_wall_cohort_number: legacyWallCohortNumber,
+      close_incomplete: campClosed && !closeFinished,
     };
   },
 });
