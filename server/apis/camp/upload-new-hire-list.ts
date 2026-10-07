@@ -31,8 +31,8 @@ export default api({
       if (!row.email?.trim()) { skipped++; continue; }
       try {
         await db.execute(
-          `INSERT INTO camp201_new_hires (first_name, last_name, email, role_title, region, manager_name, manager_email, uploaded_by, cohort_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO camp201_new_hires (first_name, last_name, email, role_title, region, manager_name, manager_email, uploaded_by, cohort_id, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'invited')
            ON CONFLICT (email) DO UPDATE SET
              first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,

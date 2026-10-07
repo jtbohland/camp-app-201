@@ -19,7 +19,7 @@ export default api({
         region TEXT,
         manager_name TEXT,
         manager_email TEXT,
-        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'invited', 'accepted', 'declined')),
+        status TEXT NOT NULL DEFAULT 'invited' CHECK (status IN ('pending', 'invited', 'accepted', 'declined')),
         cohort_id INTEGER REFERENCES camp201_cohorts(id),
         camper_id INTEGER REFERENCES camp201_campers(id),
         uploaded_by INTEGER,

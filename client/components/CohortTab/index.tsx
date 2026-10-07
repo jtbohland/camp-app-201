@@ -19,6 +19,7 @@ type CohortMember = {
   city: string | null;
   photo_url: string | null;
   linkedin_url: string | null;
+  bio?: string | null;
   fun_fact: string | null;
   points: number;
   team_id: number | null;
@@ -115,7 +116,7 @@ export default function CohortTab() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
-              🏕️ {cohortName ? `${cohortName} — cAMP 201` : "cAMP 201"}
+              🏕️ {!cohortName ? "cAMP 201" : /camp\s*201/i.test(cohortName) ? cohortName : `${cohortName} — cAMP 201`}
             </h2>
             <p className="text-sm text-white/70 mt-0.5">Your fellow cAMPers on this journey</p>
           </div>
@@ -215,8 +216,10 @@ export default function CohortTab() {
 
         {members.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <Icon icon="search" className="w-12 h-12 opacity-30 mb-3" />
-            <p className="text-sm">No members match your search</p>
+            <Icon icon={search.trim() ? "search" : "tent"} className="w-12 h-12 opacity-30 mb-3" />
+            <p className="text-sm">
+              {search.trim() ? "No members match your search" : "No one has registered for this cohort yet"}
+            </p>
           </div>
         )}
       </div>
