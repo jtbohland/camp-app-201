@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { Icon } from "@/components/ui/icon";
@@ -140,7 +141,7 @@ export default function TimerPage() {
   // Current camper data (for admin check)
   const user = useSuperblocksUser();
   const { data: camperData } = useApiData("GetCurrentCamper", { email: user?.email ?? "" }, { enabled: !!user?.email });
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
 
   // Active check-in polling (every 3 seconds when session is active)
   const { data: checkinData, refetch: refetchCheckin } = useApiData("GetActiveCheckIn", {}, {

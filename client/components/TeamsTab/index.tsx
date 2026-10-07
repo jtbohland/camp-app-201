@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import TeamCard from "@/components/TeamCard/index.js";
 import CampVPLeaderboard from "@/components/CampVPLeaderboard/index.js";
@@ -13,7 +14,7 @@ export default function TeamsTab() {
   const { data: camperData, loading: camperLoading } = useApiData("GetCurrentCamper", { email: user?.email ?? "" });
   const { data: teamsData, loading: teamsLoading, fetching, refetch: refetchTeams } = useApiData("GetTeams", {});
 
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
   const camperId = camperData?.camper?.id ?? 0;
   const loading = camperLoading || teamsLoading;
 

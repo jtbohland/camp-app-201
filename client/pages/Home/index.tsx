@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Navigate } from "react-router";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,6 +8,9 @@ import { Icon } from "@/components/ui/icon";
 import RegistrationForm from "@/components/RegistrationForm";
 import ManagerRegistrationForm from "@/components/ManagerRegistrationForm";
 import AnnouncementsFeed from "@/components/AnnouncementsFeed/index.js";
+import RoleChooser, { type JoinRole } from "@/components/RoleChooser/index.js";
+import CounselorAccessForm from "@/components/CounselorAccessForm/index.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { IconName } from "lucide-react/dynamic";
 
 type QuickLink = {
@@ -28,12 +31,13 @@ const quickLinks: QuickLink[] = [
   { icon: "graduation-cap", label: "Graduation", description: "Memories & summary", path: "/graduation", color: "text-camp-amber" },
 ];
 
-type RegistrationMode = "choose" | "camper" | "manager";
+type RegistrationMode = "choose" | JoinRole;
 
 export default function HomePage() {
   const user = useSuperblocksUser();
   const navigate = useNavigate();
   const [regMode, setRegMode] = useState<RegistrationMode>("choose");
+  const { isAdmin, loading: loadingAccess } = useIsAdmin();
 
   const { data, loading, refetch } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
@@ -53,7 +57,7 @@ export default function HomePage() {
     navigate("/manager");
   }, [refetchManager, navigate]);
 
-  if (loading || loadingManager) {
+  if (loading || loadingManager || loadingAccess) {
     return (
       <div className="flex flex-col gap-6 p-8">
         <Skeleton className="h-12 w-64" />
@@ -66,59 +70,18 @@ export default function HomePage() {
     );
   }
 
-  // If not registered as camper or manager, show role selection then registration
-  if (!data?.isRegistered && !managerData?.isManager) {
+  // Not registered as camper or manager, and not a verified counselor: choose how you're joining
+  if (!data?.isRegistered && !managerData?.isManager && !isAdmin) {
     if (regMode === "choose") {
+      return <RoleChooser onChoose={setRegMode} />;
+    }
+
+    if (regMode === "counselor") {
       return (
-        <div className="flex items-center justify-center min-h-full p-8">
-          <div className="w-full max-w-lg flex flex-col items-center gap-8">
-            <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-camp-green/10 mb-4">
-                <Icon icon="mountain" className="w-8 h-8 text-camp-green" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground">Welcome to cAMP 201</h1>
-              <p className="text-sm text-muted-foreground mt-1">How are you joining us?</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 w-full">
-              {/* cAMPer option */}
-              <Card
-                className="p-6 cursor-pointer hover:shadow-lg transition-all hover:border-camp-green/40 group text-center"
-                onClick={() => setRegMode("camper")}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center justify-center w-14 h-14 rounded-full bg-camp-green/10 group-hover:bg-camp-green/20 transition-colors">
-                    <Icon icon="tent" className="w-7 h-7 text-camp-green" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">I'm a cAMPer</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      I'm attending cAMP 201 as a new hire
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Manager option */}
-              <Card
-                className="p-6 cursor-pointer hover:shadow-lg transition-all hover:border-blue-500/40 group text-center"
-                onClick={() => setRegMode("manager")}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center justify-center w-14 h-14 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
-                    <Icon icon="binoculars" className="w-7 h-7 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">I'm a Manager</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      I'm here to track my new hire's progress
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-        </div>
+        <CounselorAccessForm
+          onBack={() => setRegMode("choose")}
+          onVerified={() => { refetch(); setRegMode("choose"); }}
+        />
       );
     }
 
@@ -153,12 +116,16 @@ export default function HomePage() {
   }
 
   // If user is a manager but not a camper, redirect to manager dashboard
-  if (!data?.isRegistered && managerData?.isManager) {
-    navigate("/manager");
-    return null;
+  if (!data?.isRegistered && managerData?.isManager && !isAdmin) {
+    return <Navigate to="/manager" replace />;
   }
 
-  const camper = data!.camper;
+  // Registration isn't finished until the profile is complete
+  if (!isAdmin && data?.camper && !data.camper.profile_completed) {
+    return <Navigate to="/profile" replace />;
+  }
+
+  const camper = data?.camper;
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-6xl overflow-auto">
@@ -178,9 +145,11 @@ export default function HomePage() {
           />
           <div className="w-full mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
             <div>
-              <p className="text-xs text-white/50 font-medium uppercase tracking-wide">Welcome back, cAMPer</p>
+              <p className="text-xs text-white/50 font-medium uppercase tracking-wide">
+                {isAdmin ? "Welcome back, Counselor" : "Welcome back, cAMPer"}
+              </p>
               <h2 className="text-xl font-bold text-white mt-0.5">
-                {camper?.first_name} {camper?.last_name}
+                {camper ? `${camper.first_name} ${camper.last_name}` : (user?.name ?? "Counselor")}
               </h2>
             </div>
             <div className="flex items-center gap-3">
@@ -188,7 +157,7 @@ export default function HomePage() {
                 <Icon icon="flame" className="w-4 h-4 text-camp-amber" />
                 <span className="text-sm font-bold text-white">{camper?.points ?? 0} pts</span>
               </div>
-              {!camper?.profile_completed && (
+              {camper && !isAdmin && !camper.profile_completed && (
                 <div className="flex items-center gap-2 bg-camp-amber/20 rounded-lg px-3 py-1.5">
                   <Icon icon="alert-circle" className="w-4 h-4 text-camp-amber" />
                   <span className="text-xs text-camp-amber font-medium">Complete profile +15 pts</span>

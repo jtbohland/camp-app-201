@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import SessionScorecard from "@/components/SessionScorecard/index.js";
@@ -108,7 +109,7 @@ export default function SurveyPage() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
+  const { isAdmin } = useIsAdmin();
 
   const { data: surveyData, loading: loadingSurvey, refetch } = useApiData("GetDailySurvey", {
     camper_id: camperId,

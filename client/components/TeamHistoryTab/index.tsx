@@ -6,14 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
-import { useSuperblocksUser } from "@superblocksteam/library";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 
 export default function TeamHistoryTab() {
-  const user = useSuperblocksUser();
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
+  const { isAdmin } = useIsAdmin();
 
   const { data, loading, fetching, refetch } = useApiData("GetTeamHistory", {
     search: search.trim() || null,

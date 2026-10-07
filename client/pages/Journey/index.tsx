@@ -1,5 +1,6 @@
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
@@ -9,6 +10,7 @@ import PreWork from "@/components/PreWork";
 
 export default function JourneyPage() {
   const user = useSuperblocksUser();
+  const { isAdmin } = useIsAdmin();
 
   const {
     data: camperData,
@@ -58,7 +60,6 @@ export default function JourneyPage() {
   }
 
   const camper = camperData.camper;
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
   const completedKeys = (preworkData?.completedItems ?? []).map((item) => item.item);
   const allPreworkDone = completedKeys.length >= 3;
 

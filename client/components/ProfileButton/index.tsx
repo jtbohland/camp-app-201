@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Icon } from "@/components/ui/icon";
 import { useState, useRef, useEffect } from "react";
 
@@ -15,7 +16,7 @@ export default function ProfileButton() {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
   const isActive = location.pathname === "/profile" || location.pathname === "/admin";
 
   const initials = user?.name

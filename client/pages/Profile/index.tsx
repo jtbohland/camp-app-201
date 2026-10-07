@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
+  const navigate = useNavigate();
 
   const { data, loading, refetch } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
@@ -93,12 +95,14 @@ export default function ProfilePage() {
         ice_breaker_answers: JSON.stringify(iceBreakerAnswers),
       });
 
+      const justCompleted = !data?.camper?.profile_completed && result?.camper?.profile_completed;
       if (result && result.pointsAwarded > 0) {
         toast.success(`Profile saved! 🎉 +${result.pointsAwarded} points earned for completing your profile!`);
       } else {
         toast.success("Profile updated successfully!");
       }
-      refetch();
+      await refetch();
+      if (justCompleted) navigate("/");
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
@@ -106,7 +110,7 @@ export default function ProfilePage() {
           : String(error);
       toast.error("Failed to save profile: " + message);
     }
-  }, [user?.email, bio, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch]);
+  }, [user?.email, bio, photoUrl, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch, data?.camper?.profile_completed, navigate]);
 
   const handleToggleGoal = useCallback(async (goalNumber: number, achieved: boolean) => {
     if (!data?.camper?.id) return;
@@ -189,6 +193,18 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {!camper?.profile_completed && camper?.role !== "counselor" && camper?.role !== "admin" && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-camp-amber/40 bg-camp-amber/10">
+          <Icon icon="lock" className="w-5 h-5 text-camp-amber mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">One more step before Base Camp</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Complete your profile to unlock the rest of cAMP 201: bio, fun fact, three goals and all ice breaker questions. Then click <span className="font-medium text-foreground">Save Profile</span>.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* PIN & Check-in Info */}
       <Card className="p-6">
