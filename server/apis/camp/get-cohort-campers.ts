@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -21,10 +22,12 @@ export default api({
     campers: z.array(CohortCamperSchema),
   }),
   async run(ctx) {
+    // Active cohort, or the counselor's chosen past cohort.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.role, c.email
        FROM camp201_campers c
-       JOIN camp201_cohorts co ON co.id = c.cohort_id AND co.is_active = true
+       JOIN camp201_cohorts co ON co.id = c.cohort_id AND co.id = ${VIEW}
        WHERE c.role NOT IN ('counselor', 'admin')
        ORDER BY c.last_name, c.first_name
        LIMIT 200`,

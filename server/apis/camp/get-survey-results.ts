@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -29,6 +30,8 @@ export default api({
     })),
   }),
   async run(ctx, { survey_id }) {
+    // Active cohort, or the counselor's chosen past cohort.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     // Get all surveys for the active cohort
     const SurveyListSchema = z.object({
       id: z.coerce.number(),
@@ -45,7 +48,7 @@ export default api({
               (SELECT COUNT(*) FROM camp201_survey_responses WHERE survey_id = s.id)::int as response_count,
               (SELECT COUNT(*) FROM camp201_campers c WHERE c.cohort_id = s.cohort_id AND c.role != 'counselor')::int as total_campers
        FROM camp201_surveys s
-       JOIN camp201_cohorts co ON co.id = s.cohort_id AND co.is_active = true
+       JOIN camp201_cohorts co ON co.id = s.cohort_id AND co.id = ${VIEW}
        ORDER BY s.day_number DESC LIMIT 20`,
       SurveyListSchema,
       undefined,

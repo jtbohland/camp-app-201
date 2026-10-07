@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -27,6 +28,7 @@ export default api({
     points_awarded: z.number(),
   }),
   async run(ctx, { round_id }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // 1. Get self-eval scores
     const SelfSchema = z.object({ total: z.number(), pitcher_id: z.number() });
     const selfRows = await ctx.integrations.camp_201_db.query(

@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { getActiveCohortId, requireCounselor } from "../../lib/cohort.js";
+import { assertNotViewingPast, getActiveCohortId, requireCounselor } from "../../lib/cohort.js";
 import { archiveCohortToLegacyWall } from "../../lib/legacy-wall.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
@@ -24,6 +24,7 @@ export default api({
   async run(ctx, { preview }) {
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
+    if (!preview) await assertNotViewingPast(db, ctx.user.email);
 
     const closed = await db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_closed' LIMIT 1`,

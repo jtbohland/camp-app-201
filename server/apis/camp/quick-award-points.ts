@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -18,6 +19,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), id: z.coerce.number(), already_found: z.boolean() }),
   async run(ctx, { camper_id, points, reason, awarded_by, category, team_unique }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     const db = ctx.integrations.camp_201_db;
 
     // Team-unique check: prevent duplicate easter eggs per team

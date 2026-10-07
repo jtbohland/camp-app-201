@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -40,16 +41,10 @@ export default api({
   }),
   async run(ctx, { cohort_id }) {
     // If no cohort specified, use active
+    // No cohort passed: use the viewing cohort (active, or a counselor's chosen past cohort)
     let effectiveCohortId = cohort_id;
     if (!effectiveCohortId) {
-      const ActiveSchema = z.object({ id: z.coerce.number() });
-      const active = await ctx.integrations.camp_201_db.query(
-        `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
-        ActiveSchema,
-        undefined,
-        { label: "Get active cohort" }
-      );
-      effectiveCohortId = active.length > 0 ? active[0].id : null;
+      effectiveCohortId = (await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId;
     }
 
     const cohortFilter = effectiveCohortId ? `AND c.cohort_id = $1` : ``;

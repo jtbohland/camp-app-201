@@ -14,11 +14,42 @@ const COHORT_SCOPED_APIS = [
   "GetCounselorRotation",
   "GetFlightSummary",
   "GetPastCohorts",
+  "GetViewCohort",
+];
+
+// Everything else that changes when a counselor switches which cohort they're viewing.
+const VIEW_SCOPED_APIS = [
+  ...COHORT_SCOPED_APIS,
+  "GetWheelLeaderboard",
+  "GetActiveWheelRound",
+  "GetGraduationSummary",
+  "GetGraduationStats",
+  "GetSpiritVoteResults",
+  "GetHackathonResults",
+  "GetTeamVotes",
+  "GetExecQuestions",
+  "GetAnnouncements",
+  "GetGallery",
+  "GetMemories",
+  "GetPeerFeedback",
+  "GetSurveyResults",
+  "GetDailySurveyResults",
+  "GetRubricScores",
+  "GetAdminCampers",
+  "GetAdminTeams",
+  "GetCohortCampersForManager",
+  "GetManagerDashboard",
+  "GetBingoCard",
 ];
 
 /** Refetch everything that changes when a cohort is started, closed, or archived. */
 export async function refreshCohortData(): Promise<void> {
   await Promise.all(COHORT_SCOPED_APIS.map((name) => queryClient.invalidateQueries(name)));
+}
+
+/** Refetch every screen after a counselor switches to (or back from) a past cohort. */
+export async function refreshAllCohortViews(): Promise<void> {
+  await Promise.all(VIEW_SCOPED_APIS.map((name) => queryClient.invalidateQueries(name)));
 }
 
 /** Formats a Postgres date ("2026-11-02" or ISO) as "Nov 2, 2026". */

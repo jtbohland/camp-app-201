@@ -1,28 +1,21 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
+import { resolveViewCohort } from "../../lib/cohort.js";
+import { getStandings } from "../../lib/cohort-snapshot.js";
 
 const CAMP_201_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const TeamMemberSchema = z.object({
-  id: z.coerce.number(),
+  id: z.number(),
   first_name: z.string(),
   last_name: z.string(),
   email: z.string(),
-  points: z.coerce.number(),
+  points: z.number(),
   photo_url: z.string().nullable(),
-});
-
-const TeamSchema = z.object({
-  id: z.coerce.number(),
-  name: z.string(),
-  logo_url: z.string().nullable(),
-  color: z.string().nullable(),
-  assigned_company: z.any().nullable(),
 });
 
 export default api({
   name: "GetTeams",
-  description: "Fetches active cohort's teams with members and points",
+  description: "Fetches the viewed cohort's teams with members and points",
   integrations: {
     camp_201_db: postgres(CAMP_201_DB),
   },
@@ -39,33 +32,28 @@ export default api({
     })),
   }),
   async run(ctx) {
-    const teams = await ctx.integrations.camp_201_db.query(
-      `SELECT id, name, logo_url, color, assigned_company, COALESCE(team_points, 0) as team_points FROM camp201_teams WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL} ORDER BY name LIMIT 50`,
-      TeamSchema.extend({ team_points: z.coerce.number() }),
-      undefined,
-      { label: "Fetch active cohort teams" }
-    );
+    const db = ctx.integrations.camp_201_db;
+    const view = await resolveViewCohort(db, ctx.user.email);
+    const { people, teams } = await getStandings(db, view);
 
-    const result = [];
-    for (const team of teams) {
-      const members = await ctx.integrations.camp_201_db.query(
-        `SELECT id, first_name, last_name, email, points, photo_url,
-                (role IN ('counselor', 'admin')) AS is_counselor
-         FROM camp201_campers WHERE team_id = $1 ORDER BY first_name LIMIT 50`,
-        TeamMemberSchema.extend({ is_counselor: z.boolean().nullable() }),
-        [team.id],
-        { label: `Fetch members for team ${team.name}` }
-      );
-      // Counselors can sit on a team but don't count toward the score (matches leaderboard + Close cAMP).
-      const total_points =
-        members.reduce((sum, m) => sum + (m.is_counselor ? 0 : m.points), 0) + team.team_points;
-      const { team_points: _tp, ...teamFields } = team;
-      result.push({
-        ...teamFields,
-        members: members.map(({ is_counselor: _c, ...m }) => m),
-        total_points,
-      });
-    }
+    // Counselors can sit on a team but don't count toward the score (matches leaderboard + Close cAMP).
+    const result = [...teams]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        logo_url: t.logo_url,
+        color: t.color,
+        assigned_company: t.assigned_company ?? null,
+        members: people
+          .filter((p) => p.team_id === t.id)
+          .sort((a, b) => a.first_name.localeCompare(b.first_name))
+          .map((p) => ({
+            id: p.id, first_name: p.first_name, last_name: p.last_name,
+            email: p.email, points: p.points, photo_url: p.photo_url,
+          })),
+        total_points: t.total_points,
+      }));
 
     return { teams: result };
   },

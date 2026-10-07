@@ -182,6 +182,7 @@ import ToggleMemoryReaction from './camp/toggle-memory-reaction.js';
 import GetCloseCampStatus from './camp/get-close-camp-status.js';
 import CloseCamp from './camp/close-camp.js';
 import ArchiveCohortToLegacyWall from './camp/archive-cohort-to-legacy-wall.js';
+import { GetViewCohort, SetViewCohort } from './camp/cohort-view.js';
 import SetupCheckinTeamRace from './camp/setup-checkin-team-race.js';
 import SubmitLateCheckIn from './camp/submit-late-checkin.js';
 import RevealTeamStanding from './camp/reveal-team-standing.js';
@@ -380,6 +381,8 @@ const apis = {
   VerifyCounselor,
   GetCounselorRotation,
   ArchiveCohortToLegacyWall,
+  GetViewCohort,
+  SetViewCohort,
 } as const;
 
 export default apis;

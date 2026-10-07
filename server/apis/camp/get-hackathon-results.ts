@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -26,6 +26,8 @@ export default api({
     total_campers: z.coerce.number(),
   }),
   async run(ctx, { presentation_id, camper_id }) {
+    // Active cohort for cAMPers; a counselor's chosen past cohort when viewing one.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     const submissions = await ctx.integrations.camp_201_db.query(
       `SELECT hs.team_id, t.name AS team_name, t.color AS team_color,
               hs.app_name, hs.description, hs.use_case, hs.how_it_works, hs.who_uses_it,
@@ -38,7 +40,7 @@ export default api({
          FROM camp201_hackathon_votes WHERE presentation_id = $1
          GROUP BY voted_for_team_id
        ) v ON v.voted_for_team_id = hs.team_id
-       WHERE hs.presentation_id = $1 AND t.cohort_id = ${ACTIVE_COHORT_ID_SQL}
+       WHERE hs.presentation_id = $1 AND t.cohort_id = ${VIEW}
        ORDER BY vote_count DESC, hs.app_name
        LIMIT 20`,
       z.object({
@@ -61,7 +63,7 @@ export default api({
 
     const voterCount = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(DISTINCT v.voter_camper_id) AS cnt FROM camp201_hackathon_votes v
-       JOIN camp201_campers c ON c.id = v.voter_camper_id AND c.cohort_id = ${ACTIVE_COHORT_ID_SQL}
+       JOIN camp201_campers c ON c.id = v.voter_camper_id AND c.cohort_id = ${VIEW}
        WHERE v.presentation_id = $1 LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       [presentation_id],
@@ -70,7 +72,7 @@ export default api({
 
     const camperCount = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) AS cnt FROM camp201_campers
-       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL} LIMIT 1`,
+       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${VIEW} LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       undefined,
       { label: "Count campers" }

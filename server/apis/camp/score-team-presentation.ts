@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
@@ -18,6 +19,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), message: z.string(), total_score: z.number() }),
   async run(ctx, { presentation_id, rubric_template_id, team_id, scorer_camper_id, scores, notes, mvp_camper_id }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     const parsedScores = JSON.parse(scores) as Record<string, number>;
     const totalScore = Object.values(parsedScores).reduce((sum, v) => sum + v, 0);
 

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 import { awardRubricImprovementBonus } from "../../lib/rubric-improvement.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
@@ -25,6 +26,7 @@ export default api({
     points_awarded: z.number(),
   }),
   async run(ctx, { template_id, team_id, scored_by, scores, notes }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     if (await isCampClosed(ctx.integrations.camp_201_db)) {
       return { success: false, score_id: 0, total_score: 0, max_score: 0, points_awarded: 0 };
     }

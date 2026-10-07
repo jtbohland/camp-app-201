@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -15,6 +16,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, input) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // Only verified counselors can change locks.
     const email = (ctx.user.email ?? "").toLowerCase();
     const admin = await ctx.integrations.camp_201_db.query(

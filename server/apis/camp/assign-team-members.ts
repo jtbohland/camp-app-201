@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -17,6 +18,7 @@ export default api({
     assigned: z.number(),
   }),
   async run(ctx, { team_id, camper_ids }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // Clear previous assignments for these campers
     if (camper_ids.length > 0) {
       await ctx.integrations.camp_201_db.execute(

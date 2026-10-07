@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { requireCounselor } from "../../lib/cohort.js";
+import { assertNotViewingPast, getActiveCohortId, requireCounselor } from "../../lib/cohort.js";
+import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
 import { resetCampStateForNewCohort } from "../../lib/cohort-reset.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
@@ -20,6 +21,7 @@ export default api({
   async run(ctx, input) {
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
+    await assertNotViewingPast(db, ctx.user.email);
 
     const creator = await db.query(
       `SELECT id FROM camp201_campers WHERE lower(email) = $1 LIMIT 1`,
@@ -29,6 +31,11 @@ export default api({
     );
 
     if (input.set_active) {
+      // Safety net: save the outgoing cohort's final state before anything is reset.
+      // Keeps the snapshot from Close cAMP if one already exists.
+      const outgoing = await getActiveCohortId(db);
+      if (outgoing !== null) await saveCohortSnapshot(db, outgoing);
+
       await db.execute(
         `UPDATE camp201_cohorts SET is_active = false, updated_at = NOW() WHERE is_active = true`,
         undefined,

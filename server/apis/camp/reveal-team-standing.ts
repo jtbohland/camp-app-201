@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -11,6 +12,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), revealed_team_ids: z.array(z.number()) }),
   async run(ctx, { team_id }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // Get current revealed list
     const result = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'revealed_team_ids' LIMIT 1`,

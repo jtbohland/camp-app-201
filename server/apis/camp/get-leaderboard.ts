@@ -1,23 +1,24 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
+import { resolveViewCohort } from "../../lib/cohort.js";
+import { getStandings } from "../../lib/cohort-snapshot.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const LeaderboardTeamSchema = z.object({
-  id: z.coerce.number(),
+  id: z.number(),
   name: z.string(),
   logo_url: z.string().nullable(),
   color: z.string().nullable(),
-  total_points: z.coerce.number(),
-  member_count: z.coerce.number(),
+  total_points: z.number(),
+  member_count: z.number(),
 });
 
 const TopContributorSchema = z.object({
-  id: z.coerce.number(),
+  id: z.number(),
   first_name: z.string(),
   last_name: z.string(),
-  points: z.coerce.number(),
-  team_id: z.coerce.number().nullable(),
+  points: z.number(),
+  team_id: z.number().nullable(),
   photo_url: z.string().nullable(),
 });
 
@@ -42,80 +43,36 @@ export default api({
     mvp: TopContributorSchema.nullable(),
   }),
   async run(ctx) {
-    // Team rankings
-    const teams = await ctx.integrations.camp_201_db.query(
-      `SELECT t.id, t.name, t.logo_url, t.color,
-              COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) as total_points,
-              COUNT(c.id) as member_count
-       FROM camp201_teams t
-       LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
-       WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL}
-       GROUP BY t.id, t.name, t.logo_url, t.color, t.team_points
-       ORDER BY total_points DESC
-       LIMIT 20`,
-      LeaderboardTeamSchema,
-      undefined,
-      { label: "Fetch team leaderboard" }
-    );
+    const db = ctx.integrations.camp_201_db;
+    // Active cohort for cAMPers; a counselor's chosen past cohort uses its as-of-close snapshot.
+    const view = await resolveViewCohort(db, ctx.user.email);
+    const { campers, teams } = await getStandings(db, view);
 
-    // Top contributor per team
-    const topContributors = [];
-    for (const team of teams) {
-      const top = await ctx.integrations.camp_201_db.query(
-        `SELECT id, first_name, last_name, points, team_id, photo_url
-         FROM camp201_campers
-         WHERE team_id = $1 AND role NOT IN ('counselor', 'admin')
-         ORDER BY points DESC
-         LIMIT 1`,
-        TopContributorSchema,
-        [team.id],
-        { label: `Top contributor for ${team.name}` }
-      );
-      if (top.length > 0) {
-        topContributors.push({
-          team_id: team.id,
-          team_name: team.name,
-          contributor: top[0],
-        });
-      }
-    }
-
-    // Overall MVP (aMpVP) - top individual earner
-    const mvpResult = await ctx.integrations.camp_201_db.query(
-      `SELECT id, first_name, last_name, points, team_id, photo_url
-       FROM camp201_campers
-       WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL} AND role NOT IN ('counselor', 'admin')
-       ORDER BY points DESC
-       LIMIT 1`,
-      TopContributorSchema,
-      undefined,
-      { label: "Fetch aMpVP" }
-    );
-
-    // All campers with team info for cAMP-V-P leaderboard
-    const CamperWithTeamSchema = z.object({
-      id: z.coerce.number(), first_name: z.string(), last_name: z.string(), points: z.coerce.number(),
-      team_name: z.string().nullable(), team_logo_url: z.string().nullable(), team_color: z.string().nullable(),
+    const toContributor = (c: (typeof campers)[number]) => ({
+      id: c.id, first_name: c.first_name, last_name: c.last_name,
+      points: c.points, team_id: c.team_id, photo_url: c.photo_url,
     });
-    const allCampers = await ctx.integrations.camp_201_db.query(
-      `SELECT c.id, c.first_name, c.last_name, c.points,
-              t.name as team_name, t.logo_url as team_logo_url, t.color as team_color
-       FROM camp201_campers c
-       LEFT JOIN camp201_teams t ON c.team_id = t.id
-       WHERE c.role != 'counselor' AND c.role != 'admin'
-         AND c.cohort_id = ${ACTIVE_COHORT_ID_SQL}
-       ORDER BY c.points DESC
-       LIMIT 50`,
-      CamperWithTeamSchema,
-      undefined,
-      { label: "All campers for VP leaderboard" }
-    );
+    const teamById = new Map(teams.map((t) => [t.id, t]));
+
+    const topContributors = teams.flatMap((t) => {
+      const top = campers.find((c) => c.team_id === t.id);
+      return top ? [{ team_id: t.id, team_name: t.name, contributor: toContributor(top) }] : [];
+    });
 
     return {
-      teams,
-      campers: allCampers,
+      teams: teams.slice(0, 20).map((t) => ({
+        id: t.id, name: t.name, logo_url: t.logo_url, color: t.color,
+        total_points: t.total_points, member_count: t.member_count,
+      })),
+      campers: campers.slice(0, 50).map((c) => {
+        const team = c.team_id !== null ? teamById.get(c.team_id) : undefined;
+        return {
+          id: c.id, first_name: c.first_name, last_name: c.last_name, points: c.points,
+          team_name: team?.name ?? null, team_logo_url: team?.logo_url ?? null, team_color: team?.color ?? null,
+        };
+      }),
       topContributors,
-      mvp: mvpResult.length > 0 ? mvpResult[0] : null,
+      mvp: campers.length > 0 ? toContributor(campers[0]) : null,
     };
   },
 });

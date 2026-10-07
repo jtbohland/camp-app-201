@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { getActiveCohortId } from "../../lib/cohort.js";
+import { assertNotViewingPast, getActiveCohortId } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -65,6 +65,7 @@ export default api({
     })),
   }),
   async run(ctx, { num_teams }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     const cohortId = await getActiveCohortId(ctx.integrations.camp_201_db);
     if (cohortId === null) {
       return { success: false, message: "No active cohort. Create one in Cohort Management first.", teams: [] };

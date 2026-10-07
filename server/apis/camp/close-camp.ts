@@ -1,4 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
+import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -35,6 +37,7 @@ export default api({
     wheel_dealer_awarded: z.boolean(),
   }),
   async run(ctx, { closer_camper_id }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // ─── Idempotency check ───────────────────────────
     const closedResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_closed' LIMIT 1`,
@@ -54,11 +57,19 @@ export default api({
     );
     const closeFinished = finishedResult[0]?.finished === true;
     if (closedResult.length > 0 && closedResult[0].value === "true" && closeFinished) {
-      // Already closed — change nothing.
+      // Already closed: change nothing, except save the final snapshot if this cohort
+      // closed before snapshots existed (saving never replaces an existing one).
+      const active = await ctx.integrations.camp_201_db.query(
+        `SELECT id FROM camp201_cohorts WHERE is_active = true ORDER BY id DESC LIMIT 1`,
+        z.object({ id: z.coerce.number() }), undefined, { label: "Get active cohort" }
+      );
+      const savedNow = active.length > 0 ? await saveCohortSnapshot(ctx.integrations.camp_201_db, active[0].id) : false;
       return {
         success: true,
         already_closed: true,
-        message: "cAMP was already closed. No changes made.",
+        message: savedNow
+          ? "cAMP was already closed. Saved its final standings for past-cohort viewing."
+          : "cAMP was already closed. No changes made.",
         camp_vp: null,
         camp_champ: null,
         alpine_legends: [],
@@ -323,6 +334,9 @@ export default api({
       [String(cohortId)],
       { label: "Mark close finished" }
     );
+
+    // Save final standings, winners, and counselors so past-cohort views never drift.
+    await saveCohortSnapshot(ctx.integrations.camp_201_db, cohortId);
 
     return {
       success: true,

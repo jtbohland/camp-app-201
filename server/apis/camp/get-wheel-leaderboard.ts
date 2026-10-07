@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -22,7 +22,11 @@ export default api({
   input: z.object({}),
   output: z.object({ leaders: z.array(LeaderSchema) }),
   async run(ctx) {
-    const leaders = await ctx.integrations.camp_201_db.query(
+    const db = ctx.integrations.camp_201_db;
+    const view = await resolveViewCohort(db, ctx.user.email);
+    // Rounds and scores are tied to pitchers, so filtering by the pitcher's cohort keeps
+    // past cohorts exact (W&D points can't change once a round is closed).
+    const leaders = await db.query(
       `SELECT
          r.pitcher_id as camper_id,
          c.first_name, c.last_name,
@@ -35,7 +39,7 @@ export default api({
        JOIN camp201_campers c ON c.id = r.pitcher_id
        LEFT JOIN camp201_teams t ON t.id = c.team_id
        LEFT JOIN camp201_wheel_scores s ON s.round_id = r.id AND s.scorer_id = r.pitcher_id
-       WHERE r.status = 'closed' AND c.cohort_id = ${ACTIVE_COHORT_ID_SQL}
+       WHERE r.status = 'closed' AND c.cohort_id = ${cohortIdSql(view.cohortId)}
        GROUP BY r.pitcher_id, c.first_name, c.last_name, t.name, t.color
        ORDER BY total_points DESC, pitch_count DESC
        LIMIT 50`,

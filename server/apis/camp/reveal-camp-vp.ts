@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -9,6 +10,7 @@ export default api({
   input: z.object({}),
   output: z.object({ success: z.boolean() }),
   async run(ctx) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_config (key, value, updated_at) VALUES ('vp_revealed', 'true', NOW())
        ON CONFLICT (key) DO UPDATE SET value = 'true', updated_at = NOW()`,

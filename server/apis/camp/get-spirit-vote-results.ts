@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { ACTIVE_COHORT_ID_SQL as ACTIVE } from "../../lib/cohort.js";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -31,6 +31,8 @@ export default api({
     voting_complete: z.boolean(),
   }),
   async run(ctx, { camper_id }) {
+    // Active cohort for cAMPers; a counselor's chosen past cohort when viewing one.
+    const ACTIVE = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     // Total votes cast
     const countResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as total FROM camp201_spirit_votes WHERE cohort_id = ${ACTIVE}`,
