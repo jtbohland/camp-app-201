@@ -21,7 +21,8 @@ export type LegacyArchiveResult = {
 export async function archiveCohortToLegacyWall(
   db: any,
   cohortId: number,
-  champTeamId: number | null
+  champTeamId: number | null,
+  dryRun = false
 ): Promise<LegacyArchiveResult> {
   const markerKey = `legacy_archived_cohort_${cohortId}`;
   const marker = await db.query(
@@ -82,6 +83,24 @@ export async function archiveCohortToLegacyWall(
   );
   const cohortNumber = nextNumber[0].n;
   const hasLogos = teams.some((t: { logo_url: string }) => t.logo_url.trim() !== "");
+
+  // Preview: report what would be saved without writing anything.
+  if (dryRun) {
+    const memberCount = await db.query(
+      `SELECT COUNT(*)::int AS n FROM camp201_campers
+       WHERE team_id = ANY($1::int[]) AND role NOT IN ('counselor', 'admin')`,
+      z.object({ n: z.coerce.number() }),
+      [teams.map((t: { id: number }) => t.id)],
+      { label: "Count members to archive" }
+    );
+    return {
+      archived: false,
+      cohort_number: cohortNumber,
+      teams_archived: teams.length,
+      members_archived: memberCount[0]?.n ?? 0,
+      message: `Will be saved as cAMP #${cohortNumber} (${month} ${year}).`,
+    };
+  }
 
   const pastCohort = await db.query(
     `INSERT INTO camp201_past_cohorts

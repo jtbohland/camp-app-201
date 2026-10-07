@@ -10,7 +10,10 @@ export default api({
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
-  input: z.object({}),
+  input: z.object({
+    // true = report what would be saved, write nothing
+    preview: z.boolean(),
+  }),
   output: z.object({
     archived: z.boolean(),
     cohort_number: z.number().nullable(),
@@ -18,7 +21,7 @@ export default api({
     members_archived: z.number(),
     message: z.string(),
   }),
-  async run(ctx) {
+  async run(ctx, { preview }) {
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
 
@@ -53,6 +56,6 @@ export default api({
     );
     const champTeamId = champ.length > 0 ? parseInt(champ[0].value, 10) || null : null;
 
-    return archiveCohortToLegacyWall(db, cohortId, champTeamId);
+    return archiveCohortToLegacyWall(db, cohortId, champTeamId, preview);
   },
 });

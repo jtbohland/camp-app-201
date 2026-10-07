@@ -20,10 +20,11 @@ export default function CohortWrapUpCard({ legacyWallNumber, onChanged }: Props)
   const { run: archive, loading: archiving } = useApi("ArchiveCohortToLegacyWall");
   const activeName = cohortsData?.active_cohort?.name ?? null;
   const archived = legacyWallNumber !== null;
+  const { data: preview } = useApiData("ArchiveCohortToLegacyWall", { preview: true }, { enabled: !archived });
 
   const handleArchive = useCallback(async () => {
     try {
-      const result = await archive({});
+      const result = await archive({ preview: false });
       if (result?.archived) {
         toast.success(`${result.message} ${result.teams_archived} teams, ${result.members_archived} cAMPers.`);
       } else {
@@ -50,7 +51,14 @@ export default function CohortWrapUpCard({ legacyWallNumber, onChanged }: Props)
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
           <div className="flex items-center gap-2 text-sm text-foreground">
             <Icon icon={archived ? "circle-check" : "landmark"} className={`w-4 h-4 ${archived ? "text-emerald-600" : "text-muted-foreground"}`} />
-            {archived ? `On the Legacy Wall as cAMP #${legacyWallNumber}` : "Add teams and final points to the Legacy Wall"}
+            <div>
+              <p>{archived ? `On the Legacy Wall as cAMP #${legacyWallNumber}` : "Add teams and final points to the Legacy Wall"}</p>
+              {!archived && preview && (
+                <p className="text-xs text-muted-foreground">
+                  {preview.message} {preview.teams_archived} team{preview.teams_archived === 1 ? "" : "s"}, {preview.members_archived} cAMPer{preview.members_archived === 1 ? "" : "s"}.
+                </p>
+              )}
+            </div>
           </div>
           {!archived && (
             <Button size="sm" variant="outline" onClick={handleArchive} disabled={archiving}>
