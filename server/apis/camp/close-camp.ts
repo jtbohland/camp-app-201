@@ -1,4 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
+import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -19,7 +21,7 @@ const MILESTONE_BADGES = [
 
 export default api({
   name: "CloseCamp",
-  description: "Idempotent close-camp: awards final badges, determines winners, freezes points",
+  description: "Closes camp: final badges, winners, frozen points",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     closer_camper_id: z.number(),
@@ -35,6 +37,7 @@ export default api({
     wheel_dealer_awarded: z.boolean(),
   }),
   async run(ctx, { closer_camper_id }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // ─── Idempotency check ───────────────────────────
     const closedResult = await ctx.integrations.camp_201_db.query(
       `SELECT value FROM camp201_config WHERE key = 'camp_closed' LIMIT 1`,
@@ -42,20 +45,31 @@ export default api({
       undefined,
       { label: "Idempotency check" }
     );
-    if (closedResult.length > 0 && closedResult[0].value === "true") {
-      // Already closed — return stored results
-      const vpResult = await ctx.integrations.camp_201_db.query(
-        `SELECT value FROM camp201_config WHERE key = 'camp_vp_camper_id' LIMIT 1`,
-        z.object({ value: z.string() }), undefined, { label: "Get stored VP" }
+    // The close only counts as finished once the last step records the cohort id.
+    // If an earlier run failed part-way, camp_closed is true but this marker is missing,
+    // so we finish the remaining steps (every step below is safe to repeat).
+    const finishedResult = await ctx.integrations.camp_201_db.query(
+      `SELECT (SELECT value FROM camp201_config WHERE key = 'camp_close_finished_cohort' LIMIT 1) =
+              (SELECT id::text FROM camp201_cohorts WHERE is_active = true ORDER BY id DESC LIMIT 1) AS finished`,
+      z.object({ finished: z.boolean().nullable() }),
+      undefined,
+      { label: "Check close finished" }
+    );
+    const closeFinished = finishedResult[0]?.finished === true;
+    if (closedResult.length > 0 && closedResult[0].value === "true" && closeFinished) {
+      // Already closed: change nothing, except save the final snapshot if this cohort
+      // closed before snapshots existed (saving never replaces an existing one).
+      const active = await ctx.integrations.camp_201_db.query(
+        `SELECT id FROM camp201_cohorts WHERE is_active = true ORDER BY id DESC LIMIT 1`,
+        z.object({ id: z.coerce.number() }), undefined, { label: "Get active cohort" }
       );
-      const champResult = await ctx.integrations.camp_201_db.query(
-        `SELECT value FROM camp201_config WHERE key = 'camp_champ_team_id' LIMIT 1`,
-        z.object({ value: z.string() }), undefined, { label: "Get stored Champ" }
-      );
+      const savedNow = active.length > 0 ? await saveCohortSnapshot(ctx.integrations.camp_201_db, active[0].id) : false;
       return {
         success: true,
         already_closed: true,
-        message: "cAMP was already closed. No changes made.",
+        message: savedNow
+          ? "cAMP was already closed. Saved its final standings for past-cohort viewing."
+          : "cAMP was already closed. No changes made.",
         camp_vp: null,
         camp_champ: null,
         alpine_legends: [],
@@ -74,10 +88,11 @@ export default api({
 
     // Get active cohort
     const cohort = await ctx.integrations.camp_201_db.query(
-      `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
+      `SELECT id FROM camp201_cohorts WHERE is_active = true ORDER BY id DESC LIMIT 1`,
       z.object({ id: z.coerce.number() }), undefined, { label: "Get active cohort" }
     );
-    const cohortId = cohort.length > 0 ? cohort[0].id : 1;
+    if (cohort.length === 0) throw new Error("No active cohort to close.");
+    const cohortId = cohort[0].id;
 
     // Lock all presentations
     await ctx.integrations.camp_201_db.execute(
@@ -143,12 +158,13 @@ export default api({
     const topDealer = await ctx.integrations.camp_201_db.query(
       `SELECT r.pitcher_id as camper_id, COALESCE(SUM(DISTINCT r.points_awarded), 0) as total_points
        FROM camp201_wheel_rounds r
+       JOIN camp201_campers c ON c.id = r.pitcher_id AND c.cohort_id = $1
        WHERE r.status = 'closed'
        GROUP BY r.pitcher_id
        ORDER BY total_points DESC, COUNT(DISTINCT r.id) DESC
        LIMIT 1`,
       z.object({ camper_id: z.coerce.number(), total_points: z.coerce.number() }),
-      undefined,
+      [cohortId],
       { label: "Get top W&D dealer" }
     );
     if (topDealer.length > 0) {
@@ -312,6 +328,15 @@ export default api({
       [String(closer_camper_id)],
       { label: "Log closer" }
     );
+    await ctx.integrations.camp_201_db.execute(
+      `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_close_finished_cohort', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [String(cohortId)],
+      { label: "Mark close finished" }
+    );
+
+    // Save final standings, winners, and counselors so past-cohort views never drift.
+    await saveCohortSnapshot(ctx.integrations.camp_201_db, cohortId);
 
     return {
       success: true,

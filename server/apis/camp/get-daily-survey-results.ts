@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -50,7 +51,8 @@ export default api({
     })),
   }),
   async run(ctx, input) {
-    const cohortFilter = `(SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)`;
+    // Viewing cohort (active, or a counselor's chosen past cohort)
+    const cohortFilter = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
 
     // If manager_email is set, get their hire IDs for filtering
     let hireFilter = "";

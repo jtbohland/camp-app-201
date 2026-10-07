@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -30,6 +31,8 @@ export default api({
     gates_total: z.number(),
   }),
   async run(ctx) {
+    // Active cohort, or the counselor's chosen past cohort.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     const db = ctx.integrations.camp_201_db;
 
     // Safe query helper — returns default on failure so one bad stat doesn't kill the dashboard
@@ -54,10 +57,10 @@ export default api({
       gatesUnlocked,
       gatesTotal,
     ] = await Promise.all([
-      safeStat("SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.is_active = true AND c.role = 'camper'", "Registered campers"),
-      safeStat("SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.is_active = true", "Total people"),
-      safeStat("SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.is_active = true AND c.role = 'manager'", "Managers"),
-      safeStat("SELECT COUNT(*)::int AS count FROM camp201_teams t JOIN camp201_cohorts co ON co.id = t.cohort_id WHERE co.is_active = true", "Teams"),
+      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.id = ${VIEW} AND c.role = 'camper'`, "Registered campers"),
+      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.id = ${VIEW}`, "Total people"),
+      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.id = ${VIEW} AND c.role = 'manager'`, "Managers"),
+      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_teams t JOIN camp201_cohorts co ON co.id = t.cohort_id WHERE co.id = ${VIEW}`, "Teams"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_presentations WHERE day_number > 0 AND is_locked = false", "Unlocked activities"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_presentations WHERE day_number > 0", "Total activities"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_daily_survey_submissions WHERE submitted_at >= CURRENT_DATE", "Surveys today"),
@@ -66,13 +69,13 @@ export default api({
         SELECT SUM(pl.points) AS total FROM camp201_points_log pl
         JOIN camp201_campers c ON c.id = pl.camper_id
         JOIN camp201_cohorts co ON co.id = c.cohort_id
-        WHERE co.is_active = true AND c.role = 'camper'
+        WHERE co.id = ${VIEW} AND c.role = 'camper'
         GROUP BY pl.camper_id
       ) sub`, "Avg XP"),
       safeStat(`SELECT COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE pw.completed = true) / NULLIF(COUNT(*), 0)), 0)::int AS count
         FROM camp201_prework pw
         JOIN camp201_cohorts co ON co.id = pw.cohort_id
-        WHERE co.is_active = true`, "Prework %"),
+        WHERE co.id = ${VIEW}`, "Prework %"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_feature_gates WHERE is_locked = false", "Gates open"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_feature_gates", "Total gates"),
     ]);
@@ -87,7 +90,7 @@ export default api({
          FROM camp201_campers c
          JOIN camp201_cohorts co ON co.id = c.cohort_id
          LEFT JOIN camp201_points_log pl ON pl.camper_id = c.id
-         WHERE co.is_active = true AND c.role = 'camper'
+         WHERE co.id = ${VIEW} AND c.role = 'camper'
          GROUP BY c.id, c.first_name, c.last_name
          ORDER BY xp DESC LIMIT 1`,
         CamperSchema, undefined, { label: "Top camper" }
@@ -102,7 +105,7 @@ export default api({
          JOIN camp201_cohorts co ON co.id = t.cohort_id
          JOIN camp201_team_members tm ON tm.team_id = t.id
          LEFT JOIN camp201_points_log pl ON pl.camper_id = tm.camper_id
-         WHERE co.is_active = true
+         WHERE co.id = ${VIEW}
          GROUP BY t.id, t.name
          ORDER BY points DESC LIMIT 1`,
         TeamSchema, undefined, { label: "Top team" }

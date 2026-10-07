@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -15,6 +16,7 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), already_earned: z.boolean(), points_awarded: z.number() }),
   async run(ctx, { camper_id, badge_id, awarded_by }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // Check if already earned
     const CountSchema = z.object({ count: z.coerce.number() });
     const existing = await ctx.integrations.camp_201_db.query(

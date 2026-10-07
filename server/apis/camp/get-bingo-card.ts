@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -30,6 +31,9 @@ export default api({
   }),
   output: CardOutputSchema,
   async run(ctx, { presentation_id, camper_id, is_admin }) {
+    // Viewing cohort (active, or a counselor's chosen past cohort). Past view never creates cards.
+    const view = await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email);
+    const VIEW = cohortIdSql(view.cohortId);
     // Check for existing card
     const existing = await ctx.integrations.camp_201_db.query(
       `SELECT card, found_squares, last_wrong_guess_camper_id, score, bingos_claimed, penalty_count
@@ -46,6 +50,7 @@ export default api({
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin') AND id != $1
+         AND cohort_id = ${VIEW}
        ORDER BY first_name LIMIT 50`,
       z.object({ id: z.coerce.number(), first_name: z.string(), last_name: z.string() }),
       [camper_id],
@@ -72,11 +77,25 @@ export default api({
       // Card was reset — will regenerate below
     }
 
+    // Read-only past view: show an empty card rather than generating and saving one.
+    if (view.isPast) {
+      return {
+        card: [],
+        found_squares: {} as Record<string, number>,
+        last_wrong_guess_camper_id: null,
+        score: 0,
+        bingos_claimed: [],
+        penalty_count: 0,
+        camper_names: campers,
+      };
+    }
+
     // Generate a new card — gather fun facts from all non-admin campers
     const facts = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, fun_fact, ice_breaker_q1, ice_breaker_q2, ice_breaker_q3, city, region
        FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = ${VIEW}
          AND (fun_fact IS NOT NULL OR ice_breaker_q1 IS NOT NULL)
        LIMIT 50`,
       z.object({

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -22,6 +23,8 @@ export default api({
     votingOpen: z.boolean(),
   }),
   async run(ctx, { camper_id }) {
+    // Active cohort for cAMPers; a counselor's chosen past cohort when viewing one.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     // Check if voting is open via feature gate (is_locked = false means open)
     const gateResult = await ctx.integrations.camp_201_db.query(
       `SELECT is_locked FROM camp201_feature_gates WHERE feature_key = $1 LIMIT 1`,
@@ -43,10 +46,13 @@ export default api({
     // Get voting stats in a single query
     const statsResult = await ctx.integrations.camp_201_db.query(
       `SELECT
-        (SELECT COUNT(DISTINCT user_id) FROM camp201_team_logo_votes)::int as total_voters,
-        (SELECT COUNT(*) FROM camp201_campers WHERE role != $1)::int as total_campers`,
+        (SELECT COUNT(DISTINCT v.user_id) FROM camp201_team_logo_votes v
+           JOIN camp201_teams t ON t.id = v.team_id
+          WHERE t.cohort_id = ${VIEW})::int as total_voters,
+        (SELECT COUNT(*) FROM camp201_campers
+          WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${VIEW})::int as total_campers`,
       z.object({ total_voters: z.coerce.number(), total_campers: z.coerce.number() }),
-      ["counselor"],
+      undefined,
       { label: "Get voting stats" }
     );
     const totalVoters = statsResult[0]?.total_voters ?? 0;
@@ -56,6 +62,8 @@ export default api({
     const votesResult = await ctx.integrations.camp_201_db.query(
       `SELECT v.team_id, COUNT(*)::int as vote_count
        FROM camp201_team_logo_votes v
+       JOIN camp201_teams t ON t.id = v.team_id
+       WHERE t.cohort_id = ${VIEW}
        GROUP BY v.team_id
        ORDER BY vote_count DESC
        LIMIT 20`,

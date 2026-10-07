@@ -5,7 +5,10 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCohortView } from "@/hooks/useCohortView";
+import CohortViewSwitcher from "@/components/CohortViewSwitcher/index.js";
+import ReadOnlyNotice from "@/components/ReadOnlyNotice/index.js";
+import PastCohortResults from "@/components/PastCohortResults/index.js";
 import type { IconName } from "lucide-react/dynamic";
 
 // Existing components
@@ -29,7 +32,7 @@ import AdminCloseCamp from "@/components/AdminCloseCamp/index.js";
 // New components
 import HubDashboard from "@/components/HubDashboard/index.js";
 import LayOfTheLand from "@/components/LayOfTheLand/index.js";
-import NewHireManager from "@/components/NewHireManager/index.js";
+import CohortManagementCard from "@/components/CohortManagementCard/index.js";
 
 /* ─── Sidebar Nav Config ─── */
 type NavSection = {
@@ -78,11 +81,11 @@ type View = string;
 export default function AdminPage() {
   const { isAdmin, loading: loadingAccess } = useIsAdmin();
   const [view, setView] = useState<View>("dashboard");
-  const [selectedCohortId, setSelectedCohortId] = useState<number | null>(null);
   const [selectedCamperId, setSelectedCamperId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const { data: cohortsData } = useApiData("GetCohorts", {}, { enabled: isAdmin });
+  // One app-wide cohort choice (stored server-side) drives the Hub and every cAMPer page.
+  const { cohortId: viewCohortId, isReadOnly } = useCohortView();
 
   const handleCamperClick = useCallback((camperId: number) => {
     setSelectedCamperId(camperId);
@@ -168,24 +171,9 @@ export default function AdminPage() {
         </div>
 
         {/* Cohort Switcher */}
-        {!sidebarCollapsed && cohortsData?.cohorts && (
+        {!sidebarCollapsed && (
           <div className="px-3 py-2 border-b border-border">
-            <Select
-              value={selectedCohortId?.toString() ?? "active"}
-              onValueChange={(val) => setSelectedCohortId(val === "active" ? null : Number(val))}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Active Cohort" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active Cohort</SelectItem>
-                {cohortsData.cohorts.map((c: { id: number; name: string; is_active: boolean }) => (
-                  <SelectItem key={c.id} value={c.id.toString()}>
-                    {c.name} {c.is_active ? "✦" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CohortViewSwitcher />
           </div>
         )}
 
@@ -265,15 +253,15 @@ export default function AdminPage() {
             <LayOfTheLand onNavigate={handleNavigate} />
           )}
           {view === "campers" && (
-            <AdminLearnerGrid cohortId={selectedCohortId} onCamperClick={handleCamperClick} />
+            <AdminLearnerGrid cohortId={viewCohortId} onCamperClick={handleCamperClick} />
           )}
           {view === "camper-detail" && selectedCamperId && (
             <AdminCamperDetail camperId={selectedCamperId} onBack={handleBack} />
           )}
           {view === "teams" && (
             <div className="space-y-6">
-              <AdminTeamView cohortId={selectedCohortId} onCamperClick={handleCamperClick} />
-              <AdminTeamGenerator />
+              <AdminTeamView cohortId={viewCohortId} onCamperClick={handleCamperClick} />
+              {!isReadOnly && <AdminTeamGenerator />}
             </div>
           )}
           {view === "schedule" && (
@@ -283,7 +271,7 @@ export default function AdminPage() {
             <AdminPresentations />
           )}
           {view === "gates" && (
-            <AdminFeatureGates />
+            isReadOnly ? <ReadOnlyNotice what="Feature gates" /> : <AdminFeatureGates />
           )}
           {view === "analytics" && (
             <div className="space-y-6">
@@ -301,28 +289,13 @@ export default function AdminPage() {
             </div>
           )}
           {view === "close-camp" && (
-            <AdminCloseCamp camperId={0} />
+            isReadOnly ? <PastCohortResults /> : <AdminCloseCamp camperId={0} />
           )}
           {view === "cohort" && (
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Icon icon="user-plus" className="w-4 h-4 text-camp-green" />
-                  New Hire Pipeline
-                </h3>
-                <NewHireManager cohortId={selectedCohortId ?? 2} camperId={0} />
-              </div>
-              <div className="border-t pt-6">
-                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Icon icon="settings" className="w-4 h-4 text-muted-foreground" />
-                  Program Settings
-                </h3>
-                <AdminPreworkSettings />
-              </div>
-            </div>
+            isReadOnly ? <ReadOnlyNotice what="Cohort setup" /> : <CohortManagementCard onNavigate={handleNavigate} />
           )}
           {view === "settings" && (
-            <AdminPreworkSettings />
+            isReadOnly ? <ReadOnlyNotice what="Program settings" /> : <AdminPreworkSettings />
           )}
         </div>
       </main>

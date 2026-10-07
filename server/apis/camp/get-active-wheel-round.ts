@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -28,6 +29,8 @@ export default api({
     already_scored: z.boolean(),
   }),
   async run(ctx, { camper_id }) {
+    // Active cohort for cAMPers; a counselor's chosen past cohort when viewing one.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     // Get the most recent round that is still in 'scoring' status
     const rounds = await ctx.integrations.camp_201_db.query(
       `SELECT r.id, r.pitcher_id, r.product_id, r.product_name,
@@ -37,6 +40,7 @@ export default api({
               (SELECT COUNT(*) FROM camp201_wheel_scores s WHERE s.round_id = r.id AND s.is_self_eval = FALSE) as vote_count
        FROM camp201_wheel_rounds r
        WHERE r.status = 'scoring'
+         AND r.pitcher_id IN (SELECT id FROM camp201_campers WHERE cohort_id = ${VIEW})
        ORDER BY r.created_at DESC
        LIMIT 1`,
       RoundSchema,

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast, getActiveCohortId } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -64,11 +65,17 @@ export default api({
     })),
   }),
   async run(ctx, { num_teams }) {
-    // Get all registered campers (not counselors/admins)
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
+    const cohortId = await getActiveCohortId(ctx.integrations.camp_201_db);
+    if (cohortId === null) {
+      return { success: false, message: "No active cohort. Create one in Cohort Management first.", teams: [] };
+    }
+
+    // Get the active cohort's cAMPers (not counselors/admins)
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name, region, role
        FROM camp201_campers
-       WHERE role NOT IN ('counselor', 'admin')
+       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = $1
        ORDER BY id
        LIMIT 100`,
       z.object({
@@ -78,7 +85,7 @@ export default api({
         region: z.string().nullable(),
         role: z.string().nullable(),
       }),
-      undefined,
+      [cohortId],
       { label: "Fetch campers for team assignment" }
     );
 
@@ -92,9 +99,9 @@ export default api({
 
     // Check if teams already exist
     const existingTeams = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as cnt FROM camp201_teams LIMIT 1`,
+      `SELECT COUNT(*)::int as cnt FROM camp201_teams WHERE cohort_id = $1 LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
-      undefined,
+      [cohortId],
       { label: "Check existing teams" }
     );
     if (existingTeams[0].cnt > 0) {
@@ -110,11 +117,11 @@ export default api({
     for (let i = 0; i < num_teams; i++) {
       const teamName = `Team ${i + 1}`;
       const teamResult = await ctx.integrations.camp_201_db.query(
-        `INSERT INTO camp201_teams (name, logo_url, color)
-         VALUES ($1, '', '')
+        `INSERT INTO camp201_teams (name, logo_url, color, cohort_id)
+         VALUES ($1, '', '', $2)
          RETURNING id`,
         z.object({ id: z.coerce.number() }),
-        [teamName],
+        [teamName, cohortId],
         { label: `Create ${teamName}` }
       );
 

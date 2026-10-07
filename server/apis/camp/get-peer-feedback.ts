@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -27,11 +28,13 @@ export default api({
     sessions: z.array(z.string()),
   }),
   async run(ctx, { session_label, team_id }) {
+    // Active cohort, or the counselor's chosen past cohort.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     // Get distinct sessions
     const SessionSchema = z.object({ session_label: z.string() });
     const sessions = await ctx.integrations.camp_201_db.query(
       `SELECT DISTINCT session_label FROM camp201_peer_feedback
-       JOIN camp201_cohorts co ON co.id = camp201_peer_feedback.cohort_id AND co.is_active = true
+       JOIN camp201_cohorts co ON co.id = camp201_peer_feedback.cohort_id AND co.id = ${VIEW}
        ORDER BY session_label LIMIT 50`,
       SessionSchema,
       undefined,
@@ -45,7 +48,7 @@ export default api({
                  FROM camp201_peer_feedback pf
                  JOIN camp201_campers c ON c.id = pf.author_id
                  LEFT JOIN camp201_teams t ON t.id = pf.team_id
-                 JOIN camp201_cohorts co ON co.id = pf.cohort_id AND co.is_active = true`;
+                 JOIN camp201_cohorts co ON co.id = pf.cohort_id AND co.id = ${VIEW}`;
 
     const conditions: string[] = [];
     const params: any[] = [];

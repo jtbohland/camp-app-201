@@ -1,40 +1,61 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast, getActiveCohortId, requireCounselor } from "../../lib/cohort.js";
+import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
+import { resetCampStateForNewCohort } from "../../lib/cohort-reset.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "CreateCohort",
-  description: "Creates a new cohort and optionally sets it as active",
+  description: "Starts a new cohort and resets camp state",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
-    name: z.string(),
+    name: z.string().trim().min(1).max(120),
     start_date: z.string().nullable(),
     end_date: z.string().nullable(),
     set_active: z.boolean(),
-    created_by: z.number(),
   }),
   output: z.object({ success: z.boolean(), cohort_id: z.number() }),
   async run(ctx, input) {
-    // If setting as active, deactivate all others first
+    const db = ctx.integrations.camp_201_db;
+    await requireCounselor(db, ctx.user.email);
+    await assertNotViewingPast(db, ctx.user.email);
+
+    const creator = await db.query(
+      `SELECT id FROM camp201_campers WHERE lower(email) = $1 LIMIT 1`,
+      z.object({ id: z.coerce.number() }),
+      [(ctx.user.email ?? "").toLowerCase()],
+      { label: "Find creator" }
+    );
+
     if (input.set_active) {
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_cohorts SET is_active = false WHERE is_active = true`,
+      // Safety net: save the outgoing cohort's final state before anything is reset.
+      // Keeps the snapshot from Close cAMP if one already exists.
+      const outgoing = await getActiveCohortId(db);
+      if (outgoing !== null) await saveCohortSnapshot(db, outgoing);
+
+      await db.execute(
+        `UPDATE camp201_cohorts SET is_active = false, updated_at = NOW() WHERE is_active = true`,
         undefined,
         { label: "Deactivate current cohort" }
       );
     }
 
-    const IdSchema = z.object({ id: z.coerce.number() });
-    const result = await ctx.integrations.camp_201_db.query(
+    const result = await db.query(
       `INSERT INTO camp201_cohorts (name, start_date, end_date, is_active, created_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      IdSchema,
-      [input.name, input.start_date, input.end_date, input.set_active, input.created_by],
+       VALUES ($1, NULLIF($2, '')::date, NULLIF($3, '')::date, $4, $5) RETURNING id`,
+      z.object({ id: z.coerce.number() }),
+      [input.name, input.start_date ?? "", input.end_date ?? "", input.set_active, creator[0]?.id ?? null],
       { label: "Create new cohort" }
     );
+    const cohortId = result[0].id;
 
-    return { success: true, cohort_id: result[0].id };
+    if (input.set_active) {
+      await resetCampStateForNewCohort(db, cohortId, input.start_date || null);
+    }
+
+    return { success: true, cohort_id: cohortId };
   },
 });

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -23,6 +24,8 @@ export default api({
     })),
   }),
   async run(ctx, { day_number }) {
+    // Active cohort, or the counselor's chosen past cohort.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     const PhotoSchema = z.object({
       id: z.coerce.number(),
       image_url: z.string(),
@@ -38,14 +41,14 @@ export default api({
                 CONCAT(c.first_name, ' ', c.last_name) as uploaded_by_name
          FROM camp201_gallery g
          LEFT JOIN camp201_campers c ON c.id = g.uploaded_by
-         JOIN camp201_cohorts co ON co.id = g.cohort_id AND co.is_active = true
+         JOIN camp201_cohorts co ON co.id = g.cohort_id AND co.id = ${VIEW}
          WHERE g.day_number = $1
          ORDER BY g.created_at DESC LIMIT 50`
       : `SELECT g.id, g.image_url, g.caption, g.day_number, g.likes, g.created_at,
                 CONCAT(c.first_name, ' ', c.last_name) as uploaded_by_name
          FROM camp201_gallery g
          LEFT JOIN camp201_campers c ON c.id = g.uploaded_by
-         JOIN camp201_cohorts co ON co.id = g.cohort_id AND co.is_active = true
+         JOIN camp201_cohorts co ON co.id = g.cohort_id AND co.id = ${VIEW}
          ORDER BY g.created_at DESC LIMIT 50`;
 
     const photos = await ctx.integrations.camp_201_db.query(

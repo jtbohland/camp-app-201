@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const INNOVATION_BADGE_ID = 12;
@@ -20,6 +21,7 @@ export default api({
     members_awarded: z.number(),
   }),
   async run(ctx, { presentation_id, awarded_by }) {
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     // Find the winning team (most votes)
     const winners = await ctx.integrations.camp_201_db.query(
       `SELECT hs.team_id, t.name as team_name, COALESCE(v.vote_count, 0) as vote_count

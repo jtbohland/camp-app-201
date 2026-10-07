@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -145,11 +146,14 @@ export default api({
       { label: "Get manager hires with team info" }
     );
 
+    // Viewing cohort (active, or a counselor's chosen past cohort)
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
+
     // Get leaderboard ranks
     const ranks = await ctx.integrations.camp_201_db.query(
       `SELECT id as camper_id, RANK() OVER (ORDER BY points DESC)::integer as rank
        FROM camp201_campers
-       WHERE cohort_id = (SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)
+       WHERE cohort_id = ${VIEW}
          AND role NOT IN ('counselor', 'admin')
        LIMIT 200`,
       LeaderboardEntrySchema,
@@ -162,7 +166,7 @@ export default api({
     const CountSchema = z.object({ count: z.coerce.number() });
     const totalResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) as count FROM camp201_campers
-       WHERE cohort_id = (SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)
+       WHERE cohort_id = ${VIEW}
          AND role NOT IN ('counselor', 'admin')`,
       CountSchema,
       undefined,
@@ -173,7 +177,7 @@ export default api({
     // Get total surveys count for context
     const surveyCountResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*) as count FROM camp201_surveys
-       WHERE cohort_id = (SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)`,
+       WHERE cohort_id = ${VIEW}`,
       CountSchema,
       undefined,
       { label: "Count total surveys" }

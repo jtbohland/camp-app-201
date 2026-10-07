@@ -1,4 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { resolveViewCohort } from "../../lib/cohort.js";
+import { getStandings } from "../../lib/cohort-snapshot.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -55,16 +57,21 @@ export default api({
     // Get rank
     const CountSchema = z.object({ count: z.coerce.number() });
     const rankResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers WHERE points > (SELECT points FROM camp201_campers WHERE id = $1)`,
+      `SELECT COUNT(*)::int as count FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)
+         AND points > (SELECT points FROM camp201_campers WHERE id = $1)`,
       CountSchema,
       [camper_id],
       { label: "Get rank" }
     );
     const totalResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers`,
+      `SELECT COUNT(*)::int as count FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)`,
       CountSchema,
-      undefined,
-      { label: "Get total campers" }
+      [camper_id],
+      { label: "Get total campers in cohort" }
     );
 
     // Stats
@@ -150,15 +157,50 @@ export default api({
       const teamRanks = await ctx.integrations.camp_201_db.query(
         `SELECT t.id as team_id, COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
          FROM camp201_teams t
-         LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
+         LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
+         WHERE t.cohort_id = (SELECT cohort_id FROM camp201_teams WHERE id = $1) AND t.name <> 'TEST'
          GROUP BY t.id, t.team_points ORDER BY total DESC LIMIT 10`,
         z.object({ team_id: z.coerce.number(), total: z.coerce.number() }),
-        [],
+        [team.id],
         { label: "Get team rankings" }
       );
       totalTeams = teamRanks.length;
       const idx = teamRanks.findIndex((r) => r.team_id === team.id);
       teamRank = idx >= 0 ? idx + 1 : null;
+    }
+
+    // Counselor viewing a past cohort: points, ranks, and team placement as of close.
+    const view = await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email);
+    if (view.isPast) {
+      const standings = await getStandings(ctx.integrations.camp_201_db, view);
+      if (standings.snapshot) {
+        const me = standings.campers.find((c) => c.id === camper_id);
+        if (me) {
+          const ranked = standings.teams.filter((t) => t.name !== "TEST");
+          const teamIdx = me.team_id !== null ? ranked.findIndex((t) => t.id === me.team_id) : -1;
+          return {
+            camper_name: `${me.first_name} ${me.last_name}`.trim(),
+            team_name: teamName,
+            team_logo: teamLogo,
+            team_color: teamColor,
+            team_rank: teamIdx >= 0 ? teamIdx + 1 : null,
+            total_teams: ranked.length,
+            team_members: standings.campers
+              .filter((c) => me.team_id !== null && c.team_id === me.team_id)
+              .slice(0, 10)
+              .map((c) => ({ name: `${c.first_name} ${c.last_name}`.trim(), points: c.points })),
+            total_points: me.points,
+            rank: standings.campers.filter((c) => c.points > me.points).length + 1,
+            total_campers: standings.campers.length,
+            badges_earned: badgesResult[0].count,
+            badge_list: badgeList,
+            checkins_count: checkinsResult[0].count,
+            surveys_completed: surveysResult[0].count,
+            prework_completed: preworkResult[0].count,
+            points_log_highlights: highlights,
+          };
+        }
+      }
     }
 
     return {

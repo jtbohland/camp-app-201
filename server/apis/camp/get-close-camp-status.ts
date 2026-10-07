@@ -1,4 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { resolveViewCohort } from "../../lib/cohort.js";
+import { getCohortSnapshot, getStandings } from "../../lib/cohort-snapshot.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -23,9 +25,44 @@ export default api({
     revealed_team_ids: z.array(z.number()),
     vp_revealed: z.boolean(),
     final_survey_unlocked: z.boolean(),
+    legacy_wall_cohort_number: z.number().nullable(),
+    close_incomplete: z.boolean(),
+    viewing_past: z.boolean(),
   }),
   async run(ctx) {
     const CountSchema = z.object({ count: z.coerce.number() });
+
+    // Counselor viewing a past cohort: show that cohort as it ended, podium fully revealed.
+    const view = await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email);
+    if (view.isPast) {
+      const db = ctx.integrations.camp_201_db;
+      const snapshot = await getCohortSnapshot(db, view.cohortId);
+      const { teams } = await getStandings(db, view);
+      const ranked = teams.filter((t) => t.name !== "TEST");
+      const legacy = await db.query(
+        `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
+        z.object({ value: z.string() }),
+        [`legacy_archived_cohort_${view.cohortId ?? 0}`],
+        { label: "Check Legacy Wall marker" }
+      );
+      return {
+        camp_closed: true,
+        camp_in_session: false,
+        camp_ready_to_close: true,
+        counselor_count: snapshot?.counselor_ids.length ?? 0,
+        team_count: ranked.length,
+        scores_submitted: 0,
+        scores_needed: 0,
+        camp_vp_camper_id: snapshot?.camp_vp_camper_id ?? null,
+        camp_champ_team_id: snapshot?.camp_champ_team_id ?? ranked[0]?.id ?? null,
+        revealed_team_ids: ranked.map((t) => t.id),
+        vp_revealed: true,
+        final_survey_unlocked: snapshot?.final_survey_unlocked ?? false,
+        legacy_wall_cohort_number: legacy.length > 0 ? parseInt(legacy[0].value, 10) || null : null,
+        close_incomplete: false,
+        viewing_past: true,
+      };
+    }
 
     // Check if camp is already closed
     const closedResult = await ctx.integrations.camp_201_db.query(
@@ -145,6 +182,24 @@ export default api({
     );
     const finalSurveyUnlocked = finalSurveyResult.length > 0 && finalSurveyResult[0].value === "true";
 
+    // Has this cohort been added to the Legacy Wall?
+    const legacyResult = await ctx.integrations.camp_201_db.query(
+      `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
+      z.object({ value: z.string() }),
+      [`legacy_archived_cohort_${cohortId ?? 0}`],
+      { label: "Check Legacy Wall marker" }
+    );
+    const legacyWallCohortNumber = legacyResult.length > 0 ? parseInt(legacyResult[0].value, 10) || null : null;
+
+    // camp_closed is set first; this marker is set last. Closed without the marker = a close that failed part-way.
+    const finishedResult = await ctx.integrations.camp_201_db.query(
+      `SELECT value FROM camp201_config WHERE key = 'camp_close_finished_cohort' LIMIT 1`,
+      z.object({ value: z.string() }),
+      undefined,
+      { label: "Check close finished" }
+    );
+    const closeFinished = finishedResult.length > 0 && cohortId !== null && finishedResult[0].value === String(cohortId);
+
     return {
       camp_closed: campClosed,
       camp_in_session: campInSession,
@@ -158,6 +213,9 @@ export default api({
       revealed_team_ids: revealedTeamIds,
       vp_revealed: vpRevealed,
       final_survey_unlocked: finalSurveyUnlocked,
+      legacy_wall_cohort_number: legacyWallCohortNumber,
+      close_incomplete: campClosed && !closeFinished,
+      viewing_past: false,
     };
   },
 });

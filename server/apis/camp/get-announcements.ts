@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -21,6 +22,8 @@ export default api({
     })),
   }),
   async run(ctx) {
+    // Active cohort, or the counselor's chosen past cohort.
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     const AnnouncementSchema = z.object({
       id: z.coerce.number(),
       title: z.string(),
@@ -36,7 +39,7 @@ export default api({
               CONCAT(c.first_name, ' ', c.last_name) as author_name
        FROM camp201_announcements a
        LEFT JOIN camp201_campers c ON c.id = a.created_by
-       JOIN camp201_cohorts co ON co.id = a.cohort_id AND co.is_active = true
+       JOIN camp201_cohorts co ON co.id = a.cohort_id AND co.id = ${VIEW}
        ORDER BY a.pinned DESC, a.created_at DESC
        LIMIT 30`,
       AnnouncementSchema,

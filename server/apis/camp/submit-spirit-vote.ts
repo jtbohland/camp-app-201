@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
+import { getActiveCohortId } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -18,12 +19,14 @@ export default api({
       throw new Error("cAMP is closed — voting is no longer accepted.");
     }
     if (voter_id === nominee_id) throw new Error("You cannot vote for yourself");
+    const cohortId = await getActiveCohortId(ctx.integrations.camp_201_db);
+    if (cohortId === null) throw new Error("No active cohort.");
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_spirit_votes (voter_id, nominee_id, note, cohort_id)
-       VALUES ($1, $2, $3, 1)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (voter_id, cohort_id) DO UPDATE
        SET nominee_id = EXCLUDED.nominee_id, note = EXCLUDED.note, created_at = NOW()`,
-      [voter_id, nominee_id, note],
+      [voter_id, nominee_id, note, cohortId],
       { label: "Submit spirit vote" }
     );
     return { success: true };

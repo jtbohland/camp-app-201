@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -43,7 +44,9 @@ export default api({
     })),
   }),
   async run(ctx, { day_filter, viewer_camper_id }) {
-    const dayClause = day_filter ? `AND combined.day_number = ${day_filter}` : "";
+    const dayClause = day_filter ? `AND combined.day_number = ${Math.trunc(Number(day_filter))}` : "";
+    // Only the viewed cohort's memories (active, or a counselor's chosen past cohort)
+    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
 
     // UNION camp201_memories with legacy camp201_gallery into one feed
     const rows = await ctx.integrations.camp_201_db.query(
@@ -66,7 +69,7 @@ export default api({
              ELSE NULL END as reactions
       FROM combined
       JOIN camp201_campers c ON c.id = combined.camper_id
-      WHERE 1=1 ${dayClause}
+      WHERE c.cohort_id = ${VIEW} ${dayClause}
       ORDER BY combined.created_at DESC
       LIMIT 50`,
       MemorySchema,
