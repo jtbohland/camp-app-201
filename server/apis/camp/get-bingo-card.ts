@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -46,6 +47,7 @@ export default api({
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin') AND id != $1
+         AND cohort_id = ${ACTIVE_COHORT_ID_SQL}
        ORDER BY first_name LIMIT 50`,
       z.object({ id: z.coerce.number(), first_name: z.string(), last_name: z.string() }),
       [camper_id],
@@ -77,6 +79,7 @@ export default api({
       `SELECT id, first_name, fun_fact, ice_breaker_q1, ice_breaker_q2, ice_breaker_q3, city, region
        FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = ${ACTIVE_COHORT_ID_SQL}
          AND (fun_fact IS NOT NULL OR ice_breaker_q1 IS NOT NULL)
        LIMIT 50`,
       z.object({

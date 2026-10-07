@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -12,7 +13,7 @@ const CamperOptionSchema = z.object({
 
 export default api({
   name: "GetRegisteredCampers",
-  description: "Fetches all registered campers for team assignment dropdown",
+  description: "Fetches active cohort cAMPers for team dropdowns",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
@@ -24,6 +25,7 @@ export default api({
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name, email, team_id
        FROM camp201_campers
+       WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL}
        ORDER BY first_name, last_name
        LIMIT 100`,
       CamperOptionSchema,

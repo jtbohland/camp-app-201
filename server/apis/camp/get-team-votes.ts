@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -43,10 +44,13 @@ export default api({
     // Get voting stats in a single query
     const statsResult = await ctx.integrations.camp_201_db.query(
       `SELECT
-        (SELECT COUNT(DISTINCT user_id) FROM camp201_team_logo_votes)::int as total_voters,
-        (SELECT COUNT(*) FROM camp201_campers WHERE role != $1)::int as total_campers`,
+        (SELECT COUNT(DISTINCT v.user_id) FROM camp201_team_logo_votes v
+           JOIN camp201_teams t ON t.id = v.team_id
+          WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL})::int as total_voters,
+        (SELECT COUNT(*) FROM camp201_campers
+          WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL})::int as total_campers`,
       z.object({ total_voters: z.coerce.number(), total_campers: z.coerce.number() }),
-      ["counselor"],
+      undefined,
       { label: "Get voting stats" }
     );
     const totalVoters = statsResult[0]?.total_voters ?? 0;
@@ -56,6 +60,8 @@ export default api({
     const votesResult = await ctx.integrations.camp_201_db.query(
       `SELECT v.team_id, COUNT(*)::int as vote_count
        FROM camp201_team_logo_votes v
+       JOIN camp201_teams t ON t.id = v.team_id
+       WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL}
        GROUP BY v.team_id
        ORDER BY vote_count DESC
        LIMIT 20`,

@@ -55,16 +55,21 @@ export default api({
     // Get rank
     const CountSchema = z.object({ count: z.coerce.number() });
     const rankResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers WHERE points > (SELECT points FROM camp201_campers WHERE id = $1)`,
+      `SELECT COUNT(*)::int as count FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)
+         AND points > (SELECT points FROM camp201_campers WHERE id = $1)`,
       CountSchema,
       [camper_id],
       { label: "Get rank" }
     );
     const totalResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers`,
+      `SELECT COUNT(*)::int as count FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)`,
       CountSchema,
-      undefined,
-      { label: "Get total campers" }
+      [camper_id],
+      { label: "Get total campers in cohort" }
     );
 
     // Stats
@@ -150,10 +155,11 @@ export default api({
       const teamRanks = await ctx.integrations.camp_201_db.query(
         `SELECT t.id as team_id, COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
          FROM camp201_teams t
-         LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
+         LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
+         WHERE t.cohort_id = (SELECT cohort_id FROM camp201_teams WHERE id = $1) AND t.name <> 'TEST'
          GROUP BY t.id, t.team_points ORDER BY total DESC LIMIT 10`,
         z.object({ team_id: z.coerce.number(), total: z.coerce.number() }),
-        [],
+        [team.id],
         { label: "Get team rankings" }
       );
       totalTeams = teamRanks.length;

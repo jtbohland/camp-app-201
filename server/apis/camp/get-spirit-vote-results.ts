@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL as ACTIVE } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -32,7 +33,7 @@ export default api({
   async run(ctx, { camper_id }) {
     // Total votes cast
     const countResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as total FROM camp201_spirit_votes WHERE cohort_id = 1`,
+      `SELECT COUNT(*)::int as total FROM camp201_spirit_votes WHERE cohort_id = ${ACTIVE}`,
       z.object({ total: z.number() }),
       undefined,
       { label: "Count spirit votes" }
@@ -42,7 +43,7 @@ export default api({
     // Total eligible voters (non-counselors)
     const voterResult = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as total FROM camp201_campers
-       WHERE (role IS NULL OR role NOT IN ('counselor', 'admin'))`,
+       WHERE (role IS NULL OR role NOT IN ('counselor', 'admin')) AND cohort_id = ${ACTIVE}`,
       z.object({ total: z.number() }),
       undefined,
       { label: "Count eligible voters" }
@@ -59,7 +60,7 @@ export default api({
          COUNT(sv.note)::int as note_count
        FROM camp201_spirit_votes sv
        JOIN camp201_campers c ON c.id = sv.nominee_id
-       WHERE sv.cohort_id = 1
+       WHERE sv.cohort_id = ${ACTIVE}
        GROUP BY sv.nominee_id, c.first_name, c.last_name
        ORDER BY vote_count DESC, note_count DESC
        LIMIT 10`,
@@ -71,7 +72,7 @@ export default api({
     // Did this camper already vote?
     const myVote = await ctx.integrations.camp_201_db.query(
       `SELECT nominee_id FROM camp201_spirit_votes
-       WHERE voter_id = $1 AND cohort_id = 1 LIMIT 1`,
+       WHERE voter_id = $1 AND cohort_id = ${ACTIVE} LIMIT 1`,
       z.object({ nominee_id: z.number() }),
       [camper_id],
       { label: "Check my spirit vote" }
@@ -80,7 +81,7 @@ export default api({
     // Votes received by this camper + anonymous notes
     const votesForMe = await ctx.integrations.camp_201_db.query(
       `SELECT COUNT(*)::int as vote_count FROM camp201_spirit_votes
-       WHERE nominee_id = $1 AND cohort_id = 1`,
+       WHERE nominee_id = $1 AND cohort_id = ${ACTIVE}`,
       z.object({ vote_count: z.number() }),
       [camper_id],
       { label: "Votes received by me" }
@@ -88,7 +89,7 @@ export default api({
 
     const notesForMe = await ctx.integrations.camp_201_db.query(
       `SELECT note FROM camp201_spirit_votes
-       WHERE nominee_id = $1 AND cohort_id = 1 AND note IS NOT NULL AND note != ''
+       WHERE nominee_id = $1 AND cohort_id = ${ACTIVE} AND note IS NOT NULL AND note != ''
        LIMIT 20`,
       z.object({ note: z.string().nullable() }),
       [camper_id],

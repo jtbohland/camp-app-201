@@ -23,6 +23,7 @@ export default api({
     revealed_team_ids: z.array(z.number()),
     vp_revealed: z.boolean(),
     final_survey_unlocked: z.boolean(),
+    legacy_wall_cohort_number: z.number().nullable(),
   }),
   async run(ctx) {
     const CountSchema = z.object({ count: z.coerce.number() });
@@ -145,6 +146,15 @@ export default api({
     );
     const finalSurveyUnlocked = finalSurveyResult.length > 0 && finalSurveyResult[0].value === "true";
 
+    // Has this cohort been added to the Legacy Wall?
+    const legacyResult = await ctx.integrations.camp_201_db.query(
+      `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
+      z.object({ value: z.string() }),
+      [`legacy_archived_cohort_${cohortId ?? 0}`],
+      { label: "Check Legacy Wall marker" }
+    );
+    const legacyWallCohortNumber = legacyResult.length > 0 ? parseInt(legacyResult[0].value, 10) || null : null;
+
     return {
       camp_closed: campClosed,
       camp_in_session: campInSession,
@@ -158,6 +168,7 @@ export default api({
       revealed_team_ids: revealedTeamIds,
       vp_revealed: vpRevealed,
       final_survey_unlocked: finalSurveyUnlocked,
+      legacy_wall_cohort_number: legacyWallCohortNumber,
     };
   },
 });

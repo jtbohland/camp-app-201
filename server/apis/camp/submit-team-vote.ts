@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -60,10 +61,13 @@ export default api({
     // Check if all campers have now voted
     const statsResult = await ctx.integrations.camp_201_db.query(
       `SELECT
-        (SELECT COUNT(*) FROM camp201_campers WHERE role != $1)::int as total_campers,
-        (SELECT COUNT(*) FROM camp201_team_logo_votes)::int as total_voters`,
+        (SELECT COUNT(*) FROM camp201_campers
+          WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL})::int as total_campers,
+        (SELECT COUNT(*) FROM camp201_team_logo_votes v
+           JOIN camp201_teams t ON t.id = v.team_id
+          WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL})::int as total_voters`,
       z.object({ total_campers: z.coerce.number(), total_voters: z.coerce.number() }),
-      ["counselor"],
+      undefined,
       { label: "Count voters" }
     );
 
@@ -71,7 +75,8 @@ export default api({
     if (statsResult[0].total_voters >= statsResult[0].total_campers) {
       const ranked = await ctx.integrations.camp_201_db.query(
         `SELECT team_id, COUNT(*)::int as vote_count
-         FROM camp201_team_logo_votes
+         FROM camp201_team_logo_votes v
+         WHERE v.team_id IN (SELECT id FROM camp201_teams WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL})
          GROUP BY team_id
          ORDER BY vote_count DESC
          LIMIT 10`,
@@ -89,13 +94,13 @@ export default api({
         undefined,
         { label: "Get active cohort" }
       );
-      const cohortId = cohortResult.length > 0 ? cohortResult[0].id : 1;
+      const cohortId = cohortResult.length > 0 ? cohortResult[0].id : null;
 
       for (let i = 0; i < ranked.length; i++) {
         const pts = pointsMap[i + 1] ?? 0;
         if (pts > 0) {
           await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_teams SET total_points = total_points + $2 WHERE id = $1`,
+            `UPDATE camp201_teams SET team_points = COALESCE(team_points, 0) + $2 WHERE id = $1`,
             [ranked[i].team_id, pts],
             { label: `Award ${pts} pts to rank ${i + 1}` }
           );

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -37,7 +38,7 @@ export default api({
          FROM camp201_hackathon_votes WHERE presentation_id = $1
          GROUP BY voted_for_team_id
        ) v ON v.voted_for_team_id = hs.team_id
-       WHERE hs.presentation_id = $1
+       WHERE hs.presentation_id = $1 AND t.cohort_id = ${ACTIVE_COHORT_ID_SQL}
        ORDER BY vote_count DESC, hs.app_name
        LIMIT 20`,
       z.object({
@@ -59,14 +60,17 @@ export default api({
     );
 
     const voterCount = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(DISTINCT voter_camper_id) AS cnt FROM camp201_hackathon_votes WHERE presentation_id = $1 LIMIT 1`,
+      `SELECT COUNT(DISTINCT v.voter_camper_id) AS cnt FROM camp201_hackathon_votes v
+       JOIN camp201_campers c ON c.id = v.voter_camper_id AND c.cohort_id = ${ACTIVE_COHORT_ID_SQL}
+       WHERE v.presentation_id = $1 LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       [presentation_id],
       { label: "Count voters" }
     );
 
     const camperCount = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*) AS cnt FROM camp201_campers WHERE role NOT IN ('counselor', 'admin') LIMIT 1`,
+      `SELECT COUNT(*) AS cnt FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL} LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       undefined,
       { label: "Count campers" }

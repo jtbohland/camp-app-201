@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -46,7 +47,8 @@ export default api({
 
     // Check if all campers have voted → award points
     const totalCampers = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*) AS cnt FROM camp201_campers WHERE role NOT IN ('counselor', 'admin') LIMIT 1`,
+      `SELECT COUNT(*) AS cnt FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL} LIMIT 1`,
       z.object({ cnt: z.coerce.number() }),
       undefined,
       { label: "Count campers" }
@@ -73,7 +75,7 @@ export default api({
       for (let i = 0; i < ranked.length; i++) {
         const pts = pointTiers[i] ?? 3;
         await ctx.integrations.camp_201_db.execute(
-          `UPDATE camp201_teams SET total_points = total_points + $2 WHERE id = $1`,
+          `UPDATE camp201_teams SET team_points = COALESCE(team_points, 0) + $2 WHERE id = $1`,
           [ranked[i].voted_for_team_id, pts],
           { label: `Award ${pts}pts to rank ${i + 1}` }
         );

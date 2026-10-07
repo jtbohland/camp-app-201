@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -37,6 +38,7 @@ export default api({
               (SELECT COUNT(*) FROM camp201_wheel_scores s WHERE s.round_id = r.id AND s.is_self_eval = FALSE) as vote_count
        FROM camp201_wheel_rounds r
        WHERE r.status = 'scoring'
+         AND r.pitcher_id IN (SELECT id FROM camp201_campers WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL})
        ORDER BY r.created_at DESC
        LIMIT 1`,
       RoundSchema,

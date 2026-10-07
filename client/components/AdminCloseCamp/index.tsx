@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
+import CohortWrapUpCard from "@/components/CohortWrapUpCard/index.js";
 
 interface Props {
   camperId: number;
@@ -81,7 +82,9 @@ export default function AdminCloseCamp({ camperId }: Props) {
 
   // Get team standings for reveal controls
   const { data: leaderboard } = useApiData("GetLeaderboard", {}, { enabled: campClosed, staleTime: 10000 });
-  const teamStandings = (leaderboard as any)?.team_leaderboard ?? [];
+  const teamStandings = (leaderboard?.teams ?? [])
+    .filter((t) => t.name !== "TEST")
+    .map((t) => ({ team_id: t.id, team_name: t.name }));
 
   const statusItems: { icon: IconName; label: string; done: boolean }[] = [
     { icon: "clipboard-check", label: `Mini EBR: ${status?.scores_submitted ?? 0}/${status?.scores_needed ?? 0} rubrics`, done: readyToClose || campClosed },
@@ -239,6 +242,13 @@ export default function AdminCloseCamp({ camperId }: Props) {
             {finalSurveyUnlocked ? "Lock Final Survey" : "Unlock Final Survey"}
           </Button>
         </Card>
+      )}
+
+      {campClosed && (
+        <CohortWrapUpCard
+          legacyWallNumber={status?.legacy_wall_cohort_number ?? null}
+          onChanged={refetch}
+        />
       )}
 
       {fetching && <p className="text-xs text-muted-foreground text-center">Refreshing status...</p>}

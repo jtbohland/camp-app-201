@@ -52,13 +52,19 @@ export default api({
 
     // Rank
     const rankResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers WHERE points > (SELECT points FROM camp201_campers WHERE id = $1)`,
+      `SELECT COUNT(*)::int as count FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)
+         AND points > (SELECT points FROM camp201_campers WHERE id = $1)`,
       CountSchema, [camper_id], { label: "Calculate rank" }
     );
     const rank = rankResult[0].count + 1;
 
     const totalResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers`, CountSchema, undefined, { label: "Total campers" }
+      `SELECT COUNT(*)::int as count FROM camp201_campers
+       WHERE role NOT IN ('counselor', 'admin')
+         AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)`,
+      CountSchema, [camper_id], { label: "Total campers in cohort" }
     );
 
     // Badges earned

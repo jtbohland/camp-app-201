@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -47,7 +48,8 @@ export default api({
               COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) as total_points,
               COUNT(c.id) as member_count
        FROM camp201_teams t
-       LEFT JOIN camp201_campers c ON c.team_id = t.id
+       LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
+       WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL}
        GROUP BY t.id, t.name, t.logo_url, t.color, t.team_points
        ORDER BY total_points DESC
        LIMIT 20`,
@@ -62,7 +64,7 @@ export default api({
       const top = await ctx.integrations.camp_201_db.query(
         `SELECT id, first_name, last_name, points, team_id, photo_url
          FROM camp201_campers
-         WHERE team_id = $1
+         WHERE team_id = $1 AND role NOT IN ('counselor', 'admin')
          ORDER BY points DESC
          LIMIT 1`,
         TopContributorSchema,
@@ -82,6 +84,7 @@ export default api({
     const mvpResult = await ctx.integrations.camp_201_db.query(
       `SELECT id, first_name, last_name, points, team_id, photo_url
        FROM camp201_campers
+       WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL} AND role NOT IN ('counselor', 'admin')
        ORDER BY points DESC
        LIMIT 1`,
       TopContributorSchema,
@@ -100,6 +103,7 @@ export default api({
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON c.team_id = t.id
        WHERE c.role != 'counselor' AND c.role != 'admin'
+         AND c.cohort_id = ${ACTIVE_COHORT_ID_SQL}
        ORDER BY c.points DESC
        LIMIT 50`,
       CamperWithTeamSchema,
