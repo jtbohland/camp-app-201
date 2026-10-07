@@ -15,6 +15,7 @@ const COHORT_SCOPED_APIS = [
   "GetFlightSummary",
   "GetPastCohorts",
   "GetViewCohort",
+  "GetCohort",
 ];
 
 // Everything else that changes when a counselor switches which cohort they're viewing.

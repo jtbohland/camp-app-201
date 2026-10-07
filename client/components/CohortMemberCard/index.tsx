@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
@@ -14,6 +15,7 @@ type CohortMember = {
   city: string | null;
   photo_url: string | null;
   linkedin_url: string | null;
+  bio?: string | null;
   fun_fact: string | null;
   points: number;
   team_id: number | null;
@@ -82,6 +84,9 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
   const countryStyle = getCountryStyle(member.country);
   const countryName = getCountryDisplayName(member.country);
   const tenure = formatTenure(member.start_date);
+  const bio = member.bio?.trim() ?? "";
+  const [bioExpanded, setBioExpanded] = useState(false);
+  const bioIsLong = bio.length > 220;
 
   return (
     <div className={`flex flex-col border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""}`}>
@@ -151,6 +156,24 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
           </span>
         )}
       </div>
+
+      {/* Bio: counselors only (cAMPer bios stay in their profile) */}
+      {isCounselor && bio && (
+        <div className="px-4 pb-3">
+          <p className={`whitespace-pre-line text-xs leading-relaxed text-foreground/80 ${bioExpanded ? "" : "line-clamp-4"}`}>
+            {bio}
+          </p>
+          {bioIsLong && (
+            <button
+              type="button"
+              onClick={() => setBioExpanded((v) => !v)}
+              className="mt-1 text-xs font-medium text-primary hover:underline"
+            >
+              {bioExpanded ? "Show less" : "Read more"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Fun fact */}
       {member.fun_fact && (
