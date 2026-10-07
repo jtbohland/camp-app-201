@@ -187,6 +187,9 @@ import RevealTeamStanding from './camp/reveal-team-standing.js';
 import RevealCampVP from './camp/reveal-camp-vp.js';
 import ToggleFinalSurvey from './camp/toggle-final-survey.js';
 import ToggleSurveyDayLock from './camp/toggle-survey-day-lock.js';
+import GetMyAccess from './camp/get-my-access.js';
+import VerifyCounselor from './camp/verify-counselor.js';
+import GetCounselorRotation from './camp/get-counselor-rotation.js';
 
 const apis = {
   SetupDatabase,
@@ -372,6 +375,9 @@ const apis = {
   RevealCampVP,
   ToggleFinalSurvey,
   ToggleSurveyDayLock,
+  GetMyAccess,
+  VerifyCounselor,
+  GetCounselorRotation,
 } as const;
 
 export default apis;

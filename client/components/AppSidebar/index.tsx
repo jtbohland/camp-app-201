@@ -1,29 +1,35 @@
-import { useState, useMemo } from "react";
-import { NavLink } from "react-router";
+import { useState, useMemo, useCallback } from "react";
+import { queryClient, useSuperblocksUser } from "@superblocksteam/library";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData.js";
-import { useSuperblocksUser } from "@superblocksteam/library";
+import { useApi } from "@/hooks/useApi.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import CheckInModal from "@/components/CheckInModal/index.js";
+import SidebarNavItem from "@/components/SidebarNavItem/index.js";
+import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
 
 type NavItem = {
   icon: IconName;
   label: string;
   path: string;
+  /** Feature gate key controlling visibility for cAMPers */
+  gate?: string;
+  adminOnly?: boolean;
 };
 
 const camperNavItems: NavItem[] = [
   { icon: "house", label: "Base Camp", path: "/" },
-  { icon: "map", label: "Journey", path: "/journey" },
-  { icon: "calendar", label: "Agenda", path: "/agenda" },
+  { icon: "map", label: "Journey", path: "/journey", gate: "journey" },
+  { icon: "calendar", label: "Agenda", path: "/agenda", gate: "agenda" },
   { icon: "users", label: "Teams & Rankings", path: "/teams" },
-  { icon: "presentation", label: "Presentations", path: "/presentations" },
-  { icon: "timer", label: "Timer", path: "/timer" },
-  { icon: "refresh-cw", label: "Wheel & Deal", path: "/wheel-and-deal" },
-  { icon: "clipboard-list", label: "Surveys", path: "/survey" },
-  { icon: "award", label: "Badges & XP", path: "/badges" },
-  { icon: "graduation-cap", label: "Graduation", path: "/graduation" },
-  { icon: "shield", label: "Counselor Hub", path: "/admin" },
+  { icon: "presentation", label: "Presentations", path: "/presentations", gate: "presentations" },
+  { icon: "timer", label: "Timer", path: "/timer", gate: "timer" },
+  { icon: "refresh-cw", label: "Wheel & Deal", path: "/wheel-and-deal", gate: "wheel_and_deal" },
+  { icon: "clipboard-list", label: "Surveys", path: "/survey", gate: "surveys" },
+  { icon: "award", label: "Badges & XP", path: "/badges", gate: "badges" },
+  { icon: "graduation-cap", label: "Graduation", path: "/graduation", gate: "graduation" },
+  { icon: "shield", label: "Counselor Hub", path: "/admin", adminOnly: true },
 ];
 
 const managerNavItems: NavItem[] = [
@@ -32,38 +38,75 @@ const managerNavItems: NavItem[] = [
   { icon: "trophy", label: "Leaderboard", path: "/leaderboard" },
 ];
 
+type Gate = { feature_key: string; label: string; is_locked: boolean };
+
 export default function AppSidebar() {
   const user = useSuperblocksUser();
   const [showCheckin, setShowCheckin] = useState(false);
+  const [togglingKey, setTogglingKey] = useState<string | null>(null);
+  const { isAdmin } = useIsAdmin();
 
-  // Poll for active check-in session
   const { data: checkinData } = useApiData("GetActiveCheckIn", {}, { refetchInterval: 5000 });
   const checkinOpen = checkinData?.checkin_open ?? false;
 
-  // Get camper data
   const { data: camperData } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
-  // Check if user is a manager
   const { data: managerData } = useApiData("GetCurrentManager", {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
-  const camperId = camperData?.camper?.id ?? 0;
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
+  // Refresh periodically so cAMPers see sections appear as soon as counselors unlock them
+  const { data: gatesData } = useApiData("GetFeatureGates", {}, { refetchInterval: 30_000 });
+  const { run: updateGate } = useApi("UpdateFeatureGate");
+
+  const camper = camperData?.camper;
+  const camperId = camper?.id ?? 0;
   const isCamper = camperData?.isRegistered === true;
+  const profileDone = camper?.profile_completed === true;
   const isManager = managerData?.isManager === true;
 
-  // Determine which nav items to show
+  const gates = useMemo(() => {
+    const map = new Map<string, Gate>();
+    (gatesData?.gates ?? []).forEach((g: Gate) => map.set(g.feature_key, g));
+    return map;
+  }, [gatesData]);
+
   const navItems = useMemo(() => {
-    // If user is both camper and admin, show full camper nav
-    if (isCamper) return camperNavItems;
-    // If user is only a manager (not a camper), show restricted nav
+    if (isAdmin) return camperNavItems;
+    if (isCamper && profileDone) {
+      return camperNavItems.filter((item) => {
+        if (item.adminOnly) return false;
+        if (!item.gate) return true;
+        const gate = gates.get(item.gate);
+        return gate ? !gate.is_locked : true;
+      });
+    }
+    if (isCamper) {
+      // Registration not finished — profile only
+      return [{ icon: "user" as IconName, label: "Complete Profile", path: "/profile" }];
+    }
     if (isManager) return managerNavItems;
-    // Default (not registered yet) — show minimal
     return [{ icon: "house" as IconName, label: "Home", path: "/" }];
-  }, [isCamper, isManager]);
+  }, [isAdmin, isCamper, profileDone, isManager, gates]);
+
+  const handleToggleLock = useCallback(async (gateKey: string) => {
+    const gate = gates.get(gateKey);
+    if (!gate) return;
+    setTogglingKey(gateKey);
+    try {
+      await updateGate({ feature_key: gateKey, is_locked: !gate.is_locked, unlock_at: null });
+      await queryClient.invalidateQueries("GetFeatureGates");
+      toast.success(gate.is_locked ? `${gate.label} unlocked for cAMPers` : `${gate.label} locked for cAMPers`);
+    } catch (e) {
+      const message = typeof e === "object" && e !== null && "message" in e
+        ? String((e as { message: unknown }).message) : "Failed to update lock";
+      toast.error(message);
+    } finally {
+      setTogglingKey(null);
+    }
+  }, [gates, updateGate]);
 
   return (
     <>
@@ -76,13 +119,13 @@ export default function AppSidebar() {
           <div className="flex flex-col">
             <span className="text-sm font-bold tracking-wide">cAMP 201</span>
             <span className="text-xs text-sidebar-accent-foreground/60">
-              {isManager && !isCamper ? "Manager Portal" : "Amplitude"}
+              {isAdmin ? "Counselor view" : isManager && !isCamper ? "Manager Portal" : "Amplitude"}
             </span>
           </div>
         </div>
 
         {/* Check-in Banner */}
-        {checkinOpen && isCamper && !isAdmin && (
+        {checkinOpen && isCamper && profileDone && !isAdmin && (
           <button
             onClick={() => setShowCheckin(true)}
             className="mx-3 mt-3 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-600/10 border border-green-600/30 text-green-600 text-sm font-semibold hover:bg-green-600/20 transition-colors animate-pulse"
@@ -93,30 +136,28 @@ export default function AppSidebar() {
         )}
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`
-              }
-            >
-              <Icon icon={item.icon} className="w-4 h-4" />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+        <nav className="flex flex-col gap-1 px-3 py-4 flex-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const gate = isAdmin && item.gate ? gates.get(item.gate) : undefined;
+            return (
+              <SidebarNavItem
+                key={item.path}
+                icon={item.icon}
+                label={item.label}
+                path={item.path}
+                locked={gate?.is_locked}
+                toggling={togglingKey === item.gate}
+                onToggleLock={gate ? () => handleToggleLock(gate.feature_key) : undefined}
+              />
+            );
+          })}
         </nav>
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-2 text-xs text-sidebar-foreground/50">
-            <Icon icon="tent" className="w-3.5 h-3.5" />
-            <span>The summit awaits</span>
+            <Icon icon={isAdmin ? "lock" : "tent"} className="w-3.5 h-3.5" />
+            <span>{isAdmin ? "Lock icons control what cAMPers see" : "The summit awaits"}</span>
           </div>
         </div>
       </aside>

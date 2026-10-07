@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useApiData } from "@/hooks/useApiData";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import SpinWheel from "@/components/SpinWheel/index.js";
@@ -50,7 +51,7 @@ export default function WheelAndDealPage() {
   }, { enabled: !!user?.email, staleTime: 60_000 });
 
   const camperId: number = camperData?.camper?.id ?? 0;
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
 
   // ── Cohort for cAMPer selector (counselor only) ──────
   const { data: cohortData } = useApiData("GetCohort", {}, {

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 
 export default function AnnouncementsFeed() {
@@ -20,7 +21,7 @@ export default function AnnouncementsFeed() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
+  const { isAdmin } = useIsAdmin();
 
   const { data, loading, fetching, refetch } = useApiData("GetAnnouncements", {});
   const announcements = data?.announcements ?? [];

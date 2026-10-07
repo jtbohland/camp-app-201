@@ -52,7 +52,19 @@ export default function AdminCounselorProfile() {
   if (loading) return null;
 
   const camper = data?.camper;
-  if (!camper) return null;
+  if (!camper) {
+    return (
+      <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+          <Icon icon="user-circle" className="w-5 h-5" />
+          My Counselor Profile
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Your counselor profile is created the first time you verify through the <span className="font-medium text-foreground">cAMP Counselor</span> tile on the landing page.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card rounded-xl p-6 border border-border shadow-sm">

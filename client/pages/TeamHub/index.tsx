@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useApiData } from "@/hooks/useApiData.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
@@ -29,7 +30,7 @@ export default function TeamHubPage() {
   const [activeSection, setActiveSection] = useState("missions");
 
   const team = useMemo(() => teamsData?.teams?.find((t) => t.id === teamIdNum), [teamsData, teamIdNum]);
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
   const isTeamMember = team?.members?.some((m) => m.id === camperData?.camper?.id);
   const canContribute = isAdmin || isTeamMember;
 

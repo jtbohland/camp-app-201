@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
@@ -64,7 +65,7 @@ export default function AgendaScheduleTab() {
   const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
   const [activeDragType, setActiveDragType] = useState<"bank" | "agenda" | null>(null);
 
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
   const camperId = camperData?.camper?.id ?? 0;
 
   // Compute current cAMP day + time

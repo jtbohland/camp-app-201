@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { useApiData } from "@/hooks/useApiData";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +21,7 @@ export default function PresentationsPage() {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
 
   // Feature gate for peer feedback
   const { data: gatesData, refetch: refetchGates } = useApiData("GetFeatureGates", {}, { staleTime: 15000 });

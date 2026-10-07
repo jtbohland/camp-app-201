@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
 import ProgressTrackers from "@/components/ProgressTrackers/index.js";
@@ -50,7 +51,7 @@ export default function BadgesTab() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
-  const isAdmin = user?.email === "jt.bohland@amplitude.com";
+  const { isAdmin } = useIsAdmin();
 
   const { data: badgesData, loading: loadingBadges, refetch } = useApiData("GetBadges", {
     camper_id: camperId || null,

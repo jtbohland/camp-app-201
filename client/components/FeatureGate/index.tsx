@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
-import { useSuperblocksUser } from "@superblocksteam/library";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 
 type FeatureGateProps = {
@@ -15,14 +15,9 @@ type FeatureGateProps = {
 };
 
 export default function FeatureGate({ featureKey, children, bypass = false }: FeatureGateProps) {
-  const user = useSuperblocksUser();
-  const { data, refetch } = useApiData("GetFeatureGates", {}, { staleTime: 30_000 });
-  const { data: camperData } = useApiData("GetCurrentCamper", {
-    email: user?.email ?? "",
-  }, { enabled: !!user?.email, staleTime: 60_000 });
+  const { data, refetch } = useApiData("GetFeatureGates", {}, { refetchInterval: 30_000 });
   const { run: updateGate, loading: toggling } = useApi("UpdateFeatureGate");
-
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
 
   const gates = data?.gates ?? [];
   const gate = gates.find((g: { feature_key: string }) => g.feature_key === featureKey);
@@ -35,13 +30,13 @@ export default function FeatureGate({ featureKey, children, bypass = false }: Fe
         is_locked: !isLocked,
         unlock_at: null,
       });
-      toast.success(isLocked ? `🔓 Unlocked: ${featureKey}` : `🔒 Locked: ${featureKey}`);
+      toast.success(isLocked ? `Unlocked for cAMPers: ${gate?.label ?? featureKey}` : `Locked for cAMPers: ${gate?.label ?? featureKey}`);
       refetch();
     } catch (err) {
       const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
       toast.error("Failed: " + msg);
     }
-  }, [featureKey, isLocked, updateGate, refetch]);
+  }, [featureKey, isLocked, updateGate, refetch, gate?.label]);
 
   // Admin toggle button — small pill
   const AdminToggle = isAdmin ? (

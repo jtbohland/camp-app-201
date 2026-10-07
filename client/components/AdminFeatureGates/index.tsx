@@ -21,6 +21,7 @@ const GATE_ICONS: Record<string, IconName> = {
   timer: "timer",
   wheel_and_deal: "refresh-cw",
   teams: "users",
+  past_camps: "archive",
 };
 
 const GATE_DESCRIPTIONS: Record<string, string> = {
@@ -35,6 +36,7 @@ const GATE_DESCRIPTIONS: Record<string, string> = {
   timer: "Countdown timer for sessions",
   wheel_and_deal: "Wheel & Deal practice game",
   teams: "Team hub and collaboration",
+  past_camps: "Past cAMPs tab on Teams & Rankings (Legacy Wall)",
 };
 
 type Gate = {

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
@@ -29,7 +30,7 @@ export default function ExecutivesTab() {
   const [editingExec, setEditingExec] = useState<Executive | null>(null);
   const [selectedExecForQA, setSelectedExecForQA] = useState<Executive | null>(null);
 
-  const isAdmin = camperData?.camper?.role === "counselor" || camperData?.camper?.role === "admin";
+  const { isAdmin } = useIsAdmin();
   const { data: execData, loading: execLoading, fetching, refetch } = useApiData("GetExecutives", { active_only: !isAdmin });
   const loading = camperLoading || execLoading;
 

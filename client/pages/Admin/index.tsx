@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Navigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { IconName } from "lucide-react/dynamic";
 
@@ -29,8 +30,6 @@ import AdminCloseCamp from "@/components/AdminCloseCamp/index.js";
 import HubDashboard from "@/components/HubDashboard/index.js";
 import LayOfTheLand from "@/components/LayOfTheLand/index.js";
 import NewHireManager from "@/components/NewHireManager/index.js";
-
-const ADMIN_PASSWORD = "NewAchievement201";
 
 /* ─── Sidebar Nav Config ─── */
 type NavSection = {
@@ -77,24 +76,13 @@ const NAV_SECTIONS: NavSection[] = [
 type View = string;
 
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [passwordError, setPasswordError] = useState(false);
+  const { isAdmin, loading: loadingAccess } = useIsAdmin();
   const [view, setView] = useState<View>("dashboard");
   const [selectedCohortId, setSelectedCohortId] = useState<number | null>(null);
   const [selectedCamperId, setSelectedCamperId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const { data: cohortsData } = useApiData("GetCohorts", {}, { enabled: authenticated });
-
-  const handleLogin = useCallback(() => {
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      setPasswordError(false);
-    } else {
-      setPasswordError(true);
-    }
-  }, [password]);
+  const { data: cohortsData } = useApiData("GetCohorts", {}, { enabled: isAdmin });
 
   const handleCamperClick = useCallback((camperId: number) => {
     setSelectedCamperId(camperId);
@@ -111,39 +99,16 @@ export default function AdminPage() {
     setSelectedCamperId(null);
   }, []);
 
-  /* ─── Login Screen ─── */
-  if (!authenticated) {
+  /* ─── Access check (verified on the server) ─── */
+  if (loadingAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-        <Card className="w-full max-w-sm p-8 shadow-xl border-0">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🏕️</span>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Mission Control</h1>
-            <p className="text-sm text-muted-foreground mt-1">Counselor Hub — Enter password to continue</p>
-          </div>
-          <div className="space-y-4">
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setPasswordError(false); }}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              className={passwordError ? "border-red-400" : ""}
-            />
-            {passwordError && (
-              <p className="text-xs text-red-500">Incorrect password. Try again.</p>
-            )}
-            <Button onClick={handleLogin} className="w-full bg-emerald-600 hover:bg-emerald-700">
-              <Icon icon="shield" className="w-4 h-4 mr-2" />
-              Access Mission Control
-            </Button>
-          </div>
-        </Card>
+      <div className="flex flex-col gap-4 p-8">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   /* ─── Demo Registration Views ─── */
   if (view === "demo-reg-camper" || view === "demo-reg-manager") {

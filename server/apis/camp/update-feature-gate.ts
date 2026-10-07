@@ -15,6 +15,19 @@ export default api({
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, input) {
+    // Only verified counselors can change locks.
+    const email = (ctx.user.email ?? "").toLowerCase();
+    const admin = await ctx.integrations.camp_201_db.query(
+      `SELECT 1 AS ok FROM camp201_admins WHERE lower(email) = $1
+       UNION ALL
+       SELECT 1 FROM camp201_campers WHERE lower(email) = $1 AND role IN ('counselor', 'admin')
+       LIMIT 1`,
+      z.object({ ok: z.coerce.number() }),
+      [email],
+      { label: "Check admin access" }
+    );
+    if (admin.length === 0) throw new Error("Only counselors can change section locks.");
+
     await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_feature_gates
        SET is_locked = $2, unlock_at = $3::timestamptz, updated_by = 'admin', updated_at = NOW()
