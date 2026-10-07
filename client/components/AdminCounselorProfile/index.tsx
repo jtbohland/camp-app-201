@@ -55,12 +55,12 @@ export default function AdminCounselorProfile() {
   if (!camper) return null;
 
   return (
-    <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/10">
-      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+    <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+      <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
         <Icon icon="user-circle" className="w-5 h-5" />
         My Counselor Profile
       </h2>
-      <p className="text-sm text-white/60 mb-5">
+      <p className="text-sm text-muted-foreground mb-5">
         This is how you'll appear on the Cohort tab. Keep it updated!
       </p>
 
@@ -73,38 +73,38 @@ export default function AdminCounselorProfile() {
             onChange={setPhotoUrl}
           />
           <div>
-            <p className="text-sm font-medium text-white">{camper.first_name} {camper.last_name}</p>
-            <p className="text-xs text-white/50">{user?.email}</p>
+            <p className="text-sm font-medium text-foreground">{camper.first_name} {camper.last_name}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </div>
 
         <div>
-          <label className="text-sm text-white/80 mb-1 block">Bio</label>
+          <label className="text-sm text-foreground/80 mb-1 block">Bio</label>
           <Textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Tell cAMPers about yourself..."
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/30 min-h-[80px]"
+            className="bg-background border-input text-foreground placeholder:text-muted-foreground min-h-[80px]"
           />
         </div>
 
         <div>
-          <label className="text-sm text-white/80 mb-1 block">Fun Fact</label>
+          <label className="text-sm text-foreground/80 mb-1 block">Fun Fact</label>
           <Input
             value={funFact}
             onChange={(e) => setFunFact(e.target.value)}
             placeholder="Something fun about you"
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/30"
+            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
         <div>
-          <label className="text-sm text-white/80 mb-1 block">LinkedIn URL</label>
+          <label className="text-sm text-foreground/80 mb-1 block">LinkedIn URL</label>
           <Input
             value={linkedinUrl}
             onChange={(e) => setLinkedinUrl(e.target.value)}
             placeholder="https://linkedin.com/in/..."
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/30"
+            className="bg-background border-input text-foreground placeholder:text-muted-foreground"
           />
         </div>
 

@@ -24,23 +24,23 @@ export default function AdminCounselorRotation() {
 
   if (counselors.length === 0) {
     return (
-      <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/10">
-        <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+      <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
           <Icon icon="eye" className="w-5 h-5" />
           Counselor Rotation
         </h2>
-        <p className="text-sm text-white/50">No counselors registered yet.</p>
+        <p className="text-sm text-muted-foreground">No counselors registered yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/10">
-      <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+    <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+      <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
         <Icon icon="eye" className="w-5 h-5" />
         Counselor Rotation
       </h2>
-      <p className="text-sm text-white/60 mb-4">
+      <p className="text-sm text-muted-foreground mb-4">
         Choose which counselors are displayed on the Cohort tab for this cohort.
         Toggle off counselors who aren't leading this session.
       </p>
@@ -52,7 +52,7 @@ export default function AdminCounselorRotation() {
             <div
               key={c.id}
               className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
-                isVisible ? "bg-white/10" : "bg-white/5 opacity-60"
+                isVisible ? "bg-muted" : "bg-muted/40 opacity-60"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -63,8 +63,8 @@ export default function AdminCounselorRotation() {
                   size="sm"
                 />
                 <div>
-                  <p className="text-sm font-medium text-white">{c.first_name} {c.last_name}</p>
-                  <p className="text-xs text-white/40">{c.email}</p>
+                  <p className="text-sm font-medium text-foreground">{c.first_name} {c.last_name}</p>
+                  <p className="text-xs text-muted-foreground">{c.email}</p>
                 </div>
               </div>
               <button
@@ -72,8 +72,8 @@ export default function AdminCounselorRotation() {
                 onClick={() => handleToggle(c.id, isVisible)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   isVisible
-                    ? "bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/40"
-                    : "bg-white/10 text-white/40 hover:bg-white/20"
+                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    : "bg-muted text-muted-foreground hover:bg-secondary"
                 }`}
               >
                 <Icon icon={isVisible ? "eye" : "eye-off"} className="w-3.5 h-3.5" />
