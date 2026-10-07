@@ -7,6 +7,14 @@ import { z } from "@superblocksteam/sdk-api";
 export const ACTIVE_COHORT_ID_SQL =
   "(SELECT id FROM camp201_cohorts WHERE is_active = true ORDER BY id DESC LIMIT 1)";
 
+/**
+ * SQL condition: true when the camper row (aliased `alias`) is a counselor — either by role
+ * or because their email is on the admin list. Constant string — safe to inline.
+ */
+export function isCounselorSql(alias: string): string {
+  return `(${alias}.role IN ('counselor', 'admin') OR EXISTS (SELECT 1 FROM camp201_admins adm WHERE lower(adm.email) = lower(${alias}.email)))`;
+}
+
 /** Returns the active cohort id, or null when no cohort is active. */
 export async function getActiveCohortId(db: any): Promise<number | null> {
   const rows = await db.query(

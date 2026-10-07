@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { assertNotViewingPast } from "../../lib/cohort.js";
+import { assertNotViewingPast, isCounselorSql } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -19,15 +19,20 @@ export default api({
   }),
   async run(ctx, { team_id, camper_ids }) {
     await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
-    // Clear previous assignments for these campers
-    if (camper_ids.length > 0) {
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET team_id = $1 WHERE id = ANY($2::int[])`,
-        [team_id, camper_ids],
-        { label: "Assign campers to team" }
-      );
-    }
+    // Reassign these campers to the team. Counselors are skipped — they never join a team.
+    if (camper_ids.length === 0) return { success: true, assigned: 0 };
+    const updated = await ctx.integrations.camp_201_db.query(
+      `WITH u AS (
+         UPDATE camp201_campers c SET team_id = $1
+         WHERE c.id = ANY($2::int[]) AND NOT ${isCounselorSql("c")}
+         RETURNING c.id
+       )
+       SELECT COUNT(*)::int AS n FROM u`,
+      z.object({ n: z.coerce.number() }),
+      [team_id, camper_ids],
+      { label: "Assign campers to team" }
+    );
 
-    return { success: true, assigned: camper_ids.length };
+    return { success: true, assigned: updated[0]?.n ?? 0 };
   },
 });
