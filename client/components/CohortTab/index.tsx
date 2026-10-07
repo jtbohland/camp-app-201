@@ -30,6 +30,9 @@ type CohortMember = {
 
 export default function CohortTab() {
   const { data, loading, fetching } = useApiData("GetCohort", {});
+  // Name typed when the cohort was created (or the past cohort a counselor is viewing).
+  const { data: viewData } = useApiData("GetViewCohort", {}, { staleTime: 30_000 });
+  const cohortName = viewData?.cohort_name ?? null;
   const [search, setSearch] = useState("");
   const [localSearch, setLocalSearch] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -112,7 +115,7 @@ export default function CohortTab() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
-              🏕️ Cohort 8 — cAMP 201
+              🏕️ {cohortName ? `${cohortName} — cAMP 201` : "cAMP 201"}
             </h2>
             <p className="text-sm text-white/70 mt-0.5">Your fellow cAMPers on this journey</p>
           </div>
