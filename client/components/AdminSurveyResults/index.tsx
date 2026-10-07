@@ -86,7 +86,7 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
   }, [camperSubs, openResponses, selectedDay]);
 
   if (loading) {
-    return <div className="space-y-4"><Skeleton className="h-32 bg-white/10" /><Skeleton className="h-48 bg-white/10" /></div>;
+    return <div className="space-y-4"><Skeleton className="h-32 bg-muted" /><Skeleton className="h-48 bg-muted" /></div>;
   }
 
   return (
@@ -96,79 +96,79 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
         {Array.from({ length: numDays }, (_, i) => i + 1).map(d => (
           <Button key={d} size="sm" variant="ghost"
             onClick={() => setSelectedDay(d)}
-            className={`text-white ${selectedDay === d ? "bg-white/20" : "hover:bg-white/10"}`}>
+            className={`text-foreground ${selectedDay === d ? "bg-secondary" : "hover:bg-muted"}`}>
             Day {d} ({DAY_LABELS[d]})
           </Button>
         ))}
-        <div className="ml-auto flex bg-white/10 rounded-lg p-0.5">
+        <div className="ml-auto flex bg-muted rounded-lg p-0.5">
           <Button size="sm" variant="ghost" onClick={() => setViewMode("overview")}
-            className={`text-white text-xs ${viewMode === "overview" ? "bg-white/20" : ""}`}>
+            className={`text-foreground text-xs ${viewMode === "overview" ? "bg-secondary" : ""}`}>
             <Icon icon="bar-chart-3" className="w-3.5 h-3.5 mr-1" />Overview
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setViewMode("responses")}
-            className={`text-white text-xs ${viewMode === "responses" ? "bg-white/20" : ""}`}>
+            className={`text-foreground text-xs ${viewMode === "responses" ? "bg-secondary" : ""}`}>
             <Icon icon="list" className="w-3.5 h-3.5 mr-1" />Responses
           </Button>
         </div>
         <Button size="sm" variant="ghost" onClick={handleExportCsv}
-          className="text-white hover:bg-white/10 text-xs ml-2">
+          className="text-foreground hover:bg-muted text-xs ml-2">
           <Icon icon="download" className="w-3.5 h-3.5 mr-1" />Export CSV
         </Button>
       </div>
 
       {/* Completion stats */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="p-4 bg-white/10 border-white/10">
-          <div className="text-3xl font-bold text-white">{completion?.submitted ?? 0}</div>
-          <div className="text-sm text-white/60">Submitted</div>
+        <Card className="p-4 bg-card border-border">
+          <div className="text-3xl font-bold text-foreground">{completion?.submitted ?? 0}</div>
+          <div className="text-sm text-muted-foreground">Submitted</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/10">
-          <div className="text-3xl font-bold text-white">{completion?.total_campers ?? 0}</div>
-          <div className="text-sm text-white/60">Total cAMPers</div>
+        <Card className="p-4 bg-card border-border">
+          <div className="text-3xl font-bold text-foreground">{completion?.total_campers ?? 0}</div>
+          <div className="text-sm text-muted-foreground">Total cAMPers</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/10">
-          <div className="text-3xl font-bold text-white">{completion?.completion_pct ?? 0}%</div>
-          <div className="text-sm text-white/60">Completion Rate</div>
+        <Card className="p-4 bg-card border-border">
+          <div className="text-3xl font-bold text-foreground">{completion?.completion_pct ?? 0}%</div>
+          <div className="text-sm text-muted-foreground">Completion Rate</div>
         </Card>
       </div>
 
       {viewMode === "overview" ? (
         <>
           {/* Session averages — bar chart style */}
-          <Card className="bg-white/5 border-white/10 p-4">
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+          <Card className="bg-card border-border p-4">
+            <h3 className="text-foreground font-semibold mb-4 flex items-center gap-2">
               <Icon icon="bar-chart-3" className="w-4 h-4" />
               Session Scores (Avg)
             </h3>
             {sessionAvgs.length === 0 ? (
-              <p className="text-white/50 text-sm">No ratings yet for Day {selectedDay}</p>
+              <p className="text-muted-foreground text-sm">No ratings yet for Day {selectedDay}</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {sessionAvgs.map((s: { session_title: string; session_type: string; avg_rating: number; avg_usefulness: number; response_count: number }) => (
                   <div key={s.session_title}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-white text-sm font-medium truncate flex-1 mr-2">{s.session_title}</span>
-                      <span className="text-white/50 text-xs">{s.response_count} responses</span>
+                      <span className="text-foreground text-sm font-medium truncate flex-1 mr-2">{s.session_title}</span>
+                      <span className="text-muted-foreground text-xs">{s.response_count} responses</span>
                     </div>
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-white/50 w-12">Rating</span>
-                          <div className="flex-1 h-5 bg-white/5 rounded-full overflow-hidden">
+                          <span className="text-[10px] text-muted-foreground w-12">Rating</span>
+                          <div className="flex-1 h-5 bg-muted/50 rounded-full overflow-hidden">
                             <div className="h-full bg-camp-amber/80 rounded-full flex items-center justify-end pr-2"
                               style={{ width: `${(s.avg_rating / 5) * 100}%` }}>
-                              <span className="text-[10px] font-bold text-white">{s.avg_rating.toFixed(1)}</span>
+                              <span className="text-[10px] font-bold text-primary-foreground">{s.avg_rating.toFixed(1)}</span>
                             </div>
                           </div>
                         </div>
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-white/50 w-12">Useful</span>
-                          <div className="flex-1 h-5 bg-white/5 rounded-full overflow-hidden">
+                          <span className="text-[10px] text-muted-foreground w-12">Useful</span>
+                          <div className="flex-1 h-5 bg-muted/50 rounded-full overflow-hidden">
                             <div className="h-full bg-camp-green/80 rounded-full flex items-center justify-end pr-2"
                               style={{ width: `${(s.avg_usefulness / 5) * 100}%` }}>
-                              <span className="text-[10px] font-bold text-white">{s.avg_usefulness.toFixed(1)}</span>
+                              <span className="text-[10px] font-bold text-primary-foreground">{s.avg_usefulness.toFixed(1)}</span>
                             </div>
                           </div>
                         </div>
@@ -182,19 +182,19 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
 
           {/* Overall program ratings (final day) */}
           {overallAvgs.length > 0 && (
-            <Card className="bg-white/5 border-white/10 p-4">
-              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <Card className="bg-card border-border p-4">
+              <h3 className="text-foreground font-semibold mb-4 flex items-center gap-2">
                 <Icon icon="award" className="w-4 h-4" />
                 Overall Program Ratings
               </h3>
               <div className="flex flex-col gap-3">
                 {overallAvgs.map((a: { aspect_key: string; avg_rating: number; response_count: number }) => (
                   <div key={a.aspect_key} className="flex items-center gap-3">
-                    <span className="text-white text-sm flex-1">{ASPECT_LABELS[a.aspect_key] ?? a.aspect_key}</span>
-                    <div className="w-40 h-5 bg-white/5 rounded-full overflow-hidden">
+                    <span className="text-foreground text-sm flex-1">{ASPECT_LABELS[a.aspect_key] ?? a.aspect_key}</span>
+                    <div className="w-40 h-5 bg-muted/50 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-400/80 rounded-full flex items-center justify-end pr-2"
                         style={{ width: `${(a.avg_rating / 5) * 100}%` }}>
-                        <span className="text-[10px] font-bold text-white">{a.avg_rating.toFixed(1)}</span>
+                        <span className="text-[10px] font-bold text-primary-foreground">{a.avg_rating.toFixed(1)}</span>
                       </div>
                     </div>
                   </div>
@@ -205,21 +205,21 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
 
           {/* Open-ended responses grouped */}
           {Object.keys(groupedOpen).length > 0 && (
-            <Card className="bg-white/5 border-white/10 p-4">
-              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <Card className="bg-card border-border p-4">
+              <h3 className="text-foreground font-semibold mb-4 flex items-center gap-2">
                 <Icon icon="message-square" className="w-4 h-4" />
                 Open Responses
               </h3>
               <div className="flex flex-col gap-4">
                 {Object.entries(groupedOpen).map(([key, responses]) => (
                   <div key={key}>
-                    <h4 className="text-white/70 text-xs font-semibold uppercase tracking-wide mb-2">
+                    <h4 className="text-muted-foreground text-xs font-semibold uppercase tracking-wide mb-2">
                       {OPEN_Q_LABELS[key] ?? key} ({responses.length})
                     </h4>
                     <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
                       {responses.map((r, i) => (
-                        <div key={i} className="text-sm text-white/80 px-3 py-2 rounded bg-white/5">
-                          <span className="text-white/50 text-xs">{r.camper_name}:</span>{" "}
+                        <div key={i} className="text-sm text-foreground/80 px-3 py-2 rounded bg-muted/50">
+                          <span className="text-muted-foreground text-xs">{r.camper_name}:</span>{" "}
                           {r.response}
                         </div>
                       ))}
@@ -232,29 +232,29 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
         </>
       ) : (
         /* Individual responses view */
-        <Card className="bg-white/5 border-white/10">
-          <div className="p-4 border-b border-white/10">
-            <h3 className="text-white font-semibold">Individual Submissions ({camperSubs.length})</h3>
+        <Card className="bg-card border-border">
+          <div className="p-4 border-b border-border">
+            <h3 className="text-foreground font-semibold">Individual Submissions ({camperSubs.length})</h3>
           </div>
-          <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto">
+          <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
             {camperSubs.length === 0 ? (
-              <div className="p-8 text-center text-white/50">No submissions yet</div>
+              <div className="p-8 text-center text-muted-foreground">No submissions yet</div>
             ) : (
               camperSubs.map((sub: { camper_id: number; camper_name: string; submitted_at: string; points_awarded: number; ratings: { session_title: string; rating: number; usefulness: number; comment: string }[] }) => (
                 <details key={sub.camper_id} className="group">
-                  <summary className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-white/5">
+                  <summary className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-muted/50">
                     <div className="flex items-center gap-2">
-                      <span className="text-white text-sm font-medium">{sub.camper_name}</span>
-                      <Badge className="bg-white/10 text-white/60 text-[10px]">+{sub.points_awarded} pts</Badge>
+                      <span className="text-foreground text-sm font-medium">{sub.camper_name}</span>
+                      <Badge className="bg-muted text-muted-foreground text-[10px]">+{sub.points_awarded} pts</Badge>
                     </div>
-                    <span className="text-white/40 text-xs">{new Date(sub.submitted_at).toLocaleString()}</span>
+                    <span className="text-muted-foreground text-xs">{new Date(sub.submitted_at).toLocaleString()}</span>
                   </summary>
                   <div className="px-4 pb-3">
-                    <div className="grid grid-cols-3 gap-2 text-[10px] text-white/40 uppercase tracking-wide mb-1 px-2">
+                    <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground uppercase tracking-wide mb-1 px-2">
                       <span>Session</span><span className="text-center">Rating</span><span className="text-center">Useful</span>
                     </div>
                     {sub.ratings.map((r, i) => (
-                      <div key={i} className="grid grid-cols-3 gap-2 text-sm text-white/80 px-2 py-1 rounded hover:bg-white/5">
+                      <div key={i} className="grid grid-cols-3 gap-2 text-sm text-foreground/80 px-2 py-1 rounded hover:bg-muted/50">
                         <span className="truncate">{r.session_title}</span>
                         <span className="text-center">{["","😞","😕","😐","🙂","🤩"][r.rating]}</span>
                         <span className="text-center">{r.usefulness}/5</span>
@@ -263,7 +263,7 @@ export default function AdminSurveyResults({ numDays = 4 }: AdminSurveyResultsPr
                     {sub.ratings.some(r => r.comment) && (
                       <div className="mt-2 px-2">
                         {sub.ratings.filter(r => r.comment).map((r, i) => (
-                          <p key={i} className="text-xs text-white/50 italic">💬 {r.session_title}: {r.comment}</p>
+                          <p key={i} className="text-xs text-muted-foreground italic">💬 {r.session_title}: {r.comment}</p>
                         ))}
                       </div>
                     )}

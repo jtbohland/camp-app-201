@@ -46,8 +46,8 @@ export default function AdminManagerOverview() {
   if (loading) {
     return (
       <div className="flex flex-col gap-4">
-        <Skeleton className="h-32 bg-white/10" />
-        <Skeleton className="h-48 bg-white/10" />
+        <Skeleton className="h-32 bg-muted" />
+        <Skeleton className="h-48 bg-muted" />
       </div>
     );
   }
@@ -56,53 +56,53 @@ export default function AdminManagerOverview() {
     <div className={`flex flex-col gap-6 ${fetching ? "opacity-70" : ""}`}>
       {/* Stats summary */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="p-4 bg-white/10 border-white/10">
-          <div className="text-3xl font-bold text-white">{managers.length}</div>
-          <div className="text-sm text-white/60">Registered Managers</div>
+        <Card className="p-4 bg-card border-border">
+          <div className="text-3xl font-bold text-foreground">{managers.length}</div>
+          <div className="text-sm text-muted-foreground">Registered Managers</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/10">
-          <div className="text-3xl font-bold text-white">
+        <Card className="p-4 bg-card border-border">
+          <div className="text-3xl font-bold text-foreground">
             {managers.reduce((sum: number, m: ManagerOverview) => sum + m.hire_count, 0)}
           </div>
-          <div className="text-sm text-white/60">Hires Claimed</div>
+          <div className="text-sm text-muted-foreground">Hires Claimed</div>
         </Card>
-        <Card className="p-4 bg-white/10 border-white/10">
-          <div className="text-3xl font-bold text-white">{comments.length}</div>
-          <div className="text-sm text-white/60">Total Comments</div>
+        <Card className="p-4 bg-card border-border">
+          <div className="text-3xl font-bold text-foreground">{comments.length}</div>
+          <div className="text-sm text-muted-foreground">Total Comments</div>
         </Card>
       </div>
 
       {/* Manager list */}
-      <Card className="bg-white/5 border-white/10">
-        <div className="p-4 border-b border-white/10">
-          <h3 className="text-white font-semibold flex items-center gap-2">
+      <Card className="bg-card border-border">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-foreground font-semibold flex items-center gap-2">
             <Icon icon="binoculars" className="w-4 h-4" />
             Registered Managers
           </h3>
         </div>
         {managers.length === 0 ? (
-          <div className="p-8 text-center text-white/50">No managers have registered yet</div>
+          <div className="p-8 text-center text-muted-foreground">No managers have registered yet</div>
         ) : (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-border">
             {managers.map((m: ManagerOverview) => (
               <div key={m.id} className="px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold text-sm">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
                     {m.first_name[0]}{m.last_name[0]}
                   </div>
                   <div>
-                    <div className="text-white font-medium text-sm">
+                    <div className="text-foreground font-medium text-sm">
                       {m.first_name} {m.last_name}
                     </div>
-                    <div className="text-white/50 text-xs">{m.title} · {m.region || "No region"}</div>
+                    <div className="text-muted-foreground text-xs">{m.title} · {m.region || "No region"}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge className="bg-white/10 text-white/80 border-white/10 text-xs">
+                  <Badge className="bg-muted text-foreground/80 border-border text-xs">
                     {m.hire_count} hire{m.hire_count !== 1 ? "s" : ""}
                   </Badge>
                   {m.comment_count > 0 && (
-                    <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/20 text-xs">
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
                       {m.comment_count} comment{m.comment_count !== 1 ? "s" : ""}
                     </Badge>
                   )}
@@ -112,7 +112,7 @@ export default function AdminManagerOverview() {
                       Viewed {new Date(m.last_viewed_at).toLocaleDateString()}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-white/30">Never viewed</span>
+                    <span className="text-[10px] text-muted-foreground/70">Never viewed</span>
                   )}
                 </div>
               </div>
@@ -122,33 +122,33 @@ export default function AdminManagerOverview() {
       </Card>
 
       {/* Recent comments feed */}
-      <Card className="bg-white/5 border-white/10">
-        <div className="p-4 border-b border-white/10">
-          <h3 className="text-white font-semibold flex items-center gap-2">
+      <Card className="bg-card border-border">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-foreground font-semibold flex items-center gap-2">
             <Icon icon="message-circle" className="w-4 h-4" />
             Recent Manager Comments
           </h3>
         </div>
         {comments.length === 0 ? (
-          <div className="p-8 text-center text-white/50">No comments yet</div>
+          <div className="p-8 text-center text-muted-foreground">No comments yet</div>
         ) : (
-          <div className="divide-y divide-white/5 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-border max-h-96 overflow-y-auto">
             {comments.map((c: ManagerComment) => (
               <div key={c.id} className="px-4 py-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-white text-sm font-medium">
+                  <span className="text-foreground text-sm font-medium">
                     {c.manager_first_name} {c.manager_last_name}
                   </span>
-                  <Icon icon="arrow-right" className="w-3 h-3 text-white/30" />
-                  <span className="text-white/70 text-sm">
+                  <Icon icon="arrow-right" className="w-3 h-3 text-muted-foreground/70" />
+                  <span className="text-muted-foreground text-sm">
                     {c.camper_first_name} {c.camper_last_name}
                   </span>
-                  <Badge className={`text-[10px] ml-auto ${SENTIMENT_COLORS[c.sentiment] ?? "bg-white/10 text-white/60"}`}>
+                  <Badge className={`text-[10px] ml-auto ${SENTIMENT_COLORS[c.sentiment] ?? "bg-muted text-muted-foreground"}`}>
                     {c.sentiment}
                   </Badge>
                 </div>
-                <p className="text-white/80 text-sm">{c.content}</p>
-                <p className="text-white/30 text-[10px] mt-1">
+                <p className="text-foreground/80 text-sm">{c.content}</p>
+                <p className="text-muted-foreground/70 text-[10px] mt-1">
                   {new Date(c.created_at).toLocaleString()} · {c.comment_type}
                 </p>
               </div>

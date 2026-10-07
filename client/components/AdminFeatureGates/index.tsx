@@ -84,20 +84,20 @@ export default function AdminFeatureGates() {
   }, [updateGate, refetch]);
 
   if (loading) {
-    return <div className="space-y-4"><Skeleton className="h-32 bg-white/10" /><Skeleton className="h-32 bg-white/10" /></div>;
+    return <div className="space-y-4"><Skeleton className="h-32 bg-muted" /><Skeleton className="h-32 bg-muted" /></div>;
   }
 
   return (
     <div className={`flex flex-col gap-4 ${fetching ? "opacity-70" : ""}`}>
       {/* Header */}
-      <Card className="p-4 bg-white/10 border-white/10">
+      <Card className="p-4 bg-card border-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-            <Icon icon="lock" className="w-5 h-5 text-amber-400" />
+          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+            <Icon icon="lock" className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h3 className="text-white font-semibold">Feature Gates</h3>
-            <p className="text-white/50 text-xs">Control which sections cAMPers can access. Locked features show a "coming soon" message.</p>
+            <h3 className="text-foreground font-semibold">Feature Gates</h3>
+            <p className="text-muted-foreground text-xs">Control which sections cAMPers can access. Locked features show a "coming soon" message.</p>
           </div>
         </div>
       </Card>
@@ -109,27 +109,27 @@ export default function AdminFeatureGates() {
           const desc = GATE_DESCRIPTIONS[gate.feature_key] ?? "";
           return (
             <Card key={gate.feature_key} className={`p-4 border transition-colors ${
-              gate.is_locked ? "bg-red-950/20 border-red-500/20" : "bg-green-950/20 border-green-500/20"
+              gate.is_locked ? "bg-card border-red-200" : "bg-card border-green-200"
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 ${
-                    gate.is_locked ? "bg-red-500/20" : "bg-green-500/20"
+                    gate.is_locked ? "bg-red-100" : "bg-green-100"
                   }`}>
-                    <Icon icon={iconName} className={`w-4 h-4 ${gate.is_locked ? "text-red-400" : "text-green-400"}`} />
+                    <Icon icon={iconName} className={`w-4 h-4 ${gate.is_locked ? "text-red-600" : "text-green-700"}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-white text-sm font-medium">{gate.label}</span>
+                      <span className="text-foreground text-sm font-medium">{gate.label}</span>
                       {gate.is_locked ? (
-                        <span className="text-[10px] bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded-full">LOCKED</span>
+                        <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">LOCKED</span>
                       ) : (
-                        <span className="text-[10px] bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded-full">OPEN</span>
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">OPEN</span>
                       )}
                     </div>
-                    <p className="text-white/40 text-xs mt-0.5">{desc}</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">{desc}</p>
                     {gate.unlock_at && gate.is_locked && (
-                      <p className="text-amber-300 text-[10px] mt-1 flex items-center gap-1">
+                      <p className="text-amber-700 text-[10px] mt-1 flex items-center gap-1">
                         <Icon icon="clock" className="w-3 h-3" />
                         Auto-unlocks: {new Date(gate.unlock_at).toLocaleString()}
                       </p>
@@ -143,7 +143,7 @@ export default function AdminFeatureGates() {
                     variant="ghost"
                     onClick={() => handleToggle(gate)}
                     disabled={updating}
-                    className={`h-8 text-xs ${gate.is_locked ? "text-green-400 hover:bg-green-500/10" : "text-red-400 hover:bg-red-500/10"}`}
+                    className={`h-8 text-xs ${gate.is_locked ? "text-green-700 hover:bg-green-50" : "text-red-600 hover:bg-red-50"}`}
                   >
                     <Icon icon={gate.is_locked ? "lock-open" : "lock"} className="w-3.5 h-3.5 mr-1" />
                     {gate.is_locked ? "Unlock" : "Lock"}
@@ -151,7 +151,7 @@ export default function AdminFeatureGates() {
                   {gate.is_locked && (
                     <Input
                       type="datetime-local"
-                      className="h-7 text-[10px] w-40 bg-white/5 border-white/10 text-white/70"
+                      className="h-7 text-[10px] w-40 bg-background border-input text-foreground"
                       onChange={(e) => handleScheduleUnlock(gate, e.target.value)}
                       title="Schedule auto-unlock"
                     />

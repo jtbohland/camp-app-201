@@ -80,11 +80,11 @@ export default function AdminPresentations() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Icon icon="presentation" className="w-5 h-5" />
             Presentations ({presentations.length})
           </h2>
-          <p className="text-sm text-white/60">Create, edit content, and lock/unlock presentations</p>
+          <p className="text-sm text-muted-foreground">Create, edit content, and lock/unlock presentations</p>
         </div>
         <Button
           onClick={handleCreate}
@@ -97,31 +97,31 @@ export default function AdminPresentations() {
         </Button>
       </div>
 
-      {fetching && <p className="text-xs text-white/40">Updating...</p>}
+      {fetching && <p className="text-xs text-muted-foreground">Updating...</p>}
 
       {/* Presentation list */}
       <div className="flex flex-col gap-3">
         {presentations.map((p) => (
-          <div key={p.id} className="bg-white/10 backdrop-blur rounded-xl border border-white/10 overflow-hidden">
+          <div key={p.id} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
             {/* Summary row */}
             <div className="flex items-center gap-3 p-4">
               <button
                 onClick={() => handleToggleLock(p)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                   p.is_locked
-                    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    : "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                    ? "bg-red-100 text-red-600 hover:bg-red-200"
+                    : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
                 }`}
                 title={p.is_locked ? "Click to unlock" : "Click to lock"}
               >
                 <Icon icon={p.is_locked ? "lock" : "lock-open"} className="w-4 h-4" />
               </button>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{p.title}</p>
-                <div className="flex items-center gap-3 text-xs text-white/40 mt-0.5">
-                  {p.day_number && <span>Day {p.day_number}</span>}
-                  {p.present_time_minutes && <span>{p.present_time_minutes}m present</span>}
-                  <span className={p.status === "completed" ? "text-emerald-400" : p.status === "in_progress" ? "text-green-400" : "text-blue-400"}>
+                <p className="text-sm font-semibold text-foreground truncate">{p.title}</p>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                  {!!p.day_number && <span>Day {p.day_number}</span>}
+                  {!!p.present_time_minutes && <span>{p.present_time_minutes}m present</span>}
+                  <span className={p.status === "completed" ? "text-emerald-700" : p.status === "in_progress" ? "text-green-700" : "text-blue-600"}>
                     {p.status}
                   </span>
                 </div>
@@ -130,7 +130,7 @@ export default function AdminPresentations() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditId(editId === p.id ? null : p.id)}
-                className="text-white/60 hover:text-white hover:bg-white/10"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted"
               >
                 <Icon icon={editId === p.id ? "chevron-up" : "pencil"} className="w-4 h-4 mr-1" />
                 {editId === p.id ? "Close" : "Edit"}
@@ -148,9 +148,9 @@ export default function AdminPresentations() {
         ))}
 
         {presentations.length === 0 && (
-          <div className="bg-white/5 rounded-xl p-8 text-center">
-            <Icon icon="presentation" className="w-10 h-10 mx-auto text-white/20 mb-3" />
-            <p className="text-sm text-white/50">No presentations yet. Create one to get started.</p>
+          <div className="bg-muted/50 rounded-xl p-8 text-center">
+            <Icon icon="presentation" className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-sm text-muted-foreground">No presentations yet. Create one to get started.</p>
           </div>
         )}
       </div>
@@ -214,63 +214,63 @@ function PresentationEditor({ presentation, onSaved }: { presentation: Presentat
   }, [title, description, instructions, resourcesText, prepTime, presentTime, dayNumber, sortOrder, deckUrl, status, presentation, update, onSaved]);
 
   return (
-    <div className="border-t border-white/10 p-4 bg-white/5 space-y-4">
+    <div className="border-t border-border p-4 bg-muted/40 space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <label className="text-xs text-white/60 mb-1 block">Title</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Title</label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)}
-            className="bg-white/10 border-white/20 text-white" />
+            className="bg-background border-input text-foreground" />
         </div>
         <div className="col-span-2">
-          <label className="text-xs text-white/60 mb-1 block">Description (markdown supported)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Description (markdown supported)</label>
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-            rows={4} className="bg-white/10 border-white/20 text-white font-mono text-xs" />
+            rows={4} className="bg-background border-input text-foreground font-mono text-xs" />
         </div>
         <div className="col-span-2">
-          <label className="text-xs text-white/60 mb-1 block">Instructions (markdown supported)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Instructions (markdown supported)</label>
           <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)}
-            rows={6} className="bg-white/10 border-white/20 text-white font-mono text-xs" />
+            rows={6} className="bg-background border-input text-foreground font-mono text-xs" />
         </div>
         <div>
-          <label className="text-xs text-white/60 mb-1 block">Prep Time (min)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Prep Time (min)</label>
           <Input value={prepTime} onChange={(e) => setPrepTime(e.target.value)} type="number"
-            className="bg-white/10 border-white/20 text-white" />
+            className="bg-background border-input text-foreground" />
         </div>
         <div>
-          <label className="text-xs text-white/60 mb-1 block">Present Time (min)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Present Time (min)</label>
           <Input value={presentTime} onChange={(e) => setPresentTime(e.target.value)} type="number"
-            className="bg-white/10 border-white/20 text-white" />
+            className="bg-background border-input text-foreground" />
         </div>
         <div>
-          <label className="text-xs text-white/60 mb-1 block">Day Number</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Day Number</label>
           <Input value={dayNumber} onChange={(e) => setDayNumber(e.target.value)} type="number"
-            className="bg-white/10 border-white/20 text-white" />
+            className="bg-background border-input text-foreground" />
         </div>
         <div>
-          <label className="text-xs text-white/60 mb-1 block">Sort Order</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Sort Order</label>
           <Input value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} type="number"
-            className="bg-white/10 border-white/20 text-white" />
+            className="bg-background border-input text-foreground" />
         </div>
         <div>
-          <label className="text-xs text-white/60 mb-1 block">Status</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Status</label>
           <select value={status} onChange={(e) => setStatus(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm">
+            className="w-full px-3 py-2 rounded-lg bg-background border border-input text-foreground text-sm">
             <option value="upcoming">Upcoming</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
         </div>
         <div>
-          <label className="text-xs text-white/60 mb-1 block">Deck Template URL</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Deck Template URL</label>
           <Input value={deckUrl} onChange={(e) => setDeckUrl(e.target.value)}
             placeholder="https://docs.google.com/..."
-            className="bg-white/10 border-white/20 text-white" />
+            className="bg-background border-input text-foreground" />
         </div>
         <div className="col-span-2">
-          <label className="text-xs text-white/60 mb-1 block">Resources (one per line: label|url)</label>
+          <label className="text-xs text-muted-foreground mb-1 block">Resources (one per line: label|url)</label>
           <Textarea value={resourcesText} onChange={(e) => setResourcesText(e.target.value)}
             rows={3} placeholder="Slide Template|https://docs.google.com/presentation/..."
-            className="bg-white/10 border-white/20 text-white font-mono text-xs" />
+            className="bg-background border-input text-foreground font-mono text-xs" />
         </div>
       </div>
 

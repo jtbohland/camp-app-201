@@ -40,32 +40,32 @@ export default function AdminTeamGenerator() {
   }, [numTeams, generateTeams, refetchTeams]);
 
   return (
-    <div className="bg-white/10 backdrop-blur rounded-xl p-6 border border-white/10">
-      <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+    <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+      <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
         <Icon icon="shuffle" className="w-5 h-5" />
         Auto-Generate Teams
       </h2>
-      <p className="text-sm text-white/60 mb-5">
+      <p className="text-sm text-muted-foreground mb-5">
         Creates balanced teams by distributing campers across regions and roles. Same-region
         and same-role campers get split up for maximum diversity.
       </p>
 
       {existingTeams.length > 0 ? (
         <div className="bg-amber-500/10 border border-amber-400/30 rounded-lg p-4">
-          <p className="text-sm text-amber-300 flex items-center gap-2">
+          <p className="text-sm text-amber-700 flex items-center gap-2">
             <Icon icon="alert-triangle" className="w-4 h-4" />
             {existingTeams.length} team{existingTeams.length !== 1 ? "s" : ""} already exist.
             Teams must be deleted before regenerating.
           </p>
           {/* Company Assignment */}
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <h4 className="text-sm font-semibold text-white/80 mb-2">🏢 Assign Companies</h4>
+          <div className="mt-4 pt-4 border-t border-border">
+            <h4 className="text-sm font-semibold text-foreground/80 mb-2">🏢 Assign Companies</h4>
             <div className="space-y-2">
               {existingTeams.map((t: any) => {
                 const currentCompany = t.assigned_company;
                 return (
-                  <div key={t.id} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                    <span className="text-sm text-white font-medium">{t.name}</span>
+                  <div key={t.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+                    <span className="text-sm text-foreground font-medium">{t.name}</span>
                     <div className="flex items-center gap-1.5">
                       {currentCompany && (
                         <span className="text-xs mr-2" style={{ color: currentCompany.color }}>
@@ -86,8 +86,8 @@ export default function AdminTeamGenerator() {
                               } catch (err) { toast.error(String(err)); }
                             }}
                             className={`text-lg p-1 rounded transition-all ${
-                              isSelected ? "ring-2 ring-white bg-white/20" :
-                              taken ? "opacity-20 cursor-not-allowed" : "hover:bg-white/10"
+                              isSelected ? "ring-2 ring-primary bg-secondary" :
+                              taken ? "opacity-20 cursor-not-allowed" : "hover:bg-muted"
                             }`}
                             title={`${c.name}${taken ? " (taken)" : ""}`}
                           >
@@ -106,7 +106,7 @@ export default function AdminTeamGenerator() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
             <div>
-              <label className="text-sm text-white/80 mb-1 block">Number of teams</label>
+              <label className="text-sm text-foreground/80 mb-1 block">Number of teams</label>
               <div className="flex items-center gap-2">
                 {[2, 3, 4, 5, 6].map((n) => (
                   <button
@@ -116,7 +116,7 @@ export default function AdminTeamGenerator() {
                     className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors ${
                       numTeams === n
                         ? "bg-emerald-600 text-white"
-                        : "bg-white/10 text-white/60 hover:bg-white/20"
+                        : "bg-muted text-muted-foreground hover:bg-secondary"
                     }`}
                   >
                     {n}
@@ -124,7 +124,7 @@ export default function AdminTeamGenerator() {
                 ))}
               </div>
             </div>
-            <div className="text-sm text-white/50 ml-4">
+            <div className="text-sm text-muted-foreground ml-4">
               <p>{camperCount} campers registered</p>
               <p>≈ {Math.ceil(camperCount / numTeams)} per team</p>
             </div>
@@ -132,9 +132,9 @@ export default function AdminTeamGenerator() {
 
           {/* Region/role distribution preview */}
           {camperCount > 0 && (
-            <div className="bg-white/5 rounded-lg p-3">
-              <p className="text-xs text-white/40 mb-1">Distribution preview:</p>
-              <p className="text-xs text-white/70">
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground mb-1">Distribution preview:</p>
+              <p className="text-xs text-foreground/70">
                 Campers will be sorted by region, then interleaved across {numTeams} teams
                 so each team gets a mix of regions and roles.
               </p>
