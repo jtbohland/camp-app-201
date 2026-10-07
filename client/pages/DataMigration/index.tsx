@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
@@ -37,43 +37,25 @@ export default function DataMigration() {
   const [migrating, setMigrating] = useState(false);
   const abortRef = useRef(false);
 
-  // Admin check — only counselors can access
+  // Admin check — only JT can access
   const isAdmin = user?.email === "jt.bohland@amplitude.com";
 
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <Icon icon="shield-alert" className="w-12 h-12 mx-auto mb-4 text-destructive" />
-            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">This page is restricted to administrators.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Loading migration status...</div>
-      </div>
-    );
-  }
-
-  const tables = data?.tables ?? [];
+  const tables = useMemo(() => data?.tables ?? [], [data]);
   const totalSource = data?.total_source ?? 0;
   const totalDest = data?.total_dest ?? 0;
   const allSynced = data?.all_synced ?? false;
 
   // Group by wave
-  const waves = new Map<number, TableStatus[]>();
-  for (const t of tables) {
-    if (!waves.has(t.wave)) waves.set(t.wave, []);
-    waves.get(t.wave)!.push(t);
-  }
+  const waves = useMemo(() => {
+    const m = new Map<number, TableStatus[]>();
+    for (const t of tables) {
+      if (!m.has(t.wave)) m.set(t.wave, []);
+      m.get(t.wave)!.push(t);
+    }
+    return m;
+  }, [tables]);
 
+  // NOTE: all hooks must be declared before any early return (React rule of hooks)
   const migrateOne = useCallback(async (tableName: string) => {
     setResults(prev => ({
       ...prev,
@@ -151,6 +133,28 @@ export default function DataMigration() {
   const stopMigration = useCallback(() => {
     abortRef.current = true;
   }, []);
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <Icon icon="shield-alert" className="w-12 h-12 mx-auto mb-4 text-destructive" />
+            <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">This page is restricted to administrators.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-muted-foreground">Loading migration status...</div>
+      </div>
+    );
+  }
 
   const completedCount = Object.values(results).filter(r => r.status === "success").length;
   const errorCount = Object.values(results).filter(r => r.status === "error").length;
