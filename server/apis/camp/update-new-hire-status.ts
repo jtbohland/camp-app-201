@@ -8,7 +8,7 @@ export default api({
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     hire_id: z.number(),
-    status: z.string(), // invited | accepted | declined
+    status: z.enum(["invited", "accepted", "declined"]),
     cohort_id: z.number(),
   }),
   output: z.object({ success: z.boolean(), camper_id: z.coerce.number().nullable() }),
