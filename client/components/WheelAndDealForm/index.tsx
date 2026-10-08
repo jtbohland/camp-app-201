@@ -76,7 +76,7 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
       </div>
 
       <a
-        href="https://app.amplitude.com/wheel-and-deal"
+        href="https://app.superblocks.com/code-mode/applications/fef97ebe-4fb9-401f-b97c-c52c1693b31b"
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 border border-amber-200 text-amber-700 hover:bg-amber-200 transition-colors"
