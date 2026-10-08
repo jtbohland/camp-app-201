@@ -182,8 +182,14 @@ export default function ManagerRegistrationForm({ userEmail, onSuccess }: Manage
               {loadingCampers ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">Loading cAMPers...</div>
               ) : filteredCampers.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  {searchQuery ? "No cAMPers found" : "No cAMPers registered yet"}
+                <div className="flex flex-col items-center gap-1 p-4 text-center">
+                  <Icon icon="user-search" className="w-5 h-5 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">
+                    {searchQuery ? `No cAMPers match "${searchQuery}"` : "No cAMPers registered yet"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Your new hire hasn&apos;t registered yet — check back once they have.
+                  </p>
                 </div>
               ) : (
                 filteredCampers.map((camper: { id: number; first_name: string; last_name: string; role: string; email: string }) => {
