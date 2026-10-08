@@ -6,6 +6,8 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { COUNTRY_OPTIONS, getCountryDisplayName, getCountryStyle } from "@/lib/countryUtils.js";
 import { toast } from "sonner";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
@@ -21,6 +23,8 @@ export default function AdminCounselorProfile() {
   const [bio, setBio] = useState("");
   const [funFact, setFunFact] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [country, setCountry] = useState("");
 
   useEffect(() => {
     if (data?.camper) {
@@ -28,6 +32,9 @@ export default function AdminCounselorProfile() {
       setBio(data.camper.bio ?? "");
       setFunFact(data.camper.fun_fact ?? "");
       setLinkedinUrl(data.camper.linkedin_url ?? "");
+      setStartDate((data.camper.start_date ?? "").slice(0, 10));
+      // Normalize aliases like "USA" so the dropdown shows the saved value.
+      setCountry(getCountryDisplayName(data.camper.country)?.replace(/^the /, "") ?? "");
     }
   }, [data]);
 
@@ -39,6 +46,8 @@ export default function AdminCounselorProfile() {
         bio: bio || null,
         fun_fact: funFact || null,
         linkedin_url: linkedinUrl || null,
+        start_date: startDate || null,
+        country: country || null,
       });
       toast.success("Counselor profile updated!");
       refetch();
@@ -47,7 +56,7 @@ export default function AdminCounselorProfile() {
         ? String((error as { message: unknown }).message) : String(error);
       toast.error("Failed to save: " + message);
     }
-  }, [user?.email, photoUrl, bio, funFact, linkedinUrl, updateProfile, refetch]);
+  }, [user?.email, photoUrl, bio, funFact, linkedinUrl, startDate, country, updateProfile, refetch]);
 
   if (loading) return null;
 
@@ -87,6 +96,35 @@ export default function AdminCounselorProfile() {
           <div>
             <p className="text-sm font-medium text-foreground">{camper.first_name} {camper.last_name}</p>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-foreground/80 mb-1 block">Amplitude Start Date</label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-background border-input text-foreground"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Shows your time at Amplitude on your card.</p>
+          </div>
+          <div>
+            <label className="text-sm text-foreground/80 mb-1 block">Country</label>
+            <Select value={country} onValueChange={setCountry}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRY_OPTIONS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {getCountryStyle(c)?.flag} {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">Shows as a flag pill on your card.</p>
           </div>
         </div>
 
