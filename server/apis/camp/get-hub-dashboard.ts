@@ -1,11 +1,10 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
+import { cohortIdSql, isCounselorSql, resolveViewCohort } from "../../lib/cohort.js";
+import { getStandings } from "../../lib/cohort-snapshot.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const StatSchema = z.object({ count: z.coerce.number() });
-const CamperSchema = z.object({ name: z.string(), xp: z.coerce.number() });
-const TeamSchema = z.object({ name: z.string(), points: z.coerce.number() });
 
 export default api({
   name: "GetHubDashboard",
@@ -32,8 +31,12 @@ export default api({
   }),
   async run(ctx) {
     // Active cohort, or the counselor's chosen past cohort.
-    const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email)).cohortId);
     const db = ctx.integrations.camp_201_db;
+    const view = await resolveViewCohort(db, ctx.user.email);
+    const VIEW = cohortIdSql(view.cohortId);
+    // A cAMPer is anyone in the cohort who isn't a counselor. `role` holds the job title
+    // (e.g. "AE – Enterprise"), so never filter on role = 'camper'.
+    const IS_CAMPER = `NOT ${isCounselorSql("c")}`;
 
     // Safe query helper — returns default on failure so one bad stat doesn't kill the dashboard
     async function safeStat(sql: string, label: string): Promise<number> {
@@ -52,66 +55,49 @@ export default api({
       presTotal,
       surveysToday,
       checkinsToday,
-      avgXp,
       preworkPct,
       gatesUnlocked,
       gatesTotal,
     ] = await Promise.all([
-      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.id = ${VIEW} AND c.role = 'camper'`, "Registered campers"),
+      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c WHERE c.cohort_id = ${VIEW} AND ${IS_CAMPER}`, "Registered campers"),
       safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.id = ${VIEW}`, "Total people"),
-      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_campers c JOIN camp201_cohorts co ON co.id = c.cohort_id WHERE co.id = ${VIEW} AND c.role = 'manager'`, "Managers"),
+      safeStat(`SELECT COUNT(*)::int AS count FROM camp201_managers m WHERE m.cohort_id = ${VIEW}`, "Managers"),
       safeStat(`SELECT COUNT(*)::int AS count FROM camp201_teams t JOIN camp201_cohorts co ON co.id = t.cohort_id WHERE co.id = ${VIEW}`, "Teams"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_presentations WHERE day_number > 0 AND is_locked = false", "Unlocked activities"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_presentations WHERE day_number > 0", "Total activities"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_daily_survey_submissions WHERE submitted_at >= CURRENT_DATE", "Surveys today"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_checkin_responses WHERE checked_in_at >= CURRENT_DATE", "Checkins today"),
-      safeStat(`SELECT COALESCE(AVG(total)::int, 0) AS count FROM (
-        SELECT SUM(pl.points) AS total FROM camp201_points_log pl
-        JOIN camp201_campers c ON c.id = pl.camper_id
-        JOIN camp201_cohorts co ON co.id = c.cohort_id
-        WHERE co.id = ${VIEW} AND c.role = 'camper'
-        GROUP BY pl.camper_id
-      ) sub`, "Avg XP"),
-      safeStat(`SELECT COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE pw.completed = true) / NULLIF(COUNT(*), 0)), 0)::int AS count
-        FROM camp201_prework pw
-        JOIN camp201_cohorts co ON co.id = pw.cohort_id
-        WHERE co.id = ${VIEW}`, "Prework %"),
+      // Completed pre-work items ÷ (cAMPers × pre-work items)
+      safeStat(`WITH people AS (
+          SELECT c.id FROM camp201_campers c WHERE c.cohort_id = ${VIEW} AND ${IS_CAMPER}
+        ), items AS (
+          SELECT DISTINCT item_key FROM camp201_journey_content
+          WHERE section = 'prework' AND is_checkable = true AND item_key IS NOT NULL
+        )
+        SELECT COALESCE(ROUND(100.0 *
+          (SELECT COUNT(*) FROM camp201_prework pw
+             JOIN people p ON p.id = pw.user_id
+             JOIN items i ON i.item_key = pw.item
+            WHERE pw.completed = true)
+          / NULLIF((SELECT COUNT(*) FROM people) * (SELECT COUNT(*) FROM items), 0)), 0)::int AS count`, "Prework %"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_feature_gates WHERE is_locked = false", "Gates open"),
       safeStat("SELECT COUNT(*)::int AS count FROM camp201_feature_gates", "Total gates"),
     ]);
 
-    // Top camper + team (separate so they don't block stats)
+    // XP Leader, Leading Team, Average XP — same numbers as the leaderboards
+    // (live for the active cohort, saved snapshot for a past one).
     let topCamper: { name: string; xp: number } | null = null;
     let topTeam: { name: string; points: number } | null = null;
-
+    let avgXp = 0;
     try {
-      const rows = await db.query(
-        `SELECT c.first_name || ' ' || c.last_name AS name, COALESCE(SUM(pl.points), 0)::int AS xp
-         FROM camp201_campers c
-         JOIN camp201_cohorts co ON co.id = c.cohort_id
-         LEFT JOIN camp201_points_log pl ON pl.camper_id = c.id
-         WHERE co.id = ${VIEW} AND c.role = 'camper'
-         GROUP BY c.id, c.first_name, c.last_name
-         ORDER BY xp DESC LIMIT 1`,
-        CamperSchema, undefined, { label: "Top camper" }
-      );
-      if (rows.length > 0) topCamper = rows[0];
-    } catch { /* ignore */ }
-
-    try {
-      const rows = await db.query(
-        `SELECT t.name, COALESCE(SUM(pl.points), 0)::int AS points
-         FROM camp201_teams t
-         JOIN camp201_cohorts co ON co.id = t.cohort_id
-         JOIN camp201_team_members tm ON tm.team_id = t.id
-         LEFT JOIN camp201_points_log pl ON pl.camper_id = tm.camper_id
-         WHERE co.id = ${VIEW}
-         GROUP BY t.id, t.name
-         ORDER BY points DESC LIMIT 1`,
-        TeamSchema, undefined, { label: "Top team" }
-      );
-      if (rows.length > 0) topTeam = rows[0];
-    } catch { /* ignore */ }
+      const { campers, teams } = await getStandings(db, view);
+      if (campers.length > 0) {
+        const c = campers[0];
+        topCamper = { name: `${c.first_name} ${c.last_name}`.trim(), xp: c.points };
+        avgXp = Math.round(campers.reduce((s, p) => s + p.points, 0) / campers.length);
+      }
+      if (teams.length > 0) topTeam = { name: teams[0].name, points: teams[0].total_points };
+    } catch { /* ignore — don't break the dashboard */ }
 
     return {
       registered_campers: registeredCampers,
