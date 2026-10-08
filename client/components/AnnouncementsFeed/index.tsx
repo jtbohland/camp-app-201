@@ -92,8 +92,8 @@ function AnnouncementCard({ announcement }: { announcement: any }) {
           <Icon icon="pin" className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
         )}
         <div className="flex-1 min-w-0">
-          <h4 className="text-xs font-semibold text-foreground line-clamp-1">{announcement.title}</h4>
-          <p className="text-[11px] text-foreground/70 mt-0.5 line-clamp-2">{announcement.body}</p>
+          <h4 className="text-xs font-semibold text-foreground break-words">{announcement.title}</h4>
+          <p className="text-[11px] text-foreground/70 mt-0.5 whitespace-pre-line break-words">{announcement.body}</p>
           <span className="text-[10px] text-muted-foreground mt-1 block">
             {new Date(announcement.created_at).toLocaleDateString(undefined, {
               month: "short",
