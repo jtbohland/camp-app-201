@@ -14,8 +14,8 @@ export default function AssignMembersDialog({ teamId, onClose, onAssigned }: Ass
   const { run: assignMembers, loading: assigning } = useApi("AssignTeamMembers");
   const [selected, setSelected] = useState<number[]>([]);
 
-  // Pre-select campers already on this team
-  const allCampers = campersData?.campers ?? [];
+  // Counselors never join a team, so they aren't offered here.
+  const allCampers = (campersData?.campers ?? []).filter((c) => !c.is_counselor);
 
   const toggleCamper = useCallback((id: number) => {
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);

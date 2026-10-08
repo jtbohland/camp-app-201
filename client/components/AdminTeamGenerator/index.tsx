@@ -1,31 +1,38 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useApi } from "@/hooks/useApi.js";
 import { useApiData } from "@/hooks/useApiData.js";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-
-const COMPANIES = [
-  { slug: "doordash", name: "DoorDash", emoji: "🚗", color: "#FF3008" },
-  { slug: "coursera", name: "Coursera", emoji: "🎓", color: "#0056D2" },
-  { slug: "quickbooks", name: "Intuit QuickBooks", emoji: "💰", color: "#2CA01C" },
-  { slug: "zillow", name: "Zillow", emoji: "🏠", color: "#006AFF" },
-];
+import CompanyAssignment from "./CompanyAssignment";
+import TeamCountButton from "./TeamCountButton";
+import { recommendedTeamCount, teamCountOptions, teamSizeLabel } from "./teamSizing";
 
 export default function AdminTeamGenerator() {
-  const [numTeams, setNumTeams] = useState(4);
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
   const { run: generateTeams, loading: generating } = useApi("AutoGenerateTeams");
-  const { run: assignCompany, loading: assigning } = useApi("AssignCompanyToTeam");
   const { data: teamsData, refetch: refetchTeams } = useApiData("GetTeams", {});
   const { data: camperData } = useApiData("GetRegisteredCampers", {});
 
   const existingTeams = teamsData?.teams ?? [];
-  const campers = camperData?.campers ?? [];
-  const camperCount = campers.filter((c: any) => c.role !== "counselor" && c.role !== "admin").length;
+  const people = camperData?.campers ?? [];
+  const camperCount = useMemo(() => people.filter((c) => !c.is_counselor).length, [people]);
+  const counselorCount = people.length - camperCount;
+  const recommended = recommendedTeamCount(camperCount);
+  const options = teamCountOptions(camperCount);
 
   const handleGenerate = useCallback(async () => {
+    if (pendingCount === null) return;
     try {
-      const result = await generateTeams({ num_teams: numTeams });
+      const result = await generateTeams({ num_teams: pendingCount });
       if (result?.success) {
         toast.success(result.message);
         refetchTeams();
@@ -36,8 +43,10 @@ export default function AdminTeamGenerator() {
       const message = error && typeof error === "object" && "message" in error
         ? String((error as { message: unknown }).message) : String(error);
       toast.error("Error: " + message);
+    } finally {
+      setPendingCount(null);
     }
-  }, [numTeams, generateTeams, refetchTeams]);
+  }, [pendingCount, generateTeams, refetchTeams]);
 
   return (
     <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
@@ -46,120 +55,70 @@ export default function AdminTeamGenerator() {
         Auto-Generate Teams
       </h2>
       <p className="text-sm text-muted-foreground mb-5">
-        Creates balanced teams by distributing campers across regions and roles. Same-region
-        and same-role campers get split up for maximum diversity.
+        Creates balanced teams by spreading cAMPers across regions and roles. Counselors are never put on a team.
       </p>
 
       {existingTeams.length > 0 ? (
-        <div className="bg-amber-500/10 border border-amber-400/30 rounded-lg p-4">
-          <p className="text-sm text-amber-700 flex items-center gap-2">
-            <Icon icon="alert-triangle" className="w-4 h-4" />
-            {existingTeams.length} team{existingTeams.length !== 1 ? "s" : ""} already exist.
-            Teams must be deleted before regenerating.
-          </p>
-          {/* Company Assignment */}
-          <div className="mt-4 pt-4 border-t border-border">
-            <h4 className="text-sm font-semibold text-foreground/80 mb-2">🏢 Assign Companies</h4>
-            <div className="space-y-2">
-              {existingTeams.map((t: any) => {
-                const currentCompany = t.assigned_company;
-                return (
-                  <div key={t.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
-                    <span className="text-sm text-foreground font-medium">{t.name}</span>
-                    <div className="flex items-center gap-1.5">
-                      {currentCompany && (
-                        <span className="text-xs mr-2" style={{ color: currentCompany.color }}>
-                          {currentCompany.emoji} {currentCompany.name}
-                        </span>
-                      )}
-                      {COMPANIES.map((c) => {
-                        const taken = existingTeams.some((ot: any) => ot.id !== t.id && ot.assigned_company?.slug === c.slug);
-                        const isSelected = currentCompany?.slug === c.slug;
-                        return (
-                          <button
-                            key={c.slug}
-                            disabled={assigning || (taken && !isSelected)}
-                            onClick={async () => {
-                              try {
-                                const res = await assignCompany({ team_id: t.id, company_slug: c.slug });
-                                if (res?.success) { toast.success(res.message); refetchTeams(); }
-                              } catch (err) { toast.error(String(err)); }
-                            }}
-                            className={`text-lg p-1 rounded transition-all ${
-                              isSelected ? "ring-2 ring-primary bg-secondary" :
-                              taken ? "opacity-20 cursor-not-allowed" : "hover:bg-muted"
-                            }`}
-                            title={`${c.name}${taken ? " (taken)" : ""}`}
-                          >
-                            {c.emoji}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <CompanyAssignment teams={existingTeams} onChanged={refetchTeams} />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <label className="text-sm text-foreground/80 mb-1 block">Number of teams</label>
-              <div className="flex items-center gap-2">
-                {[2, 3, 4, 5, 6].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setNumTeams(n)}
-                    className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors ${
-                      numTeams === n
-                        ? "bg-emerald-600 text-white"
-                        : "bg-muted text-muted-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="text-sm text-muted-foreground ml-4">
-              <p>{camperCount} campers registered</p>
-              <p>≈ {Math.ceil(camperCount / numTeams)} per team</p>
-            </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+            <span className="font-semibold text-foreground">
+              {camperCount} cAMPer{camperCount !== 1 ? "s" : ""} to place
+            </span>
+            {counselorCount > 0 && (
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Icon icon="shield-check" className="w-3.5 h-3.5" />
+                {counselorCount} counselor{counselorCount !== 1 ? "s" : ""} left off teams
+              </span>
+            )}
           </div>
 
-          {/* Region/role distribution preview */}
-          {camperCount > 0 && (
-            <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-xs text-muted-foreground mb-1">Distribution preview:</p>
-              <p className="text-xs text-foreground/70">
-                Campers will be sorted by region, then interleaved across {numTeams} teams
-                so each team gets a mix of regions and roles.
-              </p>
+          {camperCount < 4 ? (
+            <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+              You need at least 4 cAMPers (not counselors) to create 2 teams.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-3 pt-2">
+              {options.map((n) => (
+                <TeamCountButton
+                  key={n}
+                  teams={n}
+                  headcount={camperCount}
+                  recommended={n === recommended}
+                  disabled={generating}
+                  onClick={setPendingCount}
+                />
+              ))}
             </div>
           )}
-
-          <Button
-            onClick={handleGenerate}
-            disabled={generating || camperCount === 0}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white self-start"
-          >
-            {generating ? (
-              <>
-                <Icon icon="loader-2" className="w-4 h-4 animate-spin mr-2" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Icon icon="shuffle" className="w-4 h-4 mr-2" />
-                Generate {numTeams} Teams
-              </>
-            )}
-          </Button>
         </div>
       )}
+
+      <Dialog open={pendingCount !== null} onOpenChange={(open) => !open && !generating && setPendingCount(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create {pendingCount} teams?</DialogTitle>
+            <DialogDescription>
+              {camperCount} cAMPers will be split into {pendingCount} teams
+              ({pendingCount ? teamSizeLabel(camperCount, pendingCount) : ""} per team), balanced by region and role.
+              Counselors stay off teams. To redo it later, you'll need to delete the teams first.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingCount(null)} disabled={generating}>
+              Cancel
+            </Button>
+            <Button onClick={handleGenerate} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {generating ? (
+                <><Icon icon="loader-circle" className="w-4 h-4 animate-spin mr-2" />Creating…</>
+              ) : (
+                <>Create {pendingCount} teams</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

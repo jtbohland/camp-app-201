@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { assertNotViewingPast, getActiveCohortId } from "../../lib/cohort.js";
+import { assertNotViewingPast, getActiveCohortId, isCounselorSql } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -53,7 +53,7 @@ export default api({
     camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
-    num_teams: z.number().min(2).max(10),
+    num_teams: z.number().int().min(2).max(10),
   }),
   output: z.object({
     success: z.boolean(),
@@ -71,13 +71,14 @@ export default api({
       return { success: false, message: "No active cohort. Create one in Cohort Management first.", teams: [] };
     }
 
-    // Get the active cohort's cAMPers (not counselors/admins)
+    // Get the active cohort's cAMPers. Counselors never go on a team — excluded by role
+    // AND by the admin list, so a counselor with a regular job title is still left out.
     const campers = await ctx.integrations.camp_201_db.query(
-      `SELECT id, first_name, last_name, region, role
-       FROM camp201_campers
-       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = $1
-       ORDER BY id
-       LIMIT 100`,
+      `SELECT c.id, c.first_name, c.last_name, c.region, c.role
+       FROM camp201_campers c
+       WHERE c.cohort_id = $1 AND NOT ${isCounselorSql("c")}
+       ORDER BY c.id
+       LIMIT 500`,
       z.object({
         id: z.coerce.number(),
         first_name: z.string(),
@@ -93,8 +94,8 @@ export default api({
       return { success: false, message: "No campers registered yet", teams: [] };
     }
 
-    if (campers.length < num_teams) {
-      return { success: false, message: `Only ${campers.length} campers registered — need at least ${num_teams} for ${num_teams} teams`, teams: [] };
+    if (campers.length < num_teams * 2) {
+      return { success: false, message: `Only ${campers.length} cAMPers (not counting counselors) — need at least ${num_teams * 2} for ${num_teams} teams`, teams: [] };
     }
 
     // Check if teams already exist
@@ -107,6 +108,14 @@ export default api({
     if (existingTeams[0].cnt > 0) {
       return { success: false, message: "Teams already exist. Delete existing teams first if you want to regenerate.", teams: [] };
     }
+
+    // Make sure no counselor in this cohort is left pointing at a team.
+    await ctx.integrations.camp_201_db.execute(
+      `UPDATE camp201_campers c SET team_id = NULL
+       WHERE c.cohort_id = $1 AND c.team_id IS NOT NULL AND ${isCounselorSql("c")}`,
+      [cohortId],
+      { label: "Take counselors off teams" }
+    );
 
     // Generate balanced assignments
     const assignments = balancedAssign(campers, num_teams);
