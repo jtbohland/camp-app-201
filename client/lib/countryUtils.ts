@@ -28,6 +28,11 @@ export const COUNTRY_FLAGS: Record<string, { flag: string; bg: string; text: str
   "Colombia":            { flag: "🇨🇴", bg: "bg-yellow-100",  text: "text-yellow-800" },
 };
 
+/** Countries with a matching flag pill, for dropdowns (no "the …" duplicates). */
+export const COUNTRY_OPTIONS: string[] = Object.keys(COUNTRY_FLAGS)
+  .filter((c) => !c.startsWith("the "))
+  .sort((a, b) => a.localeCompare(b));
+
 // Common aliases → canonical name
 const COUNTRY_ALIASES: Record<string, string> = {
   "USA": "United States",

@@ -137,13 +137,14 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
             {countryStyle.flag} {countryName.replace(/^the /, "")}
           </span>
         )}
-        {member.manager && (
+        {/* Counselors aren't on a team and don't have a manager here */}
+        {member.manager && !isCounselor && (
           <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
             <Icon icon="user" className="w-3 h-3" />
             {member.manager}
           </span>
         )}
-        {member.team_name && (
+        {member.team_name && !isCounselor && (
           <span
             className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium"
             style={{
@@ -178,6 +179,9 @@ export default function CohortMemberCard({ member }: CohortMemberCardProps) {
       {/* Fun fact */}
       {member.fun_fact && (
         <div className="px-4 pb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">
+            Fun fact
+          </p>
           <p className="text-xs text-foreground/70 italic line-clamp-2">
             "{member.fun_fact}"
           </p>
