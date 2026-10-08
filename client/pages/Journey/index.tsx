@@ -88,6 +88,9 @@ export default function JourneyPage() {
         />
       </Card>
 
+      {/* Know Before You Go */}
+      <KnowBeforeYouGo isAdmin={isAdmin} camperId={camper?.id ?? 0} teamId={camper?.team_id ?? null} />
+
       {/* Pre-Work Section */}
       <div className={preworkFetching && !preworkLoading ? "opacity-70" : ""}>
         <PreWork
@@ -100,9 +103,6 @@ export default function JourneyPage() {
           deadline={deadline}
         />
       </div>
-
-      {/* Know Before You Go */}
-      <KnowBeforeYouGo isAdmin={isAdmin} camperId={camper?.id ?? 0} teamId={camper?.team_id ?? null} />
     </div>
   );
 }
