@@ -9,6 +9,7 @@ const CamperSchema = z.object({
   last_name: z.string(),
   role: z.string(),
   manager: z.string().nullable(),
+  manager_email: z.string().nullable(),
   region: z.string().nullable(),
   country: z.string().nullable(),
   city: z.string().nullable(),
@@ -51,6 +52,14 @@ export default api({
     ice_breaker_q2: z.string().nullable(),
     ice_breaker_q3: z.string().nullable(),
     ice_breaker_answers: z.string().nullable(),
+    // Manager's work email (blank clears it). Lowercased so it matches the manager's sign-in email.
+    manager_email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(200)
+      .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Enter a valid manager email")
+      .nullable(),
   }),
   output: z.object({
     camper: CamperSchema,
@@ -89,9 +98,10 @@ export default api({
         ice_breaker_q3 = $12,
         profile_completed = $13,
         ice_breaker_answers = $14::jsonb,
+        manager_email = NULLIF($15, ''),
         updated_at = NOW()
       WHERE email = $1`,
-      [input.email, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete, input.ice_breaker_answers ?? '{}'],
+      [input.email, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete, input.ice_breaker_answers ?? '{}', input.manager_email ?? ""],
       { label: "Update camper profile" }
     );
 

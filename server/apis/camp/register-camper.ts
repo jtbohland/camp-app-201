@@ -9,6 +9,7 @@ const CamperSchema = z.object({
   last_name: z.string(),
   role: z.string(),
   manager: z.string().nullable(),
+  manager_email: z.string().nullable(),
   region: z.string().nullable(),
   country: z.string().nullable(),
   city: z.string().nullable(),
@@ -43,6 +44,8 @@ export default api({
     last_name: z.string(),
     role: z.string(),
     manager: z.string().nullable(),
+    // Manager's work email: links this cAMPer to their manager's dashboard
+    manager_email: z.string().trim().toLowerCase().email().max(200).nullable(),
     region: z.string().nullable(),
     country: z.string().nullable(),
     city: z.string().nullable(),
@@ -77,6 +80,7 @@ export default api({
         `UPDATE camp201_campers SET
            first_name = $2, last_name = $3, role = $4, manager = $5,
            region = $6, country = $7, city = $8, start_date = $9::date,
+           manager_email = COALESCE($10, manager_email),
            updated_at = NOW()
          WHERE email = $1`,
         [
@@ -89,6 +93,7 @@ export default api({
           input.country ?? "",
           input.city ?? "",
           input.start_date ?? null,
+          input.manager_email ?? null,
         ],
         { label: "Update existing camper info" }
       );
@@ -119,8 +124,8 @@ export default api({
 
     // New registration: insert with initial points + PIN + cohort
     await ctx.integrations.camp_201_db.execute(
-      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin, cohort_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10, $11)`,
+      `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin, cohort_id, manager_email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10, $11, $12)`,
       [
         input.email,
         input.first_name,
@@ -133,6 +138,7 @@ export default api({
         input.start_date ?? null,
         pin,
         cohortId,
+        input.manager_email ?? null,
       ],
       { label: "Register new cAMPer with PIN + cohort" }
     );

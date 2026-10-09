@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [linkedinOption, setLinkedinOption] = useState("none");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
   const [funFact, setFunFact] = useState("");
   const [goal1, setGoal1] = useState("");
   const [goal2, setGoal2] = useState("");
@@ -59,6 +60,7 @@ export default function ProfilePage() {
       setPhotoUrl(c.photo_url ?? "");
       setLinkedinOption(c.linkedin_option ?? "none");
       setLinkedinUrl(c.linkedin_url ?? "");
+      setManagerEmail(c.manager_email ?? "");
       setFunFact(c.fun_fact ?? "");
       setGoal1(c.goal_1 ?? "");
       setGoal2(c.goal_2 ?? "");
@@ -93,6 +95,7 @@ export default function ProfilePage() {
         ice_breaker_q2: iceBreakerAnswers.q1 || null,
         ice_breaker_q3: iceBreakerAnswers.q2 || null,
         ice_breaker_answers: JSON.stringify(iceBreakerAnswers),
+        manager_email: managerEmail.trim().toLowerCase(),
       });
 
       const justCompleted = !data?.camper?.profile_completed && result?.camper?.profile_completed;
@@ -110,7 +113,7 @@ export default function ProfilePage() {
           : String(error);
       toast.error("Failed to save profile: " + message);
     }
-  }, [user?.email, bio, photoUrl, linkedinOption, linkedinUrl, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch, data?.camper?.profile_completed, navigate]);
+  }, [user?.email, bio, photoUrl, linkedinOption, linkedinUrl, managerEmail, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch, data?.camper?.profile_completed, navigate]);
 
   const handleToggleGoal = useCallback(async (goalNumber: number, achieved: boolean) => {
     if (!data?.camper?.id) return;
@@ -359,6 +362,21 @@ export default function ProfilePage() {
                 onChange={(e) => setLinkedinUrl(e.target.value)}
               />
             )}
+          </div>
+
+          {/* Manager */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="profileManagerEmail">Manager&apos;s Work Email</Label>
+            <Input
+              id="profileManagerEmail"
+              type="email"
+              placeholder="firstname.lastname@amplitude.com"
+              value={managerEmail}
+              onChange={(e) => setManagerEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Lets your manager follow your cAMP journey on their dashboard.
+            </p>
           </div>
         </div>
       </Card>
