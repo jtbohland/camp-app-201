@@ -7,6 +7,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import NewHireRow, { HIRE_STATUSES, normalizeStatus, type HireStatus } from "@/components/NewHireRow/index.js";
+import EditNewHireDialog, { type EditableHire } from "@/components/EditNewHireDialog/index.js";
 
 type Props = {
   cohortId: number;
@@ -15,6 +16,8 @@ type Props = {
 
 export default function NewHireManager({ cohortId, camperId }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [editingHire, setEditingHire] = useState<EditableHire | null>(null);
+  const closeEditor = useCallback(() => setEditingHire(null), []);
   const fileRef = useRef<HTMLInputElement>(null);
   // Load the whole cohort once and filter here, so the filter counts stay accurate.
   const { data, loading, fetching, refetch } = useApiData("GetNewHires", {
@@ -140,10 +143,12 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
       ) : (
         <div className={`flex flex-col gap-2 ${fetching ? "opacity-70" : ""}`}>
           {hires.map((hire: any) => (
-            <NewHireRow key={hire.id} hire={hire} disabled={updating} onStatusChange={handleStatusChange} />
+            <NewHireRow key={hire.id} hire={hire} disabled={updating} onStatusChange={handleStatusChange} onEdit={setEditingHire} />
           ))}
         </div>
       )}
+
+      <EditNewHireDialog hire={editingHire} onClose={closeEditor} onSaved={refetch} />
     </div>
   );
 }

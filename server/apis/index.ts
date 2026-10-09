@@ -164,6 +164,7 @@ import MigrateNewHires from './camp/migrate-new-hires.js';
 import UploadNewHireList from './camp/upload-new-hire-list.js';
 import GetNewHires from './camp/get-new-hires.js';
 import UpdateNewHireStatus from './camp/update-new-hire-status.js';
+import UpdateNewHire from './camp/update-new-hire.js';
 import SetupWheelTables from './camp/setup-wheel-tables.js';
 import CreateWheelRound from './camp/create-wheel-round.js';
 import GetActiveWheelRound from './camp/get-active-wheel-round.js';
@@ -357,6 +358,7 @@ const apis = {
   UploadNewHireList,
   GetNewHires,
   UpdateNewHireStatus,
+  UpdateNewHire,
   SetupWheelTables,
   CreateWheelRound,
   GetActiveWheelRound,
