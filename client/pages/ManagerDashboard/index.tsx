@@ -19,6 +19,10 @@ export default function ManagerDashboard() {
     manager_email: user?.email ?? "",
   }, { enabled: !!user?.email && managerCheck?.isManager === true });
 
+  // Must run on every render (before any early return) or React crashes with error #310.
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 30000 });
+  const campClosed = closeStatus?.camp_closed ?? false;
+
   if (checkingManager || loading) {
     return (
       <div className="flex flex-col gap-6 p-8">
@@ -58,10 +62,6 @@ export default function ManagerDashboard() {
   const hires = dashboard?.hires ?? [];
   const totalCampers = dashboard?.total_campers ?? 0;
   const totalSurveys = dashboard?.total_surveys ?? 0;
-
-  // Check if camp is closed
-  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 30000 });
-  const campClosed = closeStatus?.camp_closed ?? false;
 
   return (
     <div className="flex flex-col gap-6 p-8 max-w-4xl overflow-auto">
