@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export type HireStatus = "invited" | "accepted" | "declined";
@@ -30,6 +31,7 @@ type Hire = {
   role_title: string | null;
   region: string | null;
   manager_name: string | null;
+  manager_email: string | null;
   status: string;
 };
 
@@ -37,13 +39,14 @@ type Props = {
   hire: Hire;
   disabled: boolean;
   onStatusChange: (hireId: number, status: HireStatus) => void;
+  onEdit: (hire: Hire) => void;
 };
 
 function initials(first: string, last: string) {
   return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || "?";
 }
 
-function NewHireRow({ hire, disabled, onStatusChange }: Props) {
+function NewHireRow({ hire, disabled, onStatusChange, onEdit }: Props) {
   const status = normalizeStatus(hire.status);
   const style = STATUS_STYLES[status];
 
@@ -81,6 +84,18 @@ function NewHireRow({ hire, disabled, onStatusChange }: Props) {
           )}
         </div>
       </div>
+
+      {/* Edit details */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onEdit(hire)}
+        aria-label={`Edit ${hire.first_name} ${hire.last_name}`}
+        className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <Icon icon="pencil" className="h-3.5 w-3.5 mr-1" />
+        Edit
+      </Button>
 
       {/* Status: coloured pill that opens the menu */}
       <Select value={status} onValueChange={(v) => onStatusChange(hire.id, v as HireStatus)} disabled={disabled}>
