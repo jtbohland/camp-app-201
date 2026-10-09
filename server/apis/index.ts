@@ -105,6 +105,7 @@ import RegisterManager from './camp/register-manager.js';
 import GetCurrentManager from './camp/get-current-manager.js';
 import GetCohortCampersForManager from './camp/get-cohort-campers.js';
 import GetManagerDashboard from './camp/get-manager-dashboard.js';
+import { GetSuggestedHires, GetAddableHires, AddHireToManager } from './camp/manager-hire-matching.js';
 import AddManagerComment from './camp/add-manager-comment.js';
 import GetAdminManagerOverview from './camp/get-admin-manager-overview.js';
 import MigrateDailySurveys from './camp/migrate-daily-surveys.js';
@@ -295,6 +296,9 @@ const apis = {
   GetCurrentManager,
   GetCohortCampersForManager,
   GetManagerDashboard,
+  GetSuggestedHires,
+  GetAddableHires,
+  AddHireToManager,
   AddManagerComment,
   GetAdminManagerOverview,
   MigrateDailySurveys,

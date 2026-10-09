@@ -1,14 +1,15 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Icon } from "@/components/ui/icon";
-import { Badge } from "@/components/ui/badge";
 import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
+import NewHiresSection from "./NewHiresSection";
+import type { HireOption } from "./NewHirePicker";
 
 type ManagerRegistrationFormProps = {
   userEmail: string;
@@ -22,51 +23,37 @@ export default function ManagerRegistrationForm({ userEmail, onSuccess }: Manage
   const [lastName, setLastName] = useState("");
   const [title, setTitle] = useState("");
   const [region, setRegion] = useState("");
-  const [selectedHires, setSelectedHires] = useState<number[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedHires, setSelectedHires] = useState<HireOption[]>([]);
 
   const { run: registerManager, loading } = useApi("RegisterManager");
 
-  // Fetch all cAMPers in the current cohort for hire selection
+  // Registered cAMPers in the current cohort
   const { data: cohortData, loading: loadingCampers } = useApiData("GetCohortCampersForManager", {});
-  const campers = cohortData?.campers ?? [];
+  const campers: HireOption[] = cohortData?.campers ?? [];
 
-  const filteredCampers = useMemo(() => {
-    if (!searchQuery) return campers;
-    const q = searchQuery.toLowerCase();
-    return campers.filter((c: { first_name: string; last_name: string; role: string; email: string }) =>
-      `${c.first_name} ${c.last_name} ${c.role} ${c.email}`.toLowerCase().includes(q)
-    );
-  }, [campers, searchQuery]);
-
-  const toggleHire = useCallback((camperId: number) => {
-    setSelectedHires(prev =>
-      prev.includes(camperId)
-        ? prev.filter(id => id !== camperId)
-        : [...prev, camperId]
-    );
-  }, []);
+  const canSubmit = !!firstName.trim() && !!lastName.trim() && !!title.trim() && selectedHires.length > 0;
 
   const handleSubmit = useCallback(async () => {
-    if (!firstName || !lastName || !title) {
+    if (!firstName.trim() || !lastName.trim() || !title.trim()) {
       toast.error("Please fill in all required fields");
       return;
     }
     if (selectedHires.length === 0) {
-      toast.error("Please select at least one new hire");
+      toast.error("Please add at least one new hire");
       return;
     }
 
     try {
       await registerManager({
         email: userEmail,
-        first_name: firstName,
-        last_name: lastName,
-        title,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        title: title.trim(),
         region: region || null,
-        hire_ids: selectedHires,
+        hire_ids: selectedHires.map((h) => h.id),
       });
-      toast.success(`Welcome! You're now tracking ${selectedHires.length} cAMPer${selectedHires.length > 1 ? "s" : ""}`);
+      const n = selectedHires.length;
+      toast.success(`Welcome! You're now tracking ${n} cAMPer${n > 1 ? "s" : ""}`);
       onSuccess();
     } catch (error) {
       const message =
@@ -89,38 +76,23 @@ export default function ManagerRegistrationForm({ userEmail, onSuccess }: Manage
           <p className="text-sm text-muted-foreground mt-1">Track your new hire&apos;s cAMP 201 journey</p>
         </div>
 
-        {/* Form */}
         <div className="flex flex-col gap-5">
-          {/* Name row */}
+          {/* Name */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mgrFirstName">First Name *</Label>
-              <Input
-                id="mgrFirstName"
-                placeholder="Enter first name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
+              <Input id="mgrFirstName" placeholder="Enter first name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mgrLastName">Last Name *</Label>
-              <Input
-                id="mgrLastName"
-                placeholder="Enter last name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
+              <Input id="mgrLastName" placeholder="Enter last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
 
           {/* Title */}
           <div className="flex flex-col gap-1.5">
-            <Label>Title *</Label>
-            <Input
-              placeholder="e.g. Sales Manager, AVP, Director"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+            <Label htmlFor="mgrTitle">Title *</Label>
+            <Input id="mgrTitle" placeholder="e.g. Sales Manager, AVP, Director" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
           {/* Region */}
@@ -138,96 +110,18 @@ export default function ManagerRegistrationForm({ userEmail, onSuccess }: Manage
             </Select>
           </div>
 
-          {/* Hire Selection */}
-          <div className="flex flex-col gap-2">
-            <Label>Select Your New Hire(s) *</Label>
-            <p className="text-xs text-muted-foreground">
-              Choose the cAMPer(s) you manage. You can select multiple.
-            </p>
-
-            {/* Selected hires badges */}
-            {selectedHires.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 p-2 rounded-lg bg-muted/50">
-                {selectedHires.map(hireId => {
-                  const camper = campers.find((c: { id: number }) => c.id === hireId);
-                  if (!camper) return null;
-                  return (
-                    <Badge
-                      key={hireId}
-                      variant="secondary"
-                      className="flex items-center gap-1 pr-1 cursor-pointer hover:bg-destructive/10"
-                      onClick={() => toggleHire(hireId)}
-                    >
-                      {camper.first_name} {camper.last_name}
-                      <Icon icon="x" className="w-3 h-3" />
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Search */}
-            <div className="relative">
-              <Icon icon="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search cAMPers by name, title, or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-
-            {/* Camper list */}
-            <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
-              {loadingCampers ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">Loading cAMPers...</div>
-              ) : filteredCampers.length === 0 ? (
-                <div className="flex flex-col items-center gap-1 p-4 text-center">
-                  <Icon icon="user-search" className="w-5 h-5 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">
-                    {searchQuery ? `No cAMPers match "${searchQuery}"` : "No cAMPers registered yet"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Your new hire hasn&apos;t registered yet — check back once they have.
-                  </p>
-                </div>
-              ) : (
-                filteredCampers.map((camper: { id: number; first_name: string; last_name: string; role: string; email: string }) => {
-                  const isSelected = selectedHires.includes(camper.id);
-                  return (
-                    <button
-                      key={camper.id}
-                      type="button"
-                      onClick={() => toggleHire(camper.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
-                        isSelected
-                          ? "bg-primary/5 border-l-2 border-l-primary"
-                          : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
-                      }`}>
-                        {isSelected && <Icon icon="check" className="w-3 h-3 text-primary-foreground" />}
-                      </div>
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="font-medium truncate">{camper.first_name} {camper.last_name}</span>
-                        <span className="text-xs text-muted-foreground truncate">{camper.role}</span>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {selectedHires.length} cAMPer{selectedHires.length !== 1 ? "s" : ""} selected
-            </p>
-          </div>
+          {/* New hires: one at a time, with "add another" */}
+          <NewHiresSection
+            campers={campers}
+            loading={loadingCampers}
+            selected={selectedHires}
+            onChange={setSelectedHires}
+          />
 
           {/* Submit */}
           <Button
             onClick={handleSubmit}
-            disabled={loading || !firstName || !lastName || !title || selectedHires.length === 0}
+            disabled={loading || !canSubmit}
             className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
             size="lg"
           >
@@ -238,8 +132,9 @@ export default function ManagerRegistrationForm({ userEmail, onSuccess }: Manage
               </>
             ) : (
               <>
-                <Icon icon="binoculars" className="w-4 h-4 mr-2" />
-                View My cAMPers
+                <Icon icon="check" className="w-4 h-4 mr-2" />
+                Complete Registration
+                {selectedHires.length > 0 && ` (${selectedHires.length} new hire${selectedHires.length > 1 ? "s" : ""})`}
               </>
             )}
           </Button>

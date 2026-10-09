@@ -28,7 +28,7 @@ const TITLES = [
   "Renewal Manager",
 ];
 
-const MANAGERS = ["Select your manager", "Sarah Chen", "Mike Rodriguez", "Emily Watson", "David Park", "Jessica Liu", "Chris Taylor", "Other"];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const REGIONS = ["North America", "EMEA", "APAC", "LATAM"];
 
@@ -36,7 +36,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("");
-  const [manager, setManager] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
   const [region, setRegion] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
@@ -49,6 +49,11 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
       toast.error("Please fill in all required fields");
       return;
     }
+    const mgrEmail = managerEmail.trim().toLowerCase();
+    if (mgrEmail && !EMAIL_RE.test(mgrEmail)) {
+      toast.error("Please enter a valid email for your manager");
+      return;
+    }
 
     try {
       await registerCamper({
@@ -56,7 +61,8 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
         first_name: firstName,
         last_name: lastName,
         role,
-        manager: manager || null,
+        manager: null,
+        manager_email: mgrEmail || null,
         region: region || null,
         country: country || null,
         city: city || null,
@@ -71,7 +77,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
           : String(error);
       toast.error("Registration failed: " + message);
     }
-  }, [firstName, lastName, role, manager, region, country, city, startDate, userEmail, registerCamper, onSuccess]);
+  }, [firstName, lastName, role, managerEmail, region, country, city, startDate, userEmail, registerCamper, onSuccess]);
 
   return (
     <div className="flex items-center justify-center min-h-full p-8">
@@ -126,17 +132,17 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
 
           {/* Manager */}
           <div className="flex flex-col gap-1.5">
-            <Label>Manager</Label>
-            <Select value={manager} onValueChange={setManager}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select your manager" />
-              </SelectTrigger>
-              <SelectContent>
-                {MANAGERS.filter(m => m !== "Select your manager").map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="managerEmail">Manager&apos;s Work Email</Label>
+            <Input
+              id="managerEmail"
+              type="email"
+              placeholder="firstname.lastname@amplitude.com"
+              value={managerEmail}
+              onChange={(e) => setManagerEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Lets your manager follow your cAMP journey on their dashboard.
+            </p>
           </div>
 
           {/* Region / Country / City */}

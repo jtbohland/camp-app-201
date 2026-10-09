@@ -9,6 +9,7 @@ const CamperSchema = z.object({
   last_name: z.string(),
   role: z.string(),
   manager: z.string().nullable(),
+  manager_email: z.string().nullable().optional(),
   region: z.string().nullable(),
   country: z.string().nullable(),
   city: z.string().nullable(),

@@ -33,7 +33,8 @@ export default api({
     last_name: z.string(),
     title: z.string(),
     region: z.string().nullable(),
-    hire_ids: z.array(z.number()),
+    // At least one new hire is required
+    hire_ids: z.array(z.number().int().positive()).min(1, "Add at least one new hire"),
   }),
   output: z.object({
     manager: ManagerSchema,
@@ -85,7 +86,7 @@ export default api({
 
     // Link hires (upsert to avoid duplicates)
     let linkedCount = 0;
-    for (const camperIdVal of input.hire_ids) {
+    for (const camperIdVal of [...new Set(input.hire_ids)]) {
       await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_manager_hires (manager_id, camper_id)
          VALUES ($1, $2)

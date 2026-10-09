@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
@@ -6,6 +7,9 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import HireCard from "@/components/HireCard";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import SuggestedHiresCard from "@/components/SuggestedHiresCard";
+import AddCamperDialog from "@/components/AddCamperDialog";
 
 export default function ManagerDashboard() {
   const user = useSuperblocksUser();
@@ -18,6 +22,15 @@ export default function ManagerDashboard() {
   const { data: dashboard, loading, fetching, refetch } = useApiData("GetManagerDashboard", {
     manager_email: user?.email ?? "",
   }, { enabled: !!user?.email && managerCheck?.isManager === true });
+
+  // Must run on every render (before any early return) or React crashes with error #310.
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 30000 });
+  const campClosed = closeStatus?.camp_closed ?? false;
+
+  const [addOpen, setAddOpen] = useState(false);
+  const handleHireAdded = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   if (checkingManager || loading) {
     return (
@@ -58,10 +71,6 @@ export default function ManagerDashboard() {
   const hires = dashboard?.hires ?? [];
   const totalCampers = dashboard?.total_campers ?? 0;
   const totalSurveys = dashboard?.total_surveys ?? 0;
-
-  // Check if camp is closed
-  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 30000 });
-  const campClosed = closeStatus?.camp_closed ?? false;
 
   return (
     <div className="flex flex-col gap-6 p-8 max-w-4xl overflow-auto">
@@ -105,19 +114,32 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
+      {/* New hires who listed this manager */}
+      {!campClosed && <SuggestedHiresCard onAdded={handleHireAdded} />}
+
+      {/* Your cAMPers header + Add a cAMPer */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Icon icon="users" className="w-5 h-5 text-blue-500" />
+          Your cAMPers
+        </h2>
+        {!campClosed && (
+          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+            <Icon icon="user-plus" className="w-4 h-4" />
+            Add a cAMPer
+          </Button>
+        )}
+      </div>
+
       {/* Hire cards */}
       {hires.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Icon icon="users" className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No hires linked yet</p>
-          <p className="text-sm mt-1">Register from the home page to select your new hires.</p>
+          <p className="font-medium">No cAMPers on your dashboard yet</p>
+          <p className="text-sm mt-1">Use “Add a cAMPer” once your new hire has registered.</p>
         </div>
       ) : (
         <div className={`flex flex-col gap-4 ${fetching ? "opacity-70" : ""}`}>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Icon icon="users" className="w-5 h-5 text-blue-500" />
-            Your cAMPers
-          </h2>
           {hires.map((hire) => (
             <HireCard
               key={hire.camper.id}
@@ -130,6 +152,8 @@ export default function ManagerDashboard() {
           ))}
         </div>
       )}
+
+      <AddCamperDialog open={addOpen} onOpenChange={setAddOpen} onAdded={handleHireAdded} />
     </div>
   );
 }
