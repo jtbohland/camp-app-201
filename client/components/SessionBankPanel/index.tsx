@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useDraggable } from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,8 @@ export type BankSession = {
 type Props = {
   sessions: BankSession[];
   onSessionCreated: () => void;
+  /** True while a scheduled agenda item is being dragged; shows the "drop to remove" zone. */
+  showRemoveTarget?: boolean;
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -73,7 +75,8 @@ function DraggableBankItem({ session, onEdit, onRemove }: { session: BankSession
   );
 }
 
-export default function SessionBankPanel({ sessions, onSessionCreated }: Props) {
+export default function SessionBankPanel({ sessions, onSessionCreated, showRemoveTarget = false }: Props) {
+  const { isOver, setNodeRef: setDropRef } = useDroppable({ id: "session-bank" });
   const [showForm, setShowForm] = useState(false);
   const [editSession, setEditSession] = useState<BankSession | null>(null);
   const [title, setTitle] = useState("");
@@ -137,7 +140,18 @@ export default function SessionBankPanel({ sessions, onSessionCreated }: Props) 
   }));
 
   return (
-    <div className="flex flex-col h-full">
+    <div ref={setDropRef} className="relative flex flex-col h-full">
+      {showRemoveTarget && (
+        <div
+          className={`absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed text-center transition-colors ${
+            isOver ? "border-destructive bg-destructive/10 text-destructive" : "border-border bg-card/95 text-muted-foreground"
+          }`}
+        >
+          <Icon icon="undo-2" className="w-6 h-6" />
+          <p className="text-xs font-medium">Drop here to remove from agenda</p>
+          <p className="text-[10px]">It stays in the Session Bank</p>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold flex items-center gap-1.5">
           <Icon icon="library" className="w-4 h-4 text-camp-green" />

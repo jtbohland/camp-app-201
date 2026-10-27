@@ -1,7 +1,5 @@
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
 
 export type AgendaItem = {
   id: number;
@@ -24,19 +22,25 @@ type DayScheduleProps = {
   currentTimeMinutes?: number | null;
 };
 
+/** Grid runs 8:30 AM → 5:00 PM. 40px per 30 minutes. */
+const GRID_START_MIN = 8 * 60 + 30;
+const GRID_END_MIN = 17 * 60;
+const SLOT_HEIGHT = 40;
+const PX_PER_MIN = SLOT_HEIGHT / 30;
+const GRID_HEIGHT = (GRID_END_MIN - GRID_START_MIN) * PX_PER_MIN;
+
 const TIME_SLOTS: string[] = [];
-for (let h = 8; h < 17; h++) {
-  if (h === 8) {
-    TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:30`);
-  } else {
-    TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:00`);
-    TIME_SLOTS.push(`${h.toString().padStart(2, "0")}:30`);
-  }
+for (let m = GRID_START_MIN; m < GRID_END_MIN; m += 30) {
+  TIME_SLOTS.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
 }
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
+}
+
+function minutesToTime(min: number): string {
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 }
 
 function formatTime(time: string): string {
@@ -65,25 +69,9 @@ function getColors(type: string) {
   return TYPE_COLORS[type] ?? TYPE_COLORS.session;
 }
 
-function DroppableSlot({ slotTime, dayNumber }: { slotTime: string; dayNumber: number }) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: `slot-${dayNumber}-${slotTime}`,
-    data: { dayNumber, slotTime },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`h-full w-full rounded border border-dashed transition-colors ${
-        isOver ? "border-camp-green bg-camp-green/10" : "border-transparent hover:border-border"
-      }`}
-    />
-  );
-}
-
 function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: AgendaItem; isAdmin: boolean; onRemove?: () => void; isPast?: boolean; isUpNext?: boolean }) {
   const isDraggableItem = isAdmin && item.session_type !== "lunch";
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `agenda-${item.id}`,
     data: { agendaItem: item },
     disabled: !isDraggableItem,
@@ -92,25 +80,24 @@ function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: A
   const startMin = timeToMinutes(item.start_time);
   const endMin = timeToMinutes(item.end_time);
   const durationMin = endMin - startMin;
-  const slotHeight = 40;
-  const topOffset = ((startMin - 8.5 * 60) / 30) * slotHeight;
-  const height = (durationMin / 30) * slotHeight;
+  const topOffset = (startMin - GRID_START_MIN) * PX_PER_MIN;
+  const height = durationMin * PX_PER_MIN;
   const colors = getColors(item.session_type);
   const isExec = item.session_type === "executive";
-
-  const dragStyle = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const isShort = durationMin < 30;
 
   return (
     <div
       ref={isDraggableItem ? setNodeRef : undefined}
-      className={`absolute left-0 right-0 mx-1 rounded-md border px-2 py-1 overflow-hidden group ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"} ${isPast ? "opacity-40" : ""} ${isUpNext ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
-      style={{ top: `${topOffset}px`, height: `${height - 2}px`, ...dragStyle }}
+      title={`${item.title} · ${formatTime(item.start_time)} – ${formatTime(item.end_time)}`}
+      className={`absolute left-0 right-0 mx-1 rounded-md border overflow-hidden group ${isShort ? "flex items-center px-1.5" : "px-2 py-1"} ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing touch-none" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"} ${isPast ? "opacity-40" : ""} ${isUpNext ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
+      style={{ top: `${topOffset}px`, height: `${height - 2}px` }}
       {...(isDraggableItem ? attributes : {})}
       {...(isDraggableItem ? listeners : {})}
     >
-      <div className="flex items-start justify-between gap-1">
+      <div className={`flex w-full justify-between gap-1 ${isShort ? "items-center" : "items-start"}`}>
         <div className="min-w-0 flex-1">
-          <p className={`text-xs font-medium leading-tight ${colors.text}`}>
+          <p className={`font-medium ${colors.text} ${isShort ? "text-[10px] leading-none truncate" : "text-xs leading-tight"}`}>
             {isExec && "⭐ "}{isUpNext && "▶ "}{item.title}
           </p>
           {durationMin >= 45 && (
@@ -118,44 +105,75 @@ function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: A
               {formatTime(item.start_time)} – {formatTime(item.end_time)}
             </p>
           )}
-          {isExec && (
+          {isExec && durationMin >= 30 && (
             <p className="text-[9px] text-yellow-600 italic mt-0.5">Mandatory — all cAMPers expected</p>
           )}
         </div>
-        {isAdmin && item.session_type !== "lunch" && (
-          <Button
-            size="sm" variant="ghost"
-            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-            onClick={onRemove}
+        {isAdmin && item.session_type !== "lunch" && onRemove && (
+          <button
+            type="button"
+            aria-label={`Remove ${item.title}`}
+            title="Remove from schedule"
+            className={`flex-shrink-0 flex items-center justify-center rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity ${isShort ? "h-3.5 w-3.5" : "h-5 w-5"}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
           >
-            <Icon icon="x" className="w-3 h-3 text-destructive" />
-          </Button>
+            <Icon icon="x" className={`${isShort ? "w-2.5 h-2.5" : "w-3 h-3"} text-destructive`} />
+          </button>
         )}
       </div>
     </div>
   );
 }
 
+/** Hour labels (9a, 10a…) sit on the hour lines; half hours get a small unlabeled tick. */
+export function TimeGutter() {
+  const marks: { top: number; label: string | null }[] = [];
+  for (let m = GRID_START_MIN; m <= GRID_END_MIN; m += 30) {
+    const isHour = m % 60 === 0;
+    const h = Math.floor(m / 60);
+    marks.push({
+      top: (m - GRID_START_MIN) * PX_PER_MIN,
+      label: isHour ? `${h > 12 ? h - 12 : h}${h >= 12 ? "p" : "a"}` : null,
+    });
+  }
+  return (
+    <div className="relative w-12 flex-shrink-0" style={{ height: `${GRID_HEIGHT}px` }}>
+      {marks.map((mk) => (
+        <div key={mk.top} className="absolute right-0 flex items-center" style={{ top: `${mk.top}px` }}>
+          {mk.label && (
+            <span className="-translate-y-1/2 pr-1.5 text-[10px] font-medium text-muted-foreground">{mk.label}</span>
+          )}
+          <div className={`-translate-y-1/2 border-t border-border ${mk.label ? "w-2" : "w-1"}`} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onClearDay, showHeader = true, currentTimeMinutes = null }: DayScheduleProps) {
-  const slotHeight = 40;
-  const totalSlots = TIME_SLOTS.length;
-  const gridHeight = totalSlots * slotHeight;
+  const { isOver, setNodeRef } = useDroppable({
+    id: `day-${dayNumber}`,
+    data: { dayNumber },
+    disabled: !isAdmin,
+  });
 
   const lunchItem: AgendaItem = {
-    id: -1, session_bank_id: null, day_number: dayNumber,
+    id: -dayNumber, session_bank_id: null, day_number: dayNumber,
     start_time: "12:00", end_time: "13:00", title: "Lunch", session_type: "lunch",
   };
 
   const allItems = [...items, lunchItem];
 
-  const isSlotOccupied = (slotTime: string): boolean => {
-    const slotMin = timeToMinutes(slotTime);
-    return allItems.some((item) => {
-      const start = timeToMinutes(item.start_time);
-      const end = timeToMinutes(item.end_time);
-      return slotMin >= start && slotMin < end;
-    });
-  };
+  const upNextId =
+    currentTimeMinutes !== null
+      ? allItems
+          .filter((o) => timeToMinutes(o.start_time) > currentTimeMinutes)
+          .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))[0]?.id
+      : undefined;
 
   return (
     <div className="flex flex-col">
@@ -168,18 +186,23 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
               className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
               title="Clear day (keep lunch)"
             >
-            <Icon icon="trash-2" className="w-3 h-3" />
-          </button>
-        )}
-      </div>
+              <Icon icon="trash-2" className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       )}
 
-      <div className="relative" style={{ height: `${gridHeight}px` }}>
+      <div
+        ref={setNodeRef}
+        id={`day-col-${dayNumber}`}
+        className={`relative rounded transition-colors ${isOver ? "bg-camp-green/5 ring-1 ring-camp-green/40" : ""}`}
+        style={{ height: `${GRID_HEIGHT}px` }}
+      >
         {/* "Now" line */}
-        {currentTimeMinutes !== null && currentTimeMinutes >= 510 && currentTimeMinutes <= 1020 && (
+        {currentTimeMinutes !== null && currentTimeMinutes >= GRID_START_MIN && currentTimeMinutes <= GRID_END_MIN && (
           <div
             className="absolute left-0 right-0 z-20 pointer-events-none"
-            style={{ top: `${((currentTimeMinutes - 510) / 30) * slotHeight}px` }}
+            style={{ top: `${(currentTimeMinutes - GRID_START_MIN) * PX_PER_MIN}px` }}
           >
             <div className="flex items-center">
               <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
@@ -188,42 +211,29 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
           </div>
         )}
 
+        {/* Grid lines: solid on the hour, faint dashed on the half hour */}
         {TIME_SLOTS.map((slot, idx) => {
           const isHour = slot.endsWith(":00");
           return (
             <div
               key={slot}
-              className={`absolute left-0 right-0 border-t ${isHour ? "border-border" : "border-border/30"}`}
-              style={{ top: `${idx * slotHeight}px`, height: `${slotHeight}px` }}
-            >
-              {isAdmin && !isSlotOccupied(slot) && (
-                <DroppableSlot slotTime={slot} dayNumber={dayNumber} />
-              )}
-            </div>
+              className={`absolute left-0 right-0 pointer-events-none ${isHour ? "border-t border-border" : "border-t border-dashed border-border/40"}`}
+              style={{ top: `${idx * SLOT_HEIGHT}px` }}
+            />
           );
         })}
 
         {allItems.map((item) => {
           const itemEnd = timeToMinutes(item.end_time);
-          const itemStart = timeToMinutes(item.start_time);
           const isPast = currentTimeMinutes !== null && itemEnd <= currentTimeMinutes;
-          const isUpNext = currentTimeMinutes !== null && !isPast && itemStart > currentTimeMinutes &&
-            !allItems.some((other) => {
-              const otherStart = timeToMinutes(other.start_time);
-              const otherEnd = timeToMinutes(other.end_time);
-              return otherEnd <= currentTimeMinutes! && false; // skip past
-            }) &&
-            allItems.filter((o) => timeToMinutes(o.start_time) > currentTimeMinutes!)
-              .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))[0]?.id === item.id;
-
           return (
             <ScheduledBlock
               key={item.id}
               item={item}
               isAdmin={isAdmin}
-              onRemove={onRemoveItem ? () => onRemoveItem(item.id) : undefined}
+              onRemove={onRemoveItem && item.session_type !== "lunch" ? () => onRemoveItem(item.id) : undefined}
               isPast={isPast}
-              isUpNext={isUpNext}
+              isUpNext={!isPast && upNextId === item.id}
             />
           );
         })}
@@ -232,4 +242,15 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
   );
 }
 
-export { TIME_SLOTS, timeToMinutes, formatTime, TYPE_COLORS, getColors };
+export {
+  TIME_SLOTS,
+  GRID_START_MIN,
+  GRID_END_MIN,
+  GRID_HEIGHT,
+  PX_PER_MIN,
+  timeToMinutes,
+  minutesToTime,
+  formatTime,
+  TYPE_COLORS,
+  getColors,
+};
