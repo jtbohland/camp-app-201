@@ -32,6 +32,7 @@ type Hire = {
   region: string | null;
   manager_name: string | null;
   manager_email: string | null;
+  notes: string | null;
   status: string;
 };
 
@@ -83,6 +84,15 @@ function NewHireRow({ hire, disabled, onStatusChange, onEdit }: Props) {
             </span>
           )}
         </div>
+        {hire.notes && (
+          <p
+            className="mt-1 flex items-start gap-1 text-xs italic text-muted-foreground"
+            title={hire.notes}
+          >
+            <Icon icon="sticky-note" className="mt-0.5 h-3 w-3 shrink-0" />
+            <span className="line-clamp-1">{hire.notes}</span>
+          </p>
+        )}
       </div>
 
       {/* Edit details */}
