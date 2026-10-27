@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ type Props = {
 
 export default function NewHireManager({ cohortId, camperId }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"first" | "last">("last");
   const [editingHire, setEditingHire] = useState<EditableHire | null>(null);
   const closeEditor = useCallback(() => setEditingHire(null), []);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -29,10 +31,22 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
   const { run: migrate } = useApi("MigrateNewHires");
 
   const allHires = (data?.hires ?? []) as any[];
-  const hires = useMemo(
-    () => (statusFilter === "all" ? allHires : allHires.filter((h) => normalizeStatus(h.status) === statusFilter)),
-    [allHires, statusFilter]
-  );
+  const hires = useMemo(() => {
+    const filtered =
+      statusFilter === "all" ? allHires : allHires.filter((h) => normalizeStatus(h.status) === statusFilter);
+    const key = (h: any) =>
+      sortBy === "first"
+        ? [h.first_name ?? "", h.last_name ?? ""]
+        : [h.last_name ?? "", h.first_name ?? ""];
+    return [...filtered].sort((a, b) => {
+      const [a1, a2] = key(a);
+      const [b1, b2] = key(b);
+      return (
+        a1.localeCompare(b1, undefined, { sensitivity: "base" }) ||
+        a2.localeCompare(b2, undefined, { sensitivity: "base" })
+      );
+    });
+  }, [allHires, statusFilter, sortBy]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,6 +129,19 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
             CSV with columns: First Name, Last Name, Email, Role/Title, Country/Location, Start Date, Manager Name, Manager Email
           </p>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        <span className="text-xs text-muted-foreground">Sort by</span>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={sortBy}
+          onValueChange={(v) => v && setSortBy(v as "first" | "last")}
+          aria-label="Sort new hires by"
+        >
+          <ToggleGroupItem value="first" className="px-3 text-xs">First name</ToggleGroupItem>
+          <ToggleGroupItem value="last" className="px-3 text-xs">Last name</ToggleGroupItem>
+        </ToggleGroup>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40 text-xs">
             <SelectValue />
@@ -126,6 +153,7 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
             ))}
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {/* Hire list */}

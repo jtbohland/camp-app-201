@@ -11,6 +11,7 @@ const HireSchema = z.object({
   region: z.string().nullable(),
   manager_name: z.string().nullable(),
   manager_email: z.string().nullable(),
+  notes: z.string().nullable(),
   status: z.string(),
   cohort_id: z.coerce.number().nullable(),
   camper_id: z.coerce.number().nullable(),
@@ -43,7 +44,10 @@ export default api({
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const hires = await ctx.integrations.camp_201_db.query(
-      `SELECT * FROM camp201_new_hires ${where} ORDER BY last_name, first_name LIMIT 200`,
+      `SELECT id, first_name, last_name, email, role_title, region, manager_name, manager_email, notes,
+              status, cohort_id, camper_id, uploaded_at
+       FROM camp201_new_hires ${where}
+       ORDER BY LOWER(last_name), LOWER(first_name) LIMIT 200`,
       HireSchema,
       params,
       { label: "Get new hires" }

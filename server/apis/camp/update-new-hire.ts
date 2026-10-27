@@ -6,7 +6,7 @@ const optionalText = z.string().nullable();
 
 export default api({
   name: "UpdateNewHire",
-  description: "Edits an uploaded new hire's details",
+  description: "Edits an uploaded new hire's details and counselor notes",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     hire_id: z.number(),
@@ -17,6 +17,7 @@ export default api({
     region: optionalText,
     manager_name: optionalText,
     manager_email: optionalText,
+    notes: optionalText,
   }),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx, input) {
@@ -76,10 +77,10 @@ export default api({
     await db.execute(
       `UPDATE camp201_new_hires SET
          first_name = $2, last_name = $3, email = $4, role_title = $5,
-         region = $6, manager_name = $7, manager_email = $8, updated_at = NOW()
+         region = $6, manager_name = $7, manager_email = $8, notes = $9, updated_at = NOW()
        WHERE id = $1`,
       [input.hire_id, firstName, lastName, email, clean(input.role_title),
-       clean(input.region), clean(input.manager_name), managerEmail],
+       clean(input.region), clean(input.manager_name), managerEmail, clean(input.notes)],
       { label: "Update new hire" }
     );
 

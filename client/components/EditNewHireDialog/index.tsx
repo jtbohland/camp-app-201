@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useApi } from "@/hooks/useApi";
 
 export type EditableHire = {
@@ -22,6 +23,7 @@ export type EditableHire = {
   region: string | null;
   manager_name: string | null;
   manager_email: string | null;
+  notes: string | null;
 };
 
 type Props = {
@@ -30,14 +32,18 @@ type Props = {
   onSaved: () => void;
 };
 
-type FormState = Omit<EditableHire, "id" | "role_title" | "region" | "manager_name" | "manager_email"> & {
+type FormState = {
+  first_name: string;
+  last_name: string;
+  email: string;
   role_title: string;
   region: string;
   manager_name: string;
   manager_email: string;
+  notes: string;
 };
 
-const FIELDS: { key: keyof FormState; label: string; type?: string; required?: boolean; half?: boolean }[] = [
+const FIELDS: { key: Exclude<keyof FormState, "notes">; label: string; type?: string; required?: boolean; half?: boolean }[] = [
   { key: "first_name", label: "First name", required: true, half: true },
   { key: "last_name", label: "Last name", required: true, half: true },
   { key: "email", label: "Email", type: "email", required: true },
@@ -56,6 +62,7 @@ function toForm(h: EditableHire): FormState {
     region: h.region ?? "",
     manager_name: h.manager_name ?? "",
     manager_email: h.manager_email ?? "",
+    notes: h.notes ?? "",
   };
 }
 
@@ -94,6 +101,7 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
         region: form.region || null,
         manager_name: form.manager_name || null,
         manager_email: form.manager_email || null,
+        notes: form.notes || null,
       });
       if (!res?.success) {
         toast.error(res?.message ?? "Could not save changes.");
@@ -112,7 +120,7 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit new hire</DialogTitle>
-          <DialogDescription>Fix details from the CSV without re-uploading.</DialogDescription>
+          <DialogDescription>Fix details from the CSV or add counselor notes.</DialogDescription>
         </DialogHeader>
         {form && (
           <form
@@ -136,6 +144,18 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
                 />
               </div>
             ))}
+            <div className="col-span-2 flex flex-col gap-1.5">
+              <Label htmlFor="hire-notes" className="text-xs">
+                Notes <span className="font-normal text-muted-foreground">(counselors only)</span>
+              </Label>
+              <Textarea
+                id="hire-notes"
+                rows={4}
+                placeholder="Accommodations, reason for declining, follow-ups..."
+                value={form.notes}
+                onChange={(e) => setField("notes", e.target.value)}
+              />
+            </div>
             <button type="submit" className="hidden" />
           </form>
         )}
