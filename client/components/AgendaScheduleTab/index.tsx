@@ -1,6 +1,15 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
-import { useSuperblocksUser } from "@superblocksteam/library";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { useSuperblocksUser, queryClient } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi";
@@ -11,8 +20,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import SessionBankPanel, { type BankSession } from "@/components/SessionBankPanel";
-import DaySchedule, { type AgendaItem, timeToMinutes } from "@/components/DaySchedule";
+import DaySchedule, {
+  type AgendaItem,
+  TimeGutter,
+  timeToMinutes,
+  minutesToTime,
+  GRID_START_MIN,
+  GRID_END_MIN,
+  PX_PER_MIN,
+} from "@/components/DaySchedule";
 import AgendaResources from "@/components/AgendaResources/index.js";
+import ConfirmRemoveDialog from "@/components/ConfirmRemoveDialog/index.js";
+
+const SNAP_MIN = 15;
+
+function errMsg(err: unknown) {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
+  return "Request failed";
+}
 
 const DAY_LABELS: Record<number, string> = {
   1: "Monday",
@@ -21,13 +48,6 @@ const DAY_LABELS: Record<number, string> = {
   4: "Thursday",
   5: "Friday",
 };
-
-const TIME_LABELS: string[] = ["8:30 AM"];
-for (let h = 9; h <= 17; h++) {
-  const hour = h > 12 ? h - 12 : h;
-  const ampm = h >= 12 ? "PM" : "AM";
-  TIME_LABELS.push(`${hour}:00 ${ampm}`);
-}
 
 export default function AgendaScheduleTab() {
   const user = useSuperblocksUser();
@@ -64,6 +84,18 @@ export default function AgendaScheduleTab() {
   const [numDays, setNumDays] = useState<number | null>(null);
   const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
   const [activeDragType, setActiveDragType] = useState<"bank" | "agenda" | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<{ id: number; title: string } | null>(null);
+
+  // Require a small drag distance so clicks (like the remove button) still register as clicks.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const agendaKey = useMemo(() => queryClient.buildCacheKey("GetAgenda", {}), []);
+  /** Optimistically change the cached agenda; returns the previous value for rollback. */
+  const patchAgenda = useCallback((fn: (items: AgendaItem[]) => AgendaItem[]) => {
+    const prev = queryClient.getQueryData(agendaKey) as { items: AgendaItem[] } | undefined;
+    if (prev) queryClient.setQueryData(agendaKey, { ...prev, items: fn(prev.items) });
+    return prev;
+  }, [agendaKey]);
 
   const { isAdmin } = useIsAdmin();
   const camperId = camperData?.camper?.id ?? 0;
@@ -126,13 +158,23 @@ export default function AgendaScheduleTab() {
     const { over, active } = event;
     if (!over) return;
 
-    const dropData = over.data.current as { dayNumber: number; slotTime: string } | undefined;
-    if (!dropData) return;
-    const { dayNumber, slotTime } = dropData;
-
-    // Determine if this is a bank → calendar (new) or calendar → calendar (move)
     const bankSession = active.data.current?.session as BankSession | undefined;
     const agendaItem = active.data.current?.agendaItem as AgendaItem | undefined;
+
+    // Scheduled item dropped back on the Session Bank → remove it (after confirming).
+    if (over.id === "session-bank") {
+      if (agendaItem) setPendingRemove({ id: agendaItem.id, title: agendaItem.title });
+      return;
+    }
+
+    const dropData = over.data.current as { dayNumber: number } | undefined;
+    if (!dropData?.dayNumber) return;
+    const { dayNumber } = dropData;
+
+    // Work out the start time from where the dragged block's top edge landed, snapped to 15 min.
+    const draggedTop = active.rect.current.translated?.top ?? over.rect.top;
+    const rawMin = GRID_START_MIN + (draggedTop - over.rect.top) / PX_PER_MIN;
+    const snapped = Math.round(rawMin / SNAP_MIN) * SNAP_MIN;
 
     const sessionTitle = bankSession?.title ?? agendaItem?.title ?? "";
     const sessionType = bankSession?.session_type ?? agendaItem?.session_type ?? "session";
@@ -142,13 +184,17 @@ export default function AgendaScheduleTab() {
       ? timeToMinutes(agendaItem.end_time) - timeToMinutes(agendaItem.start_time)
       : 60;
 
-    const startMin = timeToMinutes(slotTime);
+    const startMin = Math.min(Math.max(snapped, GRID_START_MIN), GRID_END_MIN - durationMin);
     const endMin = startMin + durationMin;
+    const slotTime = minutesToTime(startMin);
 
-    if (endMin > 17 * 60) {
-      toast.error("Session would extend past 5:00 PM");
+    if (startMin < GRID_START_MIN) {
+      toast.error("Session is too long to fit in the day");
       return;
     }
+
+    // Dropped in the same spot — nothing to do.
+    if (agendaItem && agendaItem.day_number === dayNumber && agendaItem.start_time.slice(0, 5) === slotTime) return;
 
     const lunchStart = 12 * 60;
     const lunchEnd = 13 * 60;
@@ -170,16 +216,26 @@ export default function AgendaScheduleTab() {
       return;
     }
 
-    const endHour = Math.floor(endMin / 60);
-    const endMinRemainder = endMin % 60;
-    const endTime = `${endHour.toString().padStart(2, "0")}:${endMinRemainder.toString().padStart(2, "0")}`;
+    const endTime = minutesToTime(endMin);
 
-    try {
-      if (agendaItem) {
-        // Move existing agenda item
+    if (agendaItem) {
+      // Move: show the new position right away, roll back if the save fails.
+      const prev = patchAgenda((items) =>
+        items.map((i) => (i.id === agendaItem.id ? { ...i, day_number: dayNumber, start_time: slotTime, end_time: endTime } : i))
+      );
+      try {
         await moveItem({ id: agendaItem.id, day_number: dayNumber, start_time: slotTime, end_time: endTime });
         toast.success(`Moved "${agendaItem.title}"`);
-      } else if (bankSession) {
+      } catch (err) {
+        if (prev) queryClient.setQueryData(agendaKey, prev);
+        toast.error("Couldn't move session: " + errMsg(err));
+      }
+      refetchAgenda();
+      return;
+    }
+
+    try {
+      if (bankSession) {
         // Create new from bank
         await scheduleSession({
           session_bank_id: bankSession.id,
@@ -199,17 +255,28 @@ export default function AgendaScheduleTab() {
           : String(err);
       toast.error("Failed: " + message);
     }
-  }, [agendaData, scheduleSession, moveItem, refetchAgenda]);
+  }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey]);
 
-  const handleRemoveItem = useCallback(async (id: number) => {
+  // The ✕ button asks first; the actual removal happens in confirmRemove.
+  const handleRemoveItem = useCallback((id: number) => {
+    const item = agendaData?.items?.find((i: any) => i.id === id);
+    setPendingRemove({ id, title: item?.title ?? "this session" });
+  }, [agendaData]);
+
+  const confirmRemove = useCallback(async () => {
+    if (!pendingRemove) return;
+    const { id, title } = pendingRemove;
+    setPendingRemove(null);
+    const prev = patchAgenda((items) => items.filter((i) => i.id !== id));
     try {
       await removeItem({ id });
-      toast.success("Removed from schedule");
-      refetchAgenda();
+      toast.success(`Removed "${title}" from schedule`);
     } catch (err) {
-      toast.error("Failed to remove item");
+      if (prev) queryClient.setQueryData(agendaKey, prev);
+      toast.error("Couldn't remove session: " + errMsg(err));
     }
-  }, [removeItem, refetchAgenda]);
+    refetchAgenda();
+  }, [pendingRemove, patchAgenda, removeItem, refetchAgenda, agendaKey]);
 
   const handleClearDay = useCallback(async (dayNumber: number) => {
     try {
@@ -247,7 +314,13 @@ export default function AgendaScheduleTab() {
   const agendaItems = agendaData?.items ?? [];
 
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => { setActiveDrag(null); setActiveDragType(null); }}
+    >
       <div className="flex flex-col gap-4 p-6 max-w-7xl">
         {/* Admin controls */}
         {isAdmin && (
@@ -274,7 +347,7 @@ export default function AgendaScheduleTab() {
             <Card className="p-4 flex flex-col" style={{ height: "calc(100vh - 240px)", minHeight: "500px" }}>
               {/* Sticky day headers */}
               <div className="flex flex-shrink-0">
-                <div className="w-16 flex-shrink-0" />
+                <div className="w-12 flex-shrink-0" />
                 <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${effectiveDays}, 1fr)`, gap: "4px" }}>
                   {Array.from({ length: effectiveDays }, (_, i) => i + 1).map((day) => (
                     <div key={day} className="flex items-center justify-center gap-1 h-10 border-b border-border bg-muted/30 rounded-t-lg relative">
@@ -293,15 +366,9 @@ export default function AgendaScheduleTab() {
                 </div>
               </div>
               {/* Scrollable time grid */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto pt-2">
                 <div className="flex">
-                  <div className="w-16 flex-shrink-0">
-                    {TIME_LABELS.map((label, idx) => (
-                      <div key={idx} className="h-[80px] flex items-start">
-                        <span className="text-[10px] text-muted-foreground -mt-1.5">{label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <TimeGutter />
                   <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${effectiveDays}, 1fr)`, gap: "4px" }}>
                     {Array.from({ length: effectiveDays }, (_, i) => i + 1).map((day) => (
                       <DaySchedule
@@ -326,7 +393,11 @@ export default function AgendaScheduleTab() {
           {isAdmin && (
             <div className="w-[280px] flex-shrink-0">
               <Card className="p-4 overflow-hidden flex flex-col" style={{ height: "calc(100vh - 240px)", minHeight: "500px" }}>
-                <SessionBankPanel sessions={sessions} onSessionCreated={refetchBank} />
+                <SessionBankPanel
+                  sessions={sessions}
+                  onSessionCreated={refetchBank}
+                  showRemoveTarget={activeDragType === "agenda"}
+                />
               </Card>
             </div>
           )}
@@ -340,8 +411,14 @@ export default function AgendaScheduleTab() {
         />
       </div>
 
+      <ConfirmRemoveDialog
+        title={pendingRemove?.title ?? null}
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={confirmRemove}
+      />
+
       {/* Drag overlay */}
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeDrag && (
           <div className="flex items-center gap-2 p-2.5 rounded-lg border border-camp-green bg-card shadow-lg">
             <Icon icon={activeDragType === "agenda" ? "move" : "presentation"} className="w-3.5 h-3.5 text-camp-green" />
