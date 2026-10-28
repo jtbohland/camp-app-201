@@ -17,6 +17,7 @@ type DayScheduleProps = {
   items: AgendaItem[];
   isAdmin: boolean;
   onRemoveItem?: (id: number) => void;
+  onEditItem?: (item: AgendaItem) => void;
   onClearDay?: (dayNumber: number) => void;
   showHeader?: boolean;
   currentTimeMinutes?: number | null;
@@ -69,7 +70,7 @@ function getColors(type: string) {
   return TYPE_COLORS[type] ?? TYPE_COLORS.session;
 }
 
-function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: AgendaItem; isAdmin: boolean; onRemove?: () => void; isPast?: boolean; isUpNext?: boolean }) {
+function ScheduledBlock({ item, isAdmin, onRemove, onEdit, isPast, isUpNext }: { item: AgendaItem; isAdmin: boolean; onRemove?: () => void; onEdit?: () => void; isPast?: boolean; isUpNext?: boolean }) {
   const isDraggableItem = isAdmin && item.session_type !== "lunch";
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `agenda-${item.id}`,
@@ -89,7 +90,8 @@ function ScheduledBlock({ item, isAdmin, onRemove, isPast, isUpNext }: { item: A
   return (
     <div
       ref={isDraggableItem ? setNodeRef : undefined}
-      title={`${item.title} · ${formatTime(item.start_time)} – ${formatTime(item.end_time)}`}
+      title={`${item.title} · ${formatTime(item.start_time)} – ${formatTime(item.end_time)}${isDraggableItem && onEdit ? " · Click to edit timing" : ""}`}
+      onClick={isDraggableItem && onEdit ? onEdit : undefined}
       className={`absolute left-0 right-0 mx-1 rounded-md border overflow-hidden group ${isShort ? "flex items-center px-1.5" : "px-2 py-1"} ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing touch-none" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"} ${isPast ? "opacity-40" : ""} ${isUpNext ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
       style={{ top: `${topOffset}px`, height: `${height - 2}px` }}
       {...(isDraggableItem ? attributes : {})}
@@ -154,7 +156,7 @@ export function TimeGutter() {
   );
 }
 
-export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onClearDay, showHeader = true, currentTimeMinutes = null }: DayScheduleProps) {
+export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onEditItem, onClearDay, showHeader = true, currentTimeMinutes = null }: DayScheduleProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dayNumber}`,
     data: { dayNumber },
@@ -166,7 +168,9 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
     start_time: "12:00", end_time: "13:00", title: "Lunch", session_type: "lunch",
   };
 
-  const allItems = [...items, lunchItem];
+  // Only add the fixed Lunch block when the day doesn't already have a Lunch session.
+  const hasLunch = items.some((i) => i.title.trim().toLowerCase() === "lunch");
+  const allItems = hasLunch ? items : [...items, lunchItem];
 
   const upNextId =
     currentTimeMinutes !== null
@@ -232,6 +236,7 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
               item={item}
               isAdmin={isAdmin}
               onRemove={onRemoveItem && item.session_type !== "lunch" ? () => onRemoveItem(item.id) : undefined}
+              onEdit={onEditItem && item.session_type !== "lunch" ? () => onEditItem(item) : undefined}
               isPast={isPast}
               isUpNext={!isPast && upNextId === item.id}
             />
