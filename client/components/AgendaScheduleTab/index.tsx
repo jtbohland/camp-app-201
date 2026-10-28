@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { useSuperblocksUser, queryClient } from "@superblocksteam/library";
@@ -90,7 +91,14 @@ export default function AgendaScheduleTab() {
   const [editingItem, setEditingItem] = useState<AgendaItem | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   // For calendar moves: how far below the block's top edge the cursor grabbed it (in minutes).
-  const [grabOffsetMin, setGrabOffsetMin] = useState(0);
+  const grabOffsetRef = useRef(0);
+  // Real cursor position during a drag (dnd-kit's delta also adds scroll, which double-counted).
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerListenerRef = useRef<((e: PointerEvent) => void) | null>(null);
+  // Live "this is where it will land" ghost on the calendar.
+  const [dropPreview, setDropPreview] = useState<
+    { dayNumber: number; startMin: number; endMin: number; conflict: string | null } | null
+  >(null);
   // Ignore the stray click some browsers fire right after a drag ends.
   const lastDragEndRef = useRef(0);
   const openEditor = useCallback((item: AgendaItem) => {
@@ -152,26 +160,89 @@ export default function AgendaScheduleTab() {
     }
   }, [updateConfig]);
 
+  const stopTrackingPointer = useCallback(() => {
+    if (pointerListenerRef.current) window.removeEventListener("pointermove", pointerListenerRef.current);
+    pointerListenerRef.current = null;
+  }, []);
+  useEffect(() => stopTrackingPointer, [stopTrackingPointer]);
+
+  /** Snapped start/end (in minutes) for the dragged session if dropped on this day right now. */
+  const computeTarget = useCallback((dayNumber: number, durationMin: number, isMove: boolean) => {
+    const column = document.getElementById(`day-col-${dayNumber}`);
+    const p = pointerRef.current;
+    if (!column || !p) return null;
+    const cursorMin = GRID_START_MIN + (p.y - column.getBoundingClientRect().top) / PX_PER_MIN;
+    // Bank sessions start at the cursor; calendar moves keep the spot you grabbed the block by.
+    const rawStart = isMove ? cursorMin - grabOffsetRef.current : cursorMin;
+    const startMin = Math.round(rawStart / SNAP_MIN) * SNAP_MIN;
+    return { startMin, endMin: startMin + durationMin };
+  }, []);
+
+  const dragDuration = (bank?: BankSession, item?: AgendaItem) =>
+    bank
+      ? Number(bank.duration_minutes) || 30
+      : item
+      ? timeToMinutes(item.end_time) - timeToMinutes(item.start_time)
+      : 60;
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const bankSession = event.active.data.current?.session as BankSession | undefined;
     const agendaItem = event.active.data.current?.agendaItem as AgendaItem | undefined;
-    setGrabOffsetMin(0);
+    grabOffsetRef.current = 0;
+    pointerRef.current = eventPoint(event.activatorEvent);
+    stopTrackingPointer();
+    const onMove = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
+    pointerListenerRef.current = onMove;
+    window.addEventListener("pointermove", onMove);
+
     if (bankSession) {
       setActiveDrag(bankSession);
       setActiveDragType("bank");
     } else if (agendaItem) {
       setActiveDrag(agendaItem);
       setActiveDragType("agenda");
-      const p = eventPoint(event.activatorEvent);
+      const p = pointerRef.current;
       const blockTop = event.active.rect.current.initial?.top;
-      if (p && blockTop !== undefined) setGrabOffsetMin(Math.max(0, (p.y - blockTop) / PX_PER_MIN));
+      if (p && blockTop !== undefined) grabOffsetRef.current = Math.max(0, (p.y - blockTop) / PX_PER_MIN);
     }
-  }, []);
+  }, [stopTrackingPointer]);
+
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
+    const dayNumber = (event.over?.data.current as { dayNumber?: number } | undefined)?.dayNumber;
+    if (!dayNumber) {
+      setDropPreview((prev) => (prev ? null : prev));
+      return;
+    }
+    const bankSession = event.active.data.current?.session as BankSession | undefined;
+    const agendaItem = event.active.data.current?.agendaItem as AgendaItem | undefined;
+    const t = computeTarget(dayNumber, dragDuration(bankSession, agendaItem), !!agendaItem);
+    if (!t) return;
+    setDropPreview((prev) => {
+      if (prev && prev.dayNumber === dayNumber && prev.startMin === t.startMin && prev.endMin === t.endMin) return prev;
+      const conflict = findSlotConflict(
+        (agendaData?.items ?? []) as AgendaItem[],
+        dayNumber,
+        t.startMin,
+        t.endMin,
+        agendaItem?.id
+      );
+      return { dayNumber, ...t, conflict };
+    });
+  }, [computeTarget, agendaData]);
+
+  const handleDragCancel = useCallback(() => {
+    stopTrackingPointer();
+    setActiveDrag(null);
+    setActiveDragType(null);
+    setDropPreview(null);
+  }, [stopTrackingPointer]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     lastDragEndRef.current = Date.now();
+    stopTrackingPointer();
     setActiveDrag(null);
     setActiveDragType(null);
+    setDropPreview(null);
     const { over, active } = event;
     if (!over) return;
 
@@ -188,23 +259,9 @@ export default function AgendaScheduleTab() {
     if (!dropData?.dayNumber) return;
     const { dayNumber } = dropData;
 
-    // Where the cursor is now, measured against the column's live on-screen position
-    // (so scrolling the calendar during the drag doesn't throw the time off).
-    const startPoint = eventPoint(event.activatorEvent);
-    const column = document.getElementById(`day-col-${dayNumber}`);
-    if (!startPoint || !column) return;
-    const pointerY = startPoint.y + event.delta.y;
-    const cursorMin = GRID_START_MIN + (pointerY - column.getBoundingClientRect().top) / PX_PER_MIN;
-    // Bank sessions start at the cursor; calendar moves keep the spot you grabbed the block by.
-    const rawStart = agendaItem ? cursorMin - grabOffsetMin : cursorMin;
-    const startMin = Math.round(rawStart / SNAP_MIN) * SNAP_MIN;
-
-    const durationMin = bankSession
-      ? Number(bankSession.duration_minutes) || 30
-      : agendaItem
-      ? timeToMinutes(agendaItem.end_time) - timeToMinutes(agendaItem.start_time)
-      : 60;
-    const endMin = startMin + durationMin;
+    const target = computeTarget(dayNumber, dragDuration(bankSession, agendaItem), !!agendaItem);
+    if (!target) return;
+    const { startMin, endMin } = target;
     const slotTime = minutesToTime(Math.max(startMin, 0));
 
     // Dropped in the same spot — nothing to do.
@@ -257,7 +314,7 @@ export default function AgendaScheduleTab() {
       toast.error(`Couldn't schedule "${bankSession?.title ?? "session"}": ${errMsg(err)}`);
     }
     refetchAgenda();
-  }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey, grabOffsetMin]);
+  }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey, computeTarget, stopTrackingPointer]);
 
   // Edit timing of one calendar session (does not change the Session Bank default).
   const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string) => {
@@ -344,8 +401,9 @@ export default function AgendaScheduleTab() {
       sensors={sensors}
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => { setActiveDrag(null); setActiveDragType(null); }}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col gap-4 p-6 max-w-7xl">
         {/* Admin controls */}
@@ -405,6 +463,7 @@ export default function AgendaScheduleTab() {
                         isAdmin={isAdmin}
                         onRemoveItem={handleRemoveItem}
                         onEditItem={openEditor}
+                        dropPreview={dropPreview?.dayNumber === day ? dropPreview : null}
                         onClearDay={handleClearDay}
                         showHeader={false}
                         currentTimeMinutes={currentDayNumber === day ? currentTimeMinutes : null}
