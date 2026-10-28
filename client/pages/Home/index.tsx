@@ -10,6 +10,7 @@ import ManagerRegistrationForm from "@/components/ManagerRegistrationForm";
 import AnnouncementsFeed from "@/components/AnnouncementsFeed/index.js";
 import RoleChooser, { type JoinRole } from "@/components/RoleChooser/index.js";
 import CounselorAccessForm from "@/components/CounselorAccessForm/index.js";
+import RejoinPendingNotice from "@/components/RejoinPendingNotice/index.js";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { IconName } from "lucide-react/dynamic";
 
@@ -68,6 +69,11 @@ export default function HomePage() {
         </div>
       </div>
     );
+  }
+
+  // Removed by a counselor, then registered again: wait for a counselor to restore them
+  if (data?.rejoinPending && !isAdmin) {
+    return <RejoinPendingNotice />;
   }
 
   // Not registered as camper or manager, and not a verified counselor: choose how you're joining

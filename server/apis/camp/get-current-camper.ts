@@ -38,6 +38,8 @@ const CamperSchema = z.object({
   team_id: z.coerce.number().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
+  removed_at: z.string().nullable().optional(),
+  rejoin_requested_at: z.string().nullable().optional(),
 });
 
 export default api({
@@ -52,6 +54,10 @@ export default api({
   output: z.object({
     camper: CamperSchema.nullable(),
     isRegistered: z.boolean(),
+    /** A counselor removed this person. They can register again but stay hidden until restored. */
+    isRemoved: z.boolean(),
+    /** Removed, re-registered, and waiting for a counselor to restore them. */
+    rejoinPending: z.boolean(),
   }),
   async run(ctx, { email }) {
     const campers = await ctx.integrations.camp_201_db.query(
@@ -62,9 +68,15 @@ export default api({
     );
 
     if (campers.length === 0) {
-      return { camper: null, isRegistered: false };
+      return { camper: null, isRegistered: false, isRemoved: false, rejoinPending: false };
     }
 
-    return { camper: campers[0], isRegistered: true };
+    // Removed cAMPers are treated as not registered everywhere in the app.
+    const camper = campers[0];
+    if (camper.removed_at) {
+      return { camper: null, isRegistered: false, isRemoved: true, rejoinPending: !!camper.rejoin_requested_at };
+    }
+
+    return { camper, isRegistered: true, isRemoved: false, rejoinPending: false };
   },
 });

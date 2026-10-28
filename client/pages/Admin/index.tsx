@@ -253,7 +253,7 @@ export default function AdminPage() {
             <LayOfTheLand onNavigate={handleNavigate} />
           )}
           {view === "campers" && (
-            <AdminLearnerGrid cohortId={viewCohortId} onCamperClick={handleCamperClick} />
+            <AdminLearnerGrid cohortId={viewCohortId} onCamperClick={handleCamperClick} canEdit={!isReadOnly} />
           )}
           {view === "camper-detail" && selectedCamperId && (
             <AdminCamperDetail camperId={selectedCamperId} onBack={handleBack} />

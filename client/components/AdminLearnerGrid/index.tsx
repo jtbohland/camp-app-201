@@ -1,17 +1,57 @@
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { queryClient } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
+import { useApi } from "@/hooks/useApi";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
+import ConfirmRemoveCamperDialog from "@/components/ConfirmRemoveCamperDialog/index.js";
+import RemovedCampersList from "@/components/RemovedCampersList/index.js";
+import { errorMessage } from "@/lib/cohortRefresh";
+import { refreshRosterViews } from "@/lib/camperRemoval";
 
 interface Props {
   cohortId: number | null;
   onCamperClick: (camperId: number) => void;
+  /** False while viewing a past cohort (read-only). */
+  canEdit: boolean;
 }
 
-export default function AdminLearnerGrid({ cohortId, onCamperClick }: Props) {
-  const { data, loading, fetching } = useApiData("GetAdminCampers", {
-    cohort_id: cohortId,
-  });
+type CampersData = { campers: Array<{ id: number; points: number }>; total_points: number; total_campers: number };
+
+export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: Props) {
+  const inputs = useMemo(() => ({ cohort_id: cohortId }), [cohortId]);
+  const { data, loading, fetching } = useApiData("GetAdminCampers", inputs);
+  const { run: removeCamper } = useApi("RemoveCamper");
+  const [pendingRemove, setPendingRemove] = useState<{ id: number; name: string } | null>(null);
+
+  const handleConfirmRemove = useCallback(async () => {
+    if (!pendingRemove) return;
+    const { id, name } = pendingRemove;
+    setPendingRemove(null);
+
+    // Take the card off the grid right away; put it back if the request fails.
+    const cacheKey = queryClient.buildCacheKey("GetAdminCampers", inputs);
+    const previous = queryClient.getQueryData<CampersData>(cacheKey);
+    if (previous) {
+      const removed = previous.campers.find((c) => c.id === id);
+      queryClient.setQueryData<CampersData>(cacheKey, {
+        ...previous,
+        campers: previous.campers.filter((c) => c.id !== id),
+        total_campers: previous.total_campers - 1,
+        total_points: previous.total_points - (removed?.points ?? 0),
+      });
+    }
+    try {
+      await removeCamper({ camper_id: id });
+      toast.success(`${name} was removed. Their profile and points are saved.`);
+      await refreshRosterViews();
+    } catch (error) {
+      if (previous) queryClient.setQueryData<CampersData>(cacheKey, previous);
+      toast.error("Couldn't remove: " + errorMessage(error));
+    }
+  }, [pendingRemove, removeCamper, inputs]);
 
   if (loading) {
     return (
@@ -66,9 +106,25 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick }: Props) {
                 </h3>
                 <p className="text-xs text-gray-500 truncate max-w-[160px]">{camper.email}</p>
               </div>
-              <div className="flex items-center gap-1 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-xs font-semibold">
-                <Icon name="star" className="w-3 h-3" />
-                {camper.points}
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-xs font-semibold">
+                  <Icon name="star" className="w-3 h-3" />
+                  {camper.points}
+                </div>
+                {canEdit && (
+                  <button
+                    type="button"
+                    title="Remove from cAMP"
+                    aria-label={`Remove ${camper.first_name} ${camper.last_name} from cAMP`}
+                    className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingRemove({ id: camper.id, name: `${camper.first_name} ${camper.last_name}` });
+                    }}
+                  >
+                    <Icon icon="user-x" className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -123,6 +179,14 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick }: Props) {
           <p className="text-lg">No learners in this cohort yet</p>
         </div>
       )}
+
+      <RemovedCampersList canEdit={canEdit} />
+
+      <ConfirmRemoveCamperDialog
+        name={pendingRemove?.name ?? null}
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={handleConfirmRemove}
+      />
     </div>
   );
 }

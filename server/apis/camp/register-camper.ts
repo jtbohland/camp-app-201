@@ -54,6 +54,8 @@ export default api({
   output: z.object({
     camper: CamperSchema,
     pointsAwarded: z.number(),
+    /** True when this person had been removed: they're saved but wait for a counselor to restore them. */
+    pendingApproval: z.boolean(),
   }),
   async run(ctx, input) {
     // Get active cohort
@@ -68,19 +70,22 @@ export default api({
 
     // Check if already registered — prevents double points
     const existing = await ctx.integrations.camp_201_db.query(
-      `SELECT id, points FROM camp201_campers WHERE email = $1 LIMIT 1`,
-      z.object({ id: z.coerce.number(), points: z.coerce.number() }),
+      `SELECT id, points, (removed_at IS NOT NULL) AS is_removed FROM camp201_campers WHERE email = $1 LIMIT 1`,
+      z.object({ id: z.coerce.number(), points: z.coerce.number(), is_removed: z.boolean() }),
       [input.email],
       { label: "Check existing registration" }
     );
 
     if (existing.length > 0) {
-      // Already registered — update info but DON'T award points again
+      // Already registered — update info but DON'T award points again.
+      // A removed cAMPer registering again stays hidden and is flagged for a counselor to restore.
+      const isRemoved = existing[0].is_removed;
       await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET
            first_name = $2, last_name = $3, role = $4, manager = $5,
            region = $6, country = $7, city = $8, start_date = $9::date,
            manager_email = COALESCE($10, manager_email),
+           rejoin_requested_at = CASE WHEN removed_at IS NOT NULL THEN NOW() ELSE NULL END,
            updated_at = NOW()
          WHERE email = $1`,
         [
@@ -104,7 +109,7 @@ export default api({
         [input.email],
         { label: "Fetch updated camper" }
       );
-      return { camper: campers[0], pointsAwarded: 0 };
+      return { camper: campers[0], pointsAwarded: 0, pendingApproval: isRemoved };
     }
 
     // Generate unique 4-digit PIN
@@ -162,6 +167,6 @@ export default api({
       { label: "Award registration points" }
     );
 
-    return { camper, pointsAwarded: 10 };
+    return { camper, pointsAwarded: 10, pendingApproval: false };
   },
 });

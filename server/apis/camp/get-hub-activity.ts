@@ -31,6 +31,7 @@ export default api({
        FROM camp201_hub_items h
        JOIN camp201_campers c ON c.id = h.author_id
        LEFT JOIN camp201_teams t ON t.id = c.team_id
+       WHERE c.removed_at IS NULL
        GROUP BY h.author_id, c.first_name, c.last_name, t.name
        ORDER BY contribution_count DESC
        LIMIT 100`,
