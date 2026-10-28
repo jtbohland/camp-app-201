@@ -15,6 +15,33 @@ export function isCounselorSql(alias: string): string {
   return `(${alias}.role IN ('counselor', 'admin') OR EXISTS (SELECT 1 FROM camp201_admins adm WHERE lower(adm.email) = lower(${alias}.email)))`;
 }
 
+/**
+ * SQL that matches a cohort's new-hire list rows to the camper row (aliased `alias`),
+ * by linked camper_id or by email. `cohortSql` must be a constant or a cohortIdSql() value.
+ */
+function newHireMatchSql(alias: string, cohortSql: string, extra = ""): string {
+  return `EXISTS (SELECT 1 FROM camp201_new_hires nh
+    WHERE nh.cohort_id = ${cohortSql}
+      AND (nh.camper_id = ${alias}.id OR lower(nh.email) = lower(${alias}.email))${extra})`;
+}
+
+/**
+ * SQL condition: true when a camper should go on a team. They must not be a counselor, and either
+ * be marked Accepted on the cohort's new-hire list, or not be on that list at all (signed up directly).
+ * People on the list as Invited or Declined are left out.
+ */
+export function isTeamEligibleSql(alias: string, cohortSql: string): string {
+  return `(NOT ${isCounselorSql(alias)} AND (
+    ${newHireMatchSql(alias, cohortSql, " AND nh.status = 'accepted'")}
+    OR NOT ${newHireMatchSql(alias, cohortSql)}
+  ))`;
+}
+
+/** SQL condition: true when the camper is on the cohort's new-hire list at all. */
+export function isOnNewHireListSql(alias: string, cohortSql: string): string {
+  return newHireMatchSql(alias, cohortSql);
+}
+
 /** Returns the active cohort id, or null when no cohort is active. */
 export async function getActiveCohortId(db: any): Promise<number | null> {
   const rows = await db.query(

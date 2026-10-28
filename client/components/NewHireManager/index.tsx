@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { queryClient } from "@superblocksteam/library";
 import NewHireRow, { HIRE_STATUSES, normalizeStatus, type HireStatus } from "@/components/NewHireRow/index.js";
 import EditNewHireDialog, { type EditableHire } from "@/components/EditNewHireDialog/index.js";
 
@@ -103,6 +104,8 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
       await updateStatus({ hire_id: hireId, status: newStatus, cohort_id: cohortId });
       toast.success(`Status updated to ${newStatus}`);
       refetch();
+      // Keep the team generator's "confirmed cAMPers" count in step.
+      queryClient.invalidateQueries("GetTeamGeneratorPreview");
     } catch (err) {
       const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
       toast.error(msg);

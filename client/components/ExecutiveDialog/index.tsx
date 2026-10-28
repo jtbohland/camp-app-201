@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
+import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
 type Executive = {
   id: number;
@@ -89,13 +90,29 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">Photo URL</label>
-            <input
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="https://..."
-            />
+            <label className="text-sm font-medium text-foreground mb-2 block">Photo</label>
+            <div className="flex items-center gap-4">
+              <ProfilePhotoUpload
+                currentPhotoUrl={photoUrl || null}
+                email=""
+                name={name || "Executive"}
+                onChange={setPhotoUrl}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">
+                  Click the photo or drag & drop an image to upload (PNG, JPG, GIF, or WebP, under 2MB).
+                </p>
+                {photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setPhotoUrl("")}
+                    className="mt-1 text-xs font-medium text-destructive hover:underline"
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">Bio</label>

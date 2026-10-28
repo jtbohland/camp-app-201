@@ -14,20 +14,20 @@ import {
 import { toast } from "sonner";
 import CompanyAssignment from "./CompanyAssignment";
 import TeamCountButton from "./TeamCountButton";
+import EligibilitySummary from "./EligibilitySummary";
 import { recommendedTeamCount, teamCountOptions, teamSizeLabel } from "./teamSizing";
 
 export default function AdminTeamGenerator() {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const { run: generateTeams, loading: generating } = useApi("AutoGenerateTeams");
   const { data: teamsData, refetch: refetchTeams } = useApiData("GetTeams", {});
-  const { data: camperData } = useApiData("GetRegisteredCampers", {});
+  // Same rule the generator uses: Accepted (or signed up but not on the list), minus counselors.
+  const { data: preview, refetch: refetchPreview } = useApiData("GetTeamGeneratorPreview", {});
 
   const existingTeams = teamsData?.teams ?? [];
-  const people = camperData?.campers ?? [];
-  const camperCount = useMemo(() => people.filter((c) => !c.is_counselor).length, [people]);
-  const counselorCount = people.length - camperCount;
-  const recommended = recommendedTeamCount(camperCount);
-  const options = teamCountOptions(camperCount);
+  const camperCount = preview?.eligible_count ?? 0;
+  const recommended = useMemo(() => recommendedTeamCount(camperCount), [camperCount]);
+  const options = useMemo(() => teamCountOptions(camperCount), [camperCount]);
 
   const handleGenerate = useCallback(async () => {
     if (pendingCount === null) return;
@@ -36,6 +36,7 @@ export default function AdminTeamGenerator() {
       if (result?.success) {
         toast.success(result.message);
         refetchTeams();
+        refetchPreview();
       } else {
         toast.error(result?.message ?? "Failed to generate teams");
       }
@@ -46,7 +47,7 @@ export default function AdminTeamGenerator() {
     } finally {
       setPendingCount(null);
     }
-  }, [pendingCount, generateTeams, refetchTeams]);
+  }, [pendingCount, generateTeams, refetchTeams, refetchPreview]);
 
   return (
     <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
@@ -55,28 +56,28 @@ export default function AdminTeamGenerator() {
         Auto-Generate Teams
       </h2>
       <p className="text-sm text-muted-foreground mb-5">
-        Creates balanced teams by spreading cAMPers across regions and roles. Counselors are never put on a team.
+        Creates balanced teams from confirmed cAMPers (Accepted in Cohort Management), spread across regions and roles. Counselors are never put on a team.
       </p>
 
       {existingTeams.length > 0 ? (
         <CompanyAssignment teams={existingTeams} onChanged={refetchTeams} />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-            <span className="font-semibold text-foreground">
-              {camperCount} cAMPer{camperCount !== 1 ? "s" : ""} to place
-            </span>
-            {counselorCount > 0 && (
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Icon icon="shield-check" className="w-3.5 h-3.5" />
-                {counselorCount} counselor{counselorCount !== 1 ? "s" : ""} left off teams
-              </span>
-            )}
-          </div>
+          {preview ? (
+            <EligibilitySummary
+              eligibleCount={preview.eligible_count}
+              acceptedCount={preview.accepted_count}
+              counselorCount={preview.counselor_count}
+              notOnList={preview.signed_up_not_on_list}
+              leftOut={preview.left_out}
+            />
+          ) : (
+            <div className="h-5 w-48 rounded bg-muted animate-pulse" />
+          )}
 
           {camperCount < 4 ? (
             <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-              You need at least 4 cAMPers (not counselors) to create 2 teams.
+              You need at least 4 confirmed cAMPers (not counselors) to create 2 teams.
             </p>
           ) : (
             <div className="flex flex-wrap gap-3 pt-2">
@@ -100,7 +101,7 @@ export default function AdminTeamGenerator() {
           <DialogHeader>
             <DialogTitle>Create {pendingCount} teams?</DialogTitle>
             <DialogDescription>
-              {camperCount} cAMPers will be split into {pendingCount} teams
+              {camperCount} confirmed cAMPers will be split into {pendingCount} teams
               ({pendingCount ? teamSizeLabel(camperCount, pendingCount) : ""} per team), balanced by region and role.
               Counselors stay off teams. To redo it later, you'll need to delete the teams first.
             </DialogDescription>

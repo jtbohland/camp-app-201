@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { assertNotViewingPast, getActiveCohortId, isCounselorSql } from "../../lib/cohort.js";
+import { assertNotViewingPast, cohortIdSql, getActiveCohortId, isCounselorSql, isTeamEligibleSql } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -48,7 +48,7 @@ function balancedAssign(
 
 export default api({
   name: "AutoGenerateTeams",
-  description: "Auto-creates balanced teams from registered campers, distributed by region and role",
+  description: "Auto-creates balanced teams from Accepted cAMPers, excluding counselors",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
@@ -71,12 +71,12 @@ export default api({
       return { success: false, message: "No active cohort. Create one in Cohort Management first.", teams: [] };
     }
 
-    // Get the active cohort's cAMPers. Counselors never go on a team — excluded by role
-    // AND by the admin list, so a counselor with a regular job title is still left out.
+    // Only people who are coming: Accepted on the new-hire list, or signed up without being on it.
+    // Invited/Declined are left out. Counselors never go on a team (by role or admin list).
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.region, c.role
        FROM camp201_campers c
-       WHERE c.cohort_id = $1 AND NOT ${isCounselorSql("c")}
+       WHERE c.cohort_id = $1 AND ${isTeamEligibleSql("c", cohortIdSql(cohortId))}
        ORDER BY c.id
        LIMIT 500`,
       z.object({
@@ -91,11 +91,11 @@ export default api({
     );
 
     if (campers.length === 0) {
-      return { success: false, message: "No campers registered yet", teams: [] };
+      return { success: false, message: "No confirmed cAMPers yet. Mark new hires as Accepted in Cohort Management first.", teams: [] };
     }
 
     if (campers.length < num_teams * 2) {
-      return { success: false, message: `Only ${campers.length} cAMPers (not counting counselors) — need at least ${num_teams * 2} for ${num_teams} teams`, teams: [] };
+      return { success: false, message: `Only ${campers.length} confirmed cAMPers (not counting counselors) — need at least ${num_teams * 2} for ${num_teams} teams`, teams: [] };
     }
 
     // Check if teams already exist
@@ -151,7 +151,7 @@ export default api({
 
     return {
       success: true,
-      message: `Created ${num_teams} teams with ${campers.length} campers balanced by region and role`,
+      message: `Created ${num_teams} teams with ${campers.length} confirmed cAMPers, balanced by region and role`,
       teams: createdTeams,
     };
   },
