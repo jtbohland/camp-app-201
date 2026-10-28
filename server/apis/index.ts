@@ -126,6 +126,7 @@ import GetTeamGeneratorPreview from './camp/get-team-generator-preview.js';
 import UpdateCounselorProfile from './camp/update-counselor-profile.js';
 import MigrateCounselorVisibility from './camp/migrate-counselor-visibility.js';
 import ToggleCounselorVisibility from './camp/toggle-counselor-visibility.js';
+import { RemoveCamper, RestoreCamper, GetRemovedCampers } from './camp/camper-removal.js';
 import UpdateTeamDesign from './camp/update-team-design.js';
 import MigratePresentationsV2 from './camp/migrate-presentations-v2.js';
 import UpdatePresentation from './camp/update-presentation.js';
@@ -321,6 +322,9 @@ const apis = {
   UpdateCounselorProfile,
   MigrateCounselorVisibility,
   ToggleCounselorVisibility,
+  RemoveCamper,
+  RestoreCamper,
+  GetRemovedCampers,
   UpdateTeamDesign,
   MigratePresentationsV2,
   UpdatePresentation,

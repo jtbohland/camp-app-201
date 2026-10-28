@@ -67,7 +67,7 @@ export default api({
                 COUNT(*) FILTER (WHERE timing = 'late') as late_count
          FROM camp201_checkin_responses WHERE camper_id = c.id
        ) cr ON true
-       WHERE c.role != 'counselor' ${cohortFilter}
+       WHERE c.role != 'counselor' AND c.removed_at IS NULL ${cohortFilter}
        ORDER BY c.points DESC, c.last_name ASC
        LIMIT 100`,
       CamperMetricSchema,

@@ -56,7 +56,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
     }
 
     try {
-      await registerCamper({
+      const result = await registerCamper({
         email: userEmail,
         first_name: firstName,
         last_name: lastName,
@@ -68,7 +68,13 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
         city: city || null,
         start_date: startDate || null,
       });
-      toast.success("Welcome to cAMP 201! 🏕️ +10 points earned!");
+      if (result?.pendingApproval) {
+        toast.success("Thanks! A counselor will confirm your spot shortly.");
+      } else if (result?.pointsAwarded) {
+        toast.success("Welcome to cAMP 201! 🏕️ +10 points earned!");
+      } else {
+        toast.success("Welcome back to cAMP 201! 🏕️");
+      }
       onSuccess();
     } catch (error) {
       const message =

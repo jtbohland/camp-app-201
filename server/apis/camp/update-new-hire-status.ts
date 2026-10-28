@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { restoreCamper } from "../../lib/camper-removal.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -57,6 +58,11 @@ export default api({
       [hire_id, status, camperId, cohort_id],
       { label: "Update hire status" }
     );
+
+    // Marking a removed cAMPer as Accepted again brings them back with their points.
+    if (status === "accepted" && camperId) {
+      await restoreCamper(db, camperId);
+    }
 
     return { success: true, camper_id: camperId };
   },

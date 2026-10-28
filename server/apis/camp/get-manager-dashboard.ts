@@ -138,7 +138,7 @@ export default api({
        FROM camp201_manager_hires mh
        JOIN camp201_campers c ON c.id = mh.camper_id
        LEFT JOIN camp201_teams t ON t.id = c.team_id
-       WHERE mh.manager_id = $1
+       WHERE mh.manager_id = $1 AND c.removed_at IS NULL
        ORDER BY c.last_name, c.first_name
        LIMIT 50`,
       HireDetailSchema,
