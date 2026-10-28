@@ -21,11 +21,15 @@ type DayScheduleProps = {
   onClearDay?: (dayNumber: number) => void;
   showHeader?: boolean;
   currentTimeMinutes?: number | null;
+  /** Live "it will land here" ghost while dragging. */
+  dropPreview?: { startMin: number; endMin: number; conflict: string | null } | null;
 };
 
-/** Grid runs 8:30 AM → 5:00 PM. 40px per 30 minutes. */
+/** Grid runs 8:30 AM → 9:00 PM (evening covers team dinners / happy hours). 40px per 30 minutes. */
 const GRID_START_MIN = 8 * 60 + 30;
-const GRID_END_MIN = 17 * 60;
+const GRID_END_MIN = 21 * 60;
+/** Where the work day ends; time after this is lightly shaded as "evening". */
+const EVENING_START_MIN = 17 * 60;
 const SLOT_HEIGHT = 40;
 const PX_PER_MIN = SLOT_HEIGHT / 30;
 const GRID_HEIGHT = (GRID_END_MIN - GRID_START_MIN) * PX_PER_MIN;
@@ -156,7 +160,7 @@ export function TimeGutter() {
   );
 }
 
-export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onEditItem, onClearDay, showHeader = true, currentTimeMinutes = null }: DayScheduleProps) {
+export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRemoveItem, onEditItem, onClearDay, showHeader = true, currentTimeMinutes = null, dropPreview = null }: DayScheduleProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${dayNumber}`,
     data: { dayNumber },
@@ -215,6 +219,12 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
           </div>
         )}
 
+        {/* Evening (after 5 PM) is lightly shaded so the work day stays easy to read */}
+        <div
+          className="absolute left-0 right-0 bottom-0 pointer-events-none bg-muted/40 rounded-b"
+          style={{ top: `${(EVENING_START_MIN - GRID_START_MIN) * PX_PER_MIN}px` }}
+        />
+
         {/* Grid lines: solid on the hour, faint dashed on the half hour */}
         {TIME_SLOTS.map((slot, idx) => {
           const isHour = slot.endsWith(":00");
@@ -226,6 +236,28 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
             />
           );
         })}
+
+        {dropPreview && (
+          <div
+            className={`absolute left-1 right-1 z-30 pointer-events-none rounded-md border-2 border-dashed px-2 flex items-start ${
+              dropPreview.conflict
+                ? "border-destructive/70 bg-destructive/10 text-destructive"
+                : "border-camp-green bg-camp-green/10 text-camp-green"
+            }`}
+            style={{
+              top: `${(Math.max(dropPreview.startMin, GRID_START_MIN) - GRID_START_MIN) * PX_PER_MIN}px`,
+              height: `${Math.max(
+                (Math.min(dropPreview.endMin, GRID_END_MIN) - Math.max(dropPreview.startMin, GRID_START_MIN)) * PX_PER_MIN,
+                14
+              )}px`,
+            }}
+          >
+            <span className="text-[11px] font-semibold leading-tight bg-background/90 rounded px-1 mt-0.5 truncate">
+              {formatTime(minutesToTime(Math.max(dropPreview.startMin, 0)))} – {formatTime(minutesToTime(Math.max(dropPreview.endMin, 0)))}
+              {dropPreview.conflict ? " · can't place here" : ""}
+            </span>
+          </div>
+        )}
 
         {allItems.map((item) => {
           const itemEnd = timeToMinutes(item.end_time);
