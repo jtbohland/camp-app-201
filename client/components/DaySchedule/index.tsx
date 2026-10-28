@@ -25,9 +25,11 @@ type DayScheduleProps = {
   dropPreview?: { startMin: number; endMin: number; conflict: string | null } | null;
 };
 
-/** Grid runs 8:30 AM → 5:00 PM. 40px per 30 minutes. */
+/** Grid runs 8:30 AM → 9:00 PM (evening covers team dinners / happy hours). 40px per 30 minutes. */
 const GRID_START_MIN = 8 * 60 + 30;
-const GRID_END_MIN = 17 * 60;
+const GRID_END_MIN = 21 * 60;
+/** Where the work day ends; time after this is lightly shaded as "evening". */
+const EVENING_START_MIN = 17 * 60;
 const SLOT_HEIGHT = 40;
 const PX_PER_MIN = SLOT_HEIGHT / 30;
 const GRID_HEIGHT = (GRID_END_MIN - GRID_START_MIN) * PX_PER_MIN;
@@ -216,6 +218,12 @@ export default function DaySchedule({ dayNumber, dayLabel, items, isAdmin, onRem
             </div>
           </div>
         )}
+
+        {/* Evening (after 5 PM) is lightly shaded so the work day stays easy to read */}
+        <div
+          className="absolute left-0 right-0 bottom-0 pointer-events-none bg-muted/40 rounded-b"
+          style={{ top: `${(EVENING_START_MIN - GRID_START_MIN) * PX_PER_MIN}px` }}
+        />
 
         {/* Grid lines: solid on the hour, faint dashed on the half hour */}
         {TIME_SLOTS.map((slot, idx) => {
