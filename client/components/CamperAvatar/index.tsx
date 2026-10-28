@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   email: string;
@@ -17,6 +17,8 @@ const SIZES = {
 
 export default function CamperAvatar({ email, photoUrl, name, size = "md", className = "" }: Props) {
   const [imgError, setImgError] = useState(false);
+  // A newly uploaded photo should replace a previously broken one.
+  useEffect(() => setImgError(false), [photoUrl]);
   const sizeConfig = SIZES[size];
 
   const initials = name
