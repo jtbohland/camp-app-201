@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -25,12 +25,14 @@ import DaySchedule, {
   TimeGutter,
   timeToMinutes,
   minutesToTime,
+  formatTime,
   GRID_START_MIN,
-  GRID_END_MIN,
   PX_PER_MIN,
 } from "@/components/DaySchedule";
 import AgendaResources from "@/components/AgendaResources/index.js";
 import ConfirmRemoveDialog from "@/components/ConfirmRemoveDialog/index.js";
+import EditAgendaItemDialog from "@/components/EditAgendaItemDialog/index.js";
+import { findSlotConflict, eventPoint } from "@/lib/agendaRules";
 
 const SNAP_MIN = 15;
 
@@ -85,6 +87,16 @@ export default function AgendaScheduleTab() {
   const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
   const [activeDragType, setActiveDragType] = useState<"bank" | "agenda" | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ id: number; title: string } | null>(null);
+  const [editingItem, setEditingItem] = useState<AgendaItem | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  // For calendar moves: how far below the block's top edge the cursor grabbed it (in minutes).
+  const [grabOffsetMin, setGrabOffsetMin] = useState(0);
+  // Ignore the stray click some browsers fire right after a drag ends.
+  const lastDragEndRef = useRef(0);
+  const openEditor = useCallback((item: AgendaItem) => {
+    if (Date.now() - lastDragEndRef.current < 300) return;
+    setEditingItem(item);
+  }, []);
 
   // Require a small drag distance so clicks (like the remove button) still register as clicks.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -143,16 +155,21 @@ export default function AgendaScheduleTab() {
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const bankSession = event.active.data.current?.session as BankSession | undefined;
     const agendaItem = event.active.data.current?.agendaItem as AgendaItem | undefined;
+    setGrabOffsetMin(0);
     if (bankSession) {
       setActiveDrag(bankSession);
       setActiveDragType("bank");
     } else if (agendaItem) {
       setActiveDrag(agendaItem);
       setActiveDragType("agenda");
+      const p = eventPoint(event.activatorEvent);
+      const blockTop = event.active.rect.current.initial?.top;
+      if (p && blockTop !== undefined) setGrabOffsetMin(Math.max(0, (p.y - blockTop) / PX_PER_MIN));
     }
   }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    lastDragEndRef.current = Date.now();
     setActiveDrag(null);
     setActiveDragType(null);
     const { over, active } = event;
@@ -171,48 +188,37 @@ export default function AgendaScheduleTab() {
     if (!dropData?.dayNumber) return;
     const { dayNumber } = dropData;
 
-    // Work out the start time from where the dragged block's top edge landed, snapped to 15 min.
-    const draggedTop = active.rect.current.translated?.top ?? over.rect.top;
-    const rawMin = GRID_START_MIN + (draggedTop - over.rect.top) / PX_PER_MIN;
-    const snapped = Math.round(rawMin / SNAP_MIN) * SNAP_MIN;
+    // Where the cursor is now, measured against the column's live on-screen position
+    // (so scrolling the calendar during the drag doesn't throw the time off).
+    const startPoint = eventPoint(event.activatorEvent);
+    const column = document.getElementById(`day-col-${dayNumber}`);
+    if (!startPoint || !column) return;
+    const pointerY = startPoint.y + event.delta.y;
+    const cursorMin = GRID_START_MIN + (pointerY - column.getBoundingClientRect().top) / PX_PER_MIN;
+    // Bank sessions start at the cursor; calendar moves keep the spot you grabbed the block by.
+    const rawStart = agendaItem ? cursorMin - grabOffsetMin : cursorMin;
+    const startMin = Math.round(rawStart / SNAP_MIN) * SNAP_MIN;
 
-    const sessionTitle = bankSession?.title ?? agendaItem?.title ?? "";
-    const sessionType = bankSession?.session_type ?? agendaItem?.session_type ?? "session";
     const durationMin = bankSession
-      ? bankSession.duration_minutes
+      ? Number(bankSession.duration_minutes) || 30
       : agendaItem
       ? timeToMinutes(agendaItem.end_time) - timeToMinutes(agendaItem.start_time)
       : 60;
-
-    const startMin = Math.min(Math.max(snapped, GRID_START_MIN), GRID_END_MIN - durationMin);
     const endMin = startMin + durationMin;
-    const slotTime = minutesToTime(startMin);
-
-    if (startMin < GRID_START_MIN) {
-      toast.error("Session is too long to fit in the day");
-      return;
-    }
+    const slotTime = minutesToTime(Math.max(startMin, 0));
 
     // Dropped in the same spot — nothing to do.
     if (agendaItem && agendaItem.day_number === dayNumber && agendaItem.start_time.slice(0, 5) === slotTime) return;
 
-    const lunchStart = 12 * 60;
-    const lunchEnd = 13 * 60;
-    if (startMin < lunchEnd && endMin > lunchStart) {
-      toast.error("Session overlaps with lunch (12–1 PM)");
-      return;
-    }
-
-    // Check overlaps (exclude the item being moved)
-    const dayItems = agendaData?.items?.filter((i: any) => i.day_number === dayNumber && i.id !== agendaItem?.id) ?? [];
-    const hasOverlap = dayItems.some((item: any) => {
-      const iStart = timeToMinutes(item.start_time);
-      const iEnd = timeToMinutes(item.end_time);
-      return startMin < iEnd && endMin > iStart;
-    });
-
-    if (hasOverlap) {
-      toast.error("Time slot already occupied");
+    const conflict = findSlotConflict(
+      (agendaData?.items ?? []) as AgendaItem[],
+      dayNumber,
+      startMin,
+      endMin,
+      agendaItem?.id
+    );
+    if (conflict) {
+      toast.error(`Can't place at ${formatTime(slotTime)}: ${conflict}`);
       return;
     }
 
@@ -236,26 +242,46 @@ export default function AgendaScheduleTab() {
 
     try {
       if (bankSession) {
-        // Create new from bank
+        // Always uses the Session Bank's default length.
         await scheduleSession({
           session_bank_id: bankSession.id,
           day_number: dayNumber,
           start_time: slotTime,
           end_time: endTime,
-          title: bankSession.title,
-          session_type: bankSession.session_type,
+          title: bankSession.title || "Untitled session",
+          session_type: bankSession.session_type || "session",
         });
-        toast.success(`Scheduled "${bankSession.title}"`);
+        toast.success(`Scheduled "${bankSession.title}" at ${formatTime(slotTime)}`);
       }
-      refetchAgenda();
     } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : String(err);
-      toast.error("Failed: " + message);
+      toast.error(`Couldn't schedule "${bankSession?.title ?? "session"}": ${errMsg(err)}`);
     }
-  }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey]);
+    refetchAgenda();
+  }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey, grabOffsetMin]);
+
+  // Edit timing of one calendar session (does not change the Session Bank default).
+  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string) => {
+    setSavingEdit(true);
+    const prev = patchAgenda((items) =>
+      items.map((i) => (i.id === item.id ? { ...i, start_time: startTime, end_time: endTime } : i))
+    );
+    try {
+      await moveItem({ id: item.id, day_number: item.day_number, start_time: startTime, end_time: endTime });
+      toast.success(`Updated "${item.title}" to ${formatTime(startTime)} – ${formatTime(endTime)}`);
+      setEditingItem(null);
+    } catch (err) {
+      if (prev) queryClient.setQueryData(agendaKey, prev);
+      toast.error("Couldn't update session: " + errMsg(err));
+    }
+    setSavingEdit(false);
+    refetchAgenda();
+  }, [patchAgenda, moveItem, agendaKey, refetchAgenda]);
+
+  const editingDefaultMinutes = useMemo(() => {
+    if (!editingItem?.session_bank_id) return null;
+    const s = bankData?.sessions?.find((b: any) => b.id === editingItem.session_bank_id);
+    return s ? Number(s.duration_minutes) : null;
+  }, [editingItem, bankData]);
 
   // The ✕ button asks first; the actual removal happens in confirmRemove.
   const handleRemoveItem = useCallback((id: number) => {
@@ -378,6 +404,7 @@ export default function AgendaScheduleTab() {
                         items={agendaItems.filter((item: any) => item.day_number === day)}
                         isAdmin={isAdmin}
                         onRemoveItem={handleRemoveItem}
+                        onEditItem={openEditor}
                         onClearDay={handleClearDay}
                         showHeader={false}
                         currentTimeMinutes={currentDayNumber === day ? currentTimeMinutes : null}
@@ -410,6 +437,15 @@ export default function AgendaScheduleTab() {
           camperId={camperId}
         />
       </div>
+
+      <EditAgendaItemDialog
+        item={editingItem}
+        allItems={agendaItems as AgendaItem[]}
+        defaultMinutes={editingDefaultMinutes}
+        saving={savingEdit}
+        onCancel={() => setEditingItem(null)}
+        onSave={handleSaveEdit}
+      />
 
       <ConfirmRemoveDialog
         title={pendingRemove?.title ?? null}

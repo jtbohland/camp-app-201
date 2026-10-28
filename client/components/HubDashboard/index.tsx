@@ -9,7 +9,7 @@ type Props = {
 };
 
 export default function HubDashboard({ onNavigate }: Props) {
-  const { data, loading, fetching } = useApiData("GetHubDashboard", {});
+  const { data, loading, fetching, refetch } = useApiData("GetHubDashboard", {});
 
   if (loading) {
     return (
@@ -23,7 +23,23 @@ export default function HubDashboard({ onNavigate }: Props) {
     );
   }
 
-  const d = data!;
+  if (!data) {
+    return (
+      <Card className="flex flex-col items-center gap-3 p-8 text-center">
+        <Icon icon="cloud-off" className="h-8 w-8 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Couldn't load the dashboard. The service may be busy.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-sm font-medium text-camp-green hover:underline"
+        >
+          Try again
+        </button>
+      </Card>
+    );
+  }
+
+  const d = data;
 
   return (
     <div className={`space-y-6 ${fetching ? "opacity-80" : ""}`}>

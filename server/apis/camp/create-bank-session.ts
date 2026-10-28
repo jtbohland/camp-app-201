@@ -9,9 +9,9 @@ export default api({
     camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
-    title: z.string(),
+    title: z.string().trim().min(1, "Title is required"),
     description: z.string().nullable(),
-    duration_minutes: z.number(),
+    duration_minutes: z.number().int().min(5).max(480),
     session_type: z.string(),
     created_by: z.string().nullable(),
   }),
@@ -25,7 +25,7 @@ export default api({
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
       z.object({ id: z.coerce.number() }),
-      [title, description ?? "", duration_minutes, session_type, created_by ?? ""],
+      [title.trim(), description ?? "", duration_minutes, session_type || "session", created_by ?? ""],
       { label: "Create new bank session" }
     );
 
