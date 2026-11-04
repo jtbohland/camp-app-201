@@ -53,20 +53,46 @@ export async function getActiveCohortId(db: any): Promise<number | null> {
   return rows.length > 0 ? rows[0].id : null;
 }
 
-/** Throws unless the signed-in user is a verified counselor. */
-export async function requireCounselor(db: any, email: string | null | undefined): Promise<void> {
+/**
+ * SQL condition: the lowercased email in `$1` is a guest judge for the active cohort.
+ * Access ends on its own when cAMP is closed or another cohort becomes active.
+ * Constant string - safe to inline.
+ */
+export const GUEST_JUDGE_ACCESS_SQL = `EXISTS (SELECT 1 FROM camp201_guest_judges g
+  WHERE lower(g.email) = $1 AND g.revoked_at IS NULL
+    AND g.cohort_id = ${ACTIVE_COHORT_ID_SQL}
+    AND COALESCE((SELECT value FROM camp201_config WHERE key = 'camp_closed' LIMIT 1), 'false') <> 'true')`;
+
+export type CounselorAccess = {
+  /** Counselor access of any kind (verified counselor or active guest judge). */
+  isAdmin: boolean;
+  /** Temporary counselor access added from a rubric. No counselor profile. */
+  isGuestJudge: boolean;
+};
+
+/** Who the signed-in user is: counselor, guest judge, or neither. */
+export async function getCounselorAccess(db: any, email: string | null | undefined): Promise<CounselorAccess> {
   const normalized = (email ?? "").toLowerCase();
-  if (!normalized) throw new Error("You must be signed in.");
+  if (!normalized) return { isAdmin: false, isGuestJudge: false };
   const rows = await db.query(
-    `SELECT 1 AS ok FROM camp201_admins WHERE lower(email) = $1
-     UNION ALL
-     SELECT 1 FROM camp201_campers WHERE lower(email) = $1 AND role IN ('counselor', 'admin')
-     LIMIT 1`,
-    z.object({ ok: z.coerce.number() }),
+    `SELECT
+       (EXISTS (SELECT 1 FROM camp201_admins WHERE lower(email) = $1)
+        OR EXISTS (SELECT 1 FROM camp201_campers WHERE lower(email) = $1 AND role IN ('counselor', 'admin'))) AS is_counselor,
+       ${GUEST_JUDGE_ACCESS_SQL} AS is_guest`,
+    z.object({ is_counselor: z.boolean().nullable(), is_guest: z.boolean().nullable() }),
     [normalized],
     { label: "Check counselor access" }
   );
-  if (rows.length === 0) throw new Error("Only counselors can do this.");
+  const isCounselor = rows[0]?.is_counselor === true;
+  const isGuest = rows[0]?.is_guest === true;
+  return { isAdmin: isCounselor || isGuest, isGuestJudge: isGuest && !isCounselor };
+}
+
+/** Throws unless the signed-in user is a verified counselor or an active guest judge. */
+export async function requireCounselor(db: any, email: string | null | undefined): Promise<void> {
+  if (!(email ?? "").trim()) throw new Error("You must be signed in.");
+  const access = await getCounselorAccess(db, email);
+  if (!access.isAdmin) throw new Error("Only counselors can do this.");
 }
 
 export type CohortView = {

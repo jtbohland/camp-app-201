@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { assertNotViewingPast } from "../../lib/cohort.js";
+import { assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -17,18 +17,8 @@ export default api({
   output: z.object({ success: z.boolean() }),
   async run(ctx, input) {
     await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
-    // Only verified counselors can change locks.
-    const email = (ctx.user.email ?? "").toLowerCase();
-    const admin = await ctx.integrations.camp_201_db.query(
-      `SELECT 1 AS ok FROM camp201_admins WHERE lower(email) = $1
-       UNION ALL
-       SELECT 1 FROM camp201_campers WHERE lower(email) = $1 AND role IN ('counselor', 'admin')
-       LIMIT 1`,
-      z.object({ ok: z.coerce.number() }),
-      [email],
-      { label: "Check admin access" }
-    );
-    if (admin.length === 0) throw new Error("Only counselors can change section locks.");
+    // Only counselors (including guest judges) can change locks.
+    await requireCounselor(ctx.integrations.camp_201_db, ctx.user.email);
 
     await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_feature_gates

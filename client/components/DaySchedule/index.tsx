@@ -103,15 +103,20 @@ function ScheduledBlock({ item, isAdmin, onRemove, onEdit, isPast, isUpNext }: {
     >
       <div className={`flex w-full justify-between gap-1 ${isShort ? "items-center" : "items-start"}`}>
         <div className="min-w-0 flex-1">
-          <p className={`font-medium ${colors.text} ${isShort ? "text-[10px] leading-none truncate" : "text-xs leading-tight"}`}>
+          <p className={`font-medium ${colors.text} ${isShort ? "text-[10px] leading-none truncate" : "text-xs leading-tight truncate"}`}>
             {isExec && "⭐ "}{isUpNext && "▶ "}{item.title}
+            {/* Short blocks are one line tall, so the time sits next to the title */}
+            {isShort && (
+              <span className="font-normal text-muted-foreground"> · {formatTime(item.start_time)}</span>
+            )}
           </p>
-          {durationMin >= 45 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+          {/* Every block of 30+ minutes shows its time, whether it came from the bank or was added by hand */}
+          {!isShort && (
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight truncate">
               {formatTime(item.start_time)} – {formatTime(item.end_time)}
             </p>
           )}
-          {isExec && durationMin >= 30 && (
+          {isExec && durationMin >= 45 && (
             <p className="text-[9px] text-yellow-600 italic mt-0.5">Mandatory — all cAMPers expected</p>
           )}
         </div>

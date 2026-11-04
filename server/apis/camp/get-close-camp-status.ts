@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
 import { getCohortSnapshot, getStandings } from "../../lib/cohort-snapshot.js";
+import { countJudges } from "../../lib/rubric-judges.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -101,15 +102,8 @@ export default api({
     );
     const cohortId = cohort.length > 0 ? cohort[0].id : null;
 
-    // Count counselors in cohort
-    const counselors = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers
-       WHERE role = 'counselor' AND cohort_id = $1`,
-      CountSchema,
-      [cohortId],
-      { label: "Count counselors" }
-    );
-    const counselorCount = counselors[0]?.count ?? 0;
+    // Judges = counselors in the cohort + active guest judges
+    const counselorCount = cohortId !== null ? await countJudges(ctx.integrations.camp_201_db, cohortId) : 0;
 
     // Count teams in cohort (non-test teams)
     const teams = await ctx.integrations.camp_201_db.query(
@@ -131,7 +125,7 @@ export default api({
     );
     const scoresSubmitted = scores[0]?.count ?? 0;
 
-    // Each counselor scores each team
+    // Each judge scores each team
     const scoresNeeded = counselorCount * teamCount;
     const campReadyToClose = readyFlag || (scoresNeeded > 0 && scoresSubmitted >= scoresNeeded);
 
