@@ -14,9 +14,9 @@ export type Speaker = {
 export default function SpeakerHeader({ speaker }: { speaker: Speaker }) {
   return (
     <Card className="p-5 flex flex-col sm:flex-row gap-5 items-start">
-      <div className="w-28 h-28 shrink-0 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+      <div className="w-28 h-28 shrink-0 rounded-full overflow-hidden bg-muted shadow-md flex items-center justify-center">
         {speaker.photo_url ? (
-          <img src={speaker.photo_url} alt={speaker.name} className="w-full h-full object-cover" />
+          <img src={speaker.photo_url} alt={speaker.name} className="w-full h-full object-cover object-[center_25%]" />
         ) : (
           <Icon icon="circle-user" className="w-14 h-14 text-muted-foreground opacity-40" />
         )}
