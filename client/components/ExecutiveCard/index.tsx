@@ -34,7 +34,14 @@ export default function ExecutiveCard({ executive, isAdmin, onEdit }: ExecutiveC
         )}
         {isAdmin && (
           <button
-            onClick={() => onEdit(executive)}
+            type="button"
+            title="Edit speaker"
+            aria-label={`Edit ${executive.name}`}
+            onClick={(e) => {
+              // Don't let the click reach the tile, which opens the Q&A page
+              e.stopPropagation();
+              onEdit(executive);
+            }}
             className="absolute top-2 right-2 p-1.5 bg-background/80 backdrop-blur rounded-md text-muted-foreground hover:text-foreground transition-colors"
           >
             <Icon icon="pencil" className="w-3.5 h-3.5" />
@@ -58,6 +65,7 @@ export default function ExecutiveCard({ executive, isAdmin, onEdit }: ExecutiveC
             href={executive.linkedin_url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline mt-1"
           >
             <Icon icon="external-link" className="w-3.5 h-3.5" />

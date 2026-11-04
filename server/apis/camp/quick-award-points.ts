@@ -53,6 +53,7 @@ export default api({
       [camper_id, points, reason, awarded_by.toString(), category ?? "bonus"],
       { label: "Quick award points" }
     );
-    return { success: true, id: result[0].id, already_found: false };
+    // No row comes back when the award was skipped (counselors never earn points).
+    return { success: true, id: result[0]?.id ?? 0, already_found: false };
   },
 });

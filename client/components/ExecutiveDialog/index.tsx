@@ -62,7 +62,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">
-            {executive ? "Edit Executive" : "Add Executive"}
+            {executive ? "Edit Speaker" : "Add Speaker"}
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <Icon icon="x" className="w-5 h-5" />
@@ -95,7 +95,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
               <ProfilePhotoUpload
                 currentPhotoUrl={photoUrl || null}
                 email=""
-                name={name || "Executive"}
+                name={name || "Speaker"}
                 onChange={setPhotoUrl}
               />
               <div className="flex-1 min-w-0">
@@ -148,7 +148,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
             disabled={!name.trim() || !title.trim() || saving}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {saving ? "Saving..." : executive ? "Update" : "Add Executive"}
+            {saving ? "Saving..." : executive ? "Update" : "Add Speaker"}
           </button>
         </div>
       </div>

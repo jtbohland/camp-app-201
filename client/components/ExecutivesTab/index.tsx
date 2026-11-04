@@ -57,6 +57,8 @@ export default function ExecutivesTab() {
   }, []);
 
   const handleEdit = useCallback((exec: Executive) => {
+    // Edit from the library: stay on the tiles view (never open the Q&A page)
+    setSelectedExecForQA(null);
     setEditingExec(exec);
     setDialogOpen(true);
   }, []);
@@ -73,7 +75,7 @@ export default function ExecutivesTab() {
           linkedin_url: data.linkedin_url || null,
           is_active: true,
         });
-        toast.success("Executive updated");
+        toast.success("Speaker updated");
       } else {
         await createExec({
           name: data.name,
@@ -82,7 +84,7 @@ export default function ExecutivesTab() {
           bio: data.bio || null,
           linkedin_url: data.linkedin_url || null,
         });
-        toast.success("Executive added to bank");
+        toast.success("Speaker added to library");
       }
       await refetch();
     } catch (error) {
@@ -131,8 +133,7 @@ export default function ExecutivesTab() {
           </div>
         )}
         <ExecQAFeed
-          executiveId={selectedExecForQA.id}
-          executiveName={selectedExecForQA.name}
+          speaker={selectedExecForQA}
           camperId={camperData?.camper?.id ?? 0}
           camperTeamId={camperData?.camper?.team_id ?? null}
           isLocked={qaLocked && !isAdmin}
@@ -155,7 +156,7 @@ export default function ExecutivesTab() {
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:opacity-90 transition-opacity flex items-center gap-2"
           >
             <Icon icon="plus" className="w-4 h-4" />
-            Add Executive
+            Add Speaker
           </button>
         )}
       </div>
@@ -167,9 +168,9 @@ export default function ExecutivesTab() {
       {executives.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Icon icon="users" className="w-12 h-12 opacity-30 mb-3" />
-          <p className="text-sm">No executives added yet</p>
+          <p className="text-sm">No speakers added yet</p>
           {isAdmin && (
-            <p className="text-xs mt-1">Click "Add Executive" to build your speaker bank</p>
+            <p className="text-xs mt-1">Click "Add Speaker" to build your speaker library</p>
           )}
         </div>
       ) : (

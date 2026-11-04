@@ -159,10 +159,13 @@ export default function HomePage() {
               </h2>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
-                <Icon icon="flame" className="w-4 h-4 text-camp-amber" />
-                <span className="text-sm font-bold text-white">{camper?.points ?? 0} pts</span>
-              </div>
+              {/* Counselors don't earn points, so they never see a points badge */}
+              {!isAdmin && (
+                <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5">
+                  <Icon icon="flame" className="w-4 h-4 text-camp-amber" />
+                  <span className="text-sm font-bold text-white">{camper?.points ?? 0} pts</span>
+                </div>
+              )}
               {camper && !isAdmin && !camper.profile_completed && (
                 <div className="flex items-center gap-2 bg-camp-amber/20 rounded-lg px-3 py-1.5">
                   <Icon icon="alert-circle" className="w-4 h-4 text-camp-amber" />

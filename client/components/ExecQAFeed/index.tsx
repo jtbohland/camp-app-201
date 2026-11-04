@@ -7,17 +7,18 @@ import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
+import SpeakerHeader, { type Speaker } from "@/components/SpeakerHeader/index.js";
 
 type ExecQAFeedProps = {
-  executiveId: number;
-  executiveName: string;
+  speaker: Speaker;
   camperId: number;
   camperTeamId: number | null;
   isLocked: boolean;
   onBack: () => void;
 };
 
-export default function ExecQAFeed({ executiveId, executiveName, camperId, camperTeamId, isLocked, onBack }: ExecQAFeedProps) {
+export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, onBack }: ExecQAFeedProps) {
+  const executiveId = speaker.id;
   const { data, loading, fetching, refetch } = useApiData("GetExecQuestions", {
     executive_id: executiveId,
     camper_id: camperId,
@@ -73,8 +74,13 @@ export default function ExecQAFeed({ executiveId, executiveName, camperId, campe
         Back to Speakers
       </button>
 
+      <SpeakerHeader speaker={speaker} />
+
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Q&A: {executiveName}</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Icon icon="messages-square" className="w-5 h-5 text-camp-green" />
+          Live Q&A
+        </h2>
         {isLocked && (
           <Badge variant="secondary" className="bg-red-100 text-red-700">
             <Icon icon="lock" className="w-3 h-3 mr-1" /> Session ended

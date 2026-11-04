@@ -52,12 +52,13 @@ export default api({
 
     const scores = await ctx.integrations.camp_201_db.query(
       `SELECT rs.id, rt.name as template_name, t.name as team_name,
-              CONCAT(c.first_name, ' ', c.last_name) as scored_by_name,
+              COALESCE(rs.judge_name, NULLIF(trim(CONCAT(c.first_name, ' ', c.last_name)), ''), 'Judge')
+                || CASE WHEN rs.is_guest_judge THEN ' (Guest)' ELSE '' END as scored_by_name,
               rs.total_score, rs.max_score, rs.points_awarded, rs.notes, rs.created_at
        FROM camp201_rubric_scores rs
        JOIN camp201_rubric_templates rt ON rt.id = rs.template_id
        JOIN camp201_teams t ON t.id = rs.team_id
-       JOIN camp201_campers c ON c.id = rs.scored_by
+       LEFT JOIN camp201_campers c ON c.id = rs.scored_by
        ${whereClause}
        ORDER BY rs.created_at DESC LIMIT 50`,
       ScoreRecordSchema,
