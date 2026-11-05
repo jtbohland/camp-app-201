@@ -8,6 +8,8 @@ export type CohortMember = {
   last_name: string;
   email: string;
   role: string | null;
+  /** Full official title from Cohort Management (the new-hire CSV). */
+  official_title?: string | null;
   manager: string | null;
   manager_email?: string | null;
   region: string | null;

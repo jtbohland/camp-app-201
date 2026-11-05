@@ -11,6 +11,9 @@ const HireSchema = z.object({
   region: z.string().nullable(),
   manager_name: z.string().nullable(),
   manager_email: z.string().nullable(),
+  country: z.string().nullable(),
+  /** YYYY-MM-DD */
+  start_date: z.string().nullable(),
   notes: z.string().nullable(),
   status: z.string(),
   cohort_id: z.coerce.number().nullable(),
@@ -18,7 +21,7 @@ const HireSchema = z.object({
   uploaded_at: z.string(),
   /** The exact official title from the CSV, e.g. "Major Enterprise Account Executive". */
   original_title: z.string().nullable(),
-  /** The CSV title didn't match one of the 12 roles: a counselor needs to pick one. */
+  /** The CSV title didn't match a standard role: a counselor needs to pick one. */
   role_needs_review: z.boolean(),
   /** The role the cAMPer picked at registration, when it differs from the CSV role. */
   registered_role: z.string().nullable(),
@@ -51,7 +54,7 @@ export default api({
 
     const hires = await ctx.integrations.camp_201_db.query(
       `SELECT nh.id, nh.first_name, nh.last_name, nh.email, nh.role_title, nh.region, nh.manager_name,
-              nh.manager_email, nh.notes, nh.status, nh.cohort_id, nh.camper_id, nh.uploaded_at,
+              nh.manager_email, nh.country, nh.start_date::text AS start_date, nh.notes, nh.status, nh.cohort_id, nh.camper_id, nh.uploaded_at,
               nh.original_title, COALESCE(nh.role_needs_review, false) AS role_needs_review,
               CASE WHEN c.id IS NOT NULL AND c.role NOT IN ('counselor', 'admin')
                         AND nh.role_needs_review = false

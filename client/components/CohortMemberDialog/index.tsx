@@ -28,7 +28,8 @@ export default function CohortMemberDialog({ member, onClose }: Props) {
   if (!member) return null;
   const isCounselor = isCounselorRole(member.role);
   const roleStyle = getRoleStyle(member.role);
-  const fullRole = mapToStandardRole(member.role) ?? member.role;
+  // Subtext: the full official title from Cohort Management; the pill shows the abbreviated role.
+  const subtitle = member.official_title?.trim() || mapToStandardRole(member.role) || member.role;
   const countryStyle = getCountryStyle(member.country);
   const countryName = getCountryDisplayName(member.country)?.replace(/^the /, "") ?? null;
   const tenure = formatTenure(member.start_date);
@@ -44,7 +45,7 @@ export default function CohortMemberDialog({ member, onClose }: Props) {
           <div className="text-center">
             <DialogTitle className="text-2xl font-bold">{name}</DialogTitle>
             <DialogDescription className="mt-1 text-sm">
-              {isCounselor ? "cAMP Counselor" : fullRole ?? "cAMPer"}
+              {isCounselor ? "cAMP Counselor" : subtitle || "cAMPer"}
             </DialogDescription>
           </div>
           <div className="flex flex-wrap justify-center gap-1.5">

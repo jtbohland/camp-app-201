@@ -76,7 +76,7 @@ function NewHireRow({ hire, disabled, onStatusChange, onEdit }: Props) {
           {hire.role_needs_review && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
-              title={`CSV title "${hire.original_title ?? hire.role_title ?? ""}" didn't match one of the 12 roles`}
+              title={`CSV title "${hire.original_title ?? hire.role_title ?? ""}" didn't match a standard role`}
             >
               <Icon icon="triangle-alert" className="h-3 w-3" />
               Pick a role

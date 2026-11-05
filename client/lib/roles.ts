@@ -1,6 +1,6 @@
 /**
- * The 12 standard cAMP roles and how they look. Keep in sync with server/lib/roles.ts
- * and the camp201_map_role() SQL function (migration 0017).
+ * The 13 standard cAMP roles and how they look. Keep in sync with server/lib/roles.ts
+ * and the camp201_map_role() SQL function (latest: migration 0020).
  */
 export const STANDARD_ROLES = [
   "SDR",
@@ -14,6 +14,7 @@ export const STANDARD_ROLES = [
   "Renewals",
   "Partners",
   "Value",
+  "Trainer",
   "Leadership",
 ] as const;
 
@@ -32,6 +33,7 @@ export const ROLE_HINTS: Partial<Record<StandardRole, string>> = {
   Renewals: "Renewal Manager",
   Partners: "Partner team",
   Value: "Value team",
+  Trainer: "Technical Trainer",
   Leadership: "Manager, Director, VP",
 };
 
@@ -56,6 +58,7 @@ const GROUP_STYLES: Record<RoleGroup, Omit<RoleStyle, "text">> = {
   Renewals:   { bg: "bg-lime-50",    border: "border-lime-200",    pill: "bg-lime-100 text-lime-700" },
   Partners:   { bg: "bg-orange-50",  border: "border-orange-200",  pill: "bg-orange-100 text-orange-700" },
   Value:      { bg: "bg-emerald-50", border: "border-emerald-200", pill: "bg-emerald-100 text-emerald-700" },
+  Trainer:    { bg: "bg-sky-50",     border: "border-sky-200",     pill: "bg-sky-100 text-sky-700" },
   Leadership: { bg: "bg-rose-50",    border: "border-rose-200",    pill: "bg-rose-100 text-rose-700" },
 };
 
@@ -69,6 +72,7 @@ const RULES: { pattern: RegExp; role: StandardRole; ae?: boolean }[] = [
   { pattern: /emerging/, role: "AE – Emerging", ae: true },
   { pattern: /(velocity|commercial|mid-?market|corporate)/, role: "AE – Velocity", ae: true },
   { pattern: /(enterprise|major)/, role: "AE – Enterprise", ae: true },
+  { pattern: /(\btrainer\b|\binstructor\b)/, role: "Trainer" },
   { pattern: /(sales development|business development|\bsdr\b|\bbdr\b)/, role: "SDR" },
   { pattern: /(success architect|solutions? architect|engagement manager|\bcsa\b)/, role: "CSA" },
   { pattern: /(solutions? engineer|sales engineer|pre-?sales|\bse\b)/, role: "SE" },
@@ -82,7 +86,7 @@ const RULES: { pattern: RegExp; role: StandardRole; ae?: boolean }[] = [
 /** "AE - Enterprise" / "AE—Enterprise" → "AE – Enterprise". */
 const normalizeDashes = (s: string) => s.replace(/\s*[-–—]\s*/g, " – ");
 
-/** Maps any job title to one of the 12 standard roles, or null when it can't tell. */
+/** Maps any job title to one of the standard roles, or null when it can't tell. */
 export function mapToStandardRole(title: string | null | undefined): StandardRole | null {
   const raw = (title ?? "").trim();
   if (!raw) return null;
@@ -113,7 +117,7 @@ export function getRoleStyle(role: string | null | undefined): RoleStyle {
   return { ...GROUP_STYLES[group], text: group };
 }
 
-const PLURALIZE: ReadonlySet<RoleGroup> = new Set<RoleGroup>(["SDR", "SE", "CSA", "TSM"]);
+const PLURALIZE: ReadonlySet<RoleGroup> = new Set<RoleGroup>(["SDR", "SE", "CSA", "TSM", "Trainer"]);
 
 /** Label for role counts ("5 SDRs", "2 AE – Enterprise", "1 Leadership"). */
 export function pluralRoleGroup(group: RoleGroup, count: number): string {
