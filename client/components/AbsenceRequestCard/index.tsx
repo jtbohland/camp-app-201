@@ -10,10 +10,14 @@ import { useApiData } from "@/hooks/useApiData";
 import AbsenceLimitDialog from "@/components/AbsenceLimitDialog/index.js";
 import { formatDuration, toLocalInputValue } from "@/lib/absences.js";
 
-type Props = { camperId: number };
+type Props = {
+  camperId: number;
+  /** Counselor preview: shows the card exactly as cAMPers see it, with submitting turned off. */
+  preview?: boolean;
+};
 
 /** cAMPer's excused absence form: reason + start/end time, 3-absence counter, limit modal. */
-export default function AbsenceRequestCard({ camperId }: Props) {
+export default function AbsenceRequestCard({ camperId, preview = false }: Props) {
   const { data, refetch } = useApiData("GetAbsenceRequests", { camper_id: camperId }, { enabled: camperId > 0 });
   const { run: requestAbsence, loading } = useApi("RequestAbsence");
 
@@ -34,7 +38,7 @@ export default function AbsenceRequestCard({ camperId }: Props) {
     return Number.isFinite(s) && Number.isFinite(e) && e > s ? Math.round((e - s) / 60000) : 0;
   }, [start, end]);
 
-  const canSubmit = reason.trim().length >= 3 && minutes > 0 && !loading;
+  const canSubmit = !preview && reason.trim().length >= 3 && minutes > 0 && !loading;
 
   const submit = useCallback(
     async (approval: { type: "penalty" | "emergency"; password: string } | null) => {
@@ -73,15 +77,24 @@ export default function AbsenceRequestCard({ camperId }: Props) {
   );
 
   const handleSubmit = useCallback(() => {
+    if (preview) return;
     if (used >= limit) {
       setLimitOpen(true);
       return;
     }
     void submit(null);
-  }, [used, limit, submit]);
+  }, [preview, used, limit, submit]);
 
   return (
-    <Card className="p-6">
+    <Card className={`p-6 ${preview ? "border-dashed" : ""}`}>
+      {preview && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+          <Icon icon="eye" className="h-4 w-4 shrink-0" />
+          <span>
+            <b>Counselor preview:</b> this is what cAMPers see on their profile. Submitting is off for counselors.
+          </span>
+        </div>
+      )}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">

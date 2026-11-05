@@ -205,8 +205,14 @@ export default function ProfilePage() {
         </div>
       </Card>
 
-      {/* Excused absences: 3 included, counter + counselor approval beyond that */}
-      {camper?.id && camper.role !== "counselor" && camper.role !== "admin" && <AbsenceRequestCard camperId={camper.id} />}
+      {/* Excused absences: 3 included, counter + counselor approval beyond that.
+          Counselors see a read-only preview of what cAMPers see. */}
+      {camper?.id && (
+        <AbsenceRequestCard
+          camperId={camper.id}
+          preview={camper.role === "counselor" || camper.role === "admin"}
+        />
+      )}
 
       {/* Flight Departure */}
       <FlightDepartureSection
