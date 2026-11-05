@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { queryClient } from "@superblocksteam/library";
 import NewHireRow, { HIRE_STATUSES, normalizeStatus, type HireStatus } from "@/components/NewHireRow/index.js";
 import EditNewHireDialog, { type EditableHire } from "@/components/EditNewHireDialog/index.js";
+import AddNewHireDialog from "@/components/AddNewHireDialog/index.js";
 
 type Props = {
   cohortId: number;
@@ -21,6 +22,8 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
   const [sortBy, setSortBy] = useState<"first" | "last">("last");
   const [editingHire, setEditingHire] = useState<EditableHire | null>(null);
   const closeEditor = useCallback(() => setEditingHire(null), []);
+  const [adding, setAdding] = useState(false);
+  const closeAdd = useCallback(() => setAdding(false), []);
   const fileRef = useRef<HTMLInputElement>(null);
   // Load the whole cohort once and filter here, so the filter counts stay accurate.
   const { data, loading, fetching, refetch } = useApiData("GetNewHires", {
@@ -136,6 +139,10 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
             <Icon icon="upload" className="w-4 h-4 mr-1.5" />
             {uploading ? "Uploading..." : "Upload CSV"}
           </Button>
+          <Button onClick={() => setAdding(true)} size="sm" variant="outline" className="border-camp-green text-camp-green hover:bg-camp-green/10">
+            <Icon icon="user-plus" className="w-4 h-4 mr-1.5" />
+            Add cAMPer
+          </Button>
           <p className="text-xs text-muted-foreground">
             CSV with columns: First Name, Last Name, Email, Role/Title, Country/Location, Start Date, Manager Name, Manager Email
           </p>
@@ -181,7 +188,7 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
         <Card className="p-8 text-center">
           <Icon icon="users" className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">
-            No new hires uploaded yet. Download your Google Sheet as CSV and upload it here.
+            No new hires yet. Upload your Google Sheet as a CSV, or add cAMPers one at a time.
           </p>
         </Card>
       ) : hires.length === 0 ? (
@@ -195,6 +202,15 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
       )}
 
       <EditNewHireDialog hire={editingHire} onClose={closeEditor} onSaved={refetch} />
+      <AddNewHireDialog
+        open={adding}
+        cohortId={cohortId}
+        onClose={closeAdd}
+        onAdded={() => {
+          refetch();
+          queryClient.invalidateQueries("GetTeamGeneratorPreview");
+        }}
+      />
     </div>
   );
 }

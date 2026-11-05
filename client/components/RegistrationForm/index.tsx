@@ -41,6 +41,8 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
     if (csvInfo.last_name) setLastName((v) => v || csvInfo.last_name!);
     if (csvInfo.role) setRole((v) => v || (csvInfo.role as StandardRole));
     if (csvInfo.manager_email) setManagerEmail((v) => v || csvInfo.manager_email!);
+    if (csvInfo.country) setCountry((v) => v || csvInfo.country!);
+    if (csvInfo.start_date) setStartDate((v) => v || csvInfo.start_date!);
     const csvRegion = getRegion(csvInfo.region);
     if (csvRegion) setRegion((v) => v || csvRegion);
   }, [csvInfo]);

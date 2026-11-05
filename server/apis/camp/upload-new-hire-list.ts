@@ -3,9 +3,18 @@ import { mapToStandardRole } from "../../lib/roles.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
+/** "2026-11-02", "11/2/2026" or "Nov 2, 2026" → "2026-11-02"; anything unreadable → null. */
+function toIsoDate(value: string | null | undefined): string | null {
+  const v = value?.trim();
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 export default api({
   name: "UploadNewHireList",
-  description: "Parses CSV new hires, matches titles to the 12 roles, flags unmatched titles",
+  description: "Parses CSV new hires, matches titles to standard roles, flags unmatched titles",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     csv_rows: z.array(z.object({
@@ -25,7 +34,7 @@ export default api({
   output: z.object({
     inserted: z.number(),
     skipped: z.number(),
-    /** Titles that didn't match one of the 12 roles: a counselor needs to pick one. */
+    /** Titles that didn't match a standard role: a counselor needs to pick one. */
     unmatched: z.array(z.object({ email: z.string(), title: z.string() })),
   }),
   async run(ctx, { csv_rows, uploaded_by, cohort_id }) {
@@ -45,8 +54,10 @@ export default api({
       try {
         await db.execute(
           `INSERT INTO camp201_new_hires (first_name, last_name, email, role_title, original_title, role_needs_review,
-                                          region, manager_name, manager_email, uploaded_by, cohort_id, status)
-           VALUES ($1, $2, $3, $4, $5, $6, camp201_map_region($7, $12), $8, $9, $10, $11, 'invited')
+                                          region, manager_name, manager_email, uploaded_by, cohort_id, status,
+                                          country, start_date)
+           VALUES ($1, $2, $3, $4, $5, $6, camp201_map_region($7, $12), $8, $9, $10, $11, 'invited',
+                   camp201_map_country($12), $13::date)
            ON CONFLICT (email) DO UPDATE SET
              first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,
@@ -56,13 +67,15 @@ export default api({
              region = EXCLUDED.region,
              manager_name = EXCLUDED.manager_name,
              manager_email = EXCLUDED.manager_email,
+             country = COALESCE(EXCLUDED.country, camp201_new_hires.country),
+             start_date = COALESCE(EXCLUDED.start_date, camp201_new_hires.start_date),
              updated_at = NOW()`,
           [row.first_name.trim(), row.last_name.trim(), email,
            // Unmatched titles stay visible so the counselor can see what to fix.
            role ?? title, title, needsReview,
            row.region?.trim() || null,
            row.manager_name?.trim() || null, row.manager_email?.trim() || null,
-           uploaded_by, cohort_id, row.country?.trim() || null],
+           uploaded_by, cohort_id, row.country?.trim() || null, toIsoDate(row.start_date)],
           { label: `Upsert hire: ${email}` }
         );
 
@@ -77,7 +90,7 @@ export default api({
              manager = COALESCE($6, manager),
              manager_email = COALESCE(NULLIF(btrim(manager_email), ''), $7)
            WHERE LOWER(email) = $1 AND role NOT IN ('counselor', 'admin')`,
-          [email, row.country?.trim() || null, row.start_date?.trim() || null, role,
+          [email, row.country?.trim() || null, toIsoDate(row.start_date), role,
            row.region?.trim() || null, row.manager_name?.trim() || null,
            row.manager_email?.trim().toLowerCase() || null],
           { label: `Update camper CSV details: ${email}` }
