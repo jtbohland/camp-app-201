@@ -91,8 +91,8 @@ export default api({
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON t.id = c.team_id
        LEFT JOIN camp201_absence_requests a ON a.camper_id = c.id AND ${sameCohort}
-       WHERE ${camper_id !== null ? "c.id = $1" : `c.cohort_id = ${VIEW}`}
-         AND c.role NOT IN ('counselor', 'admin') AND c.removed_at IS NULL
+       WHERE ${camper_id !== null ? "c.id = $1" : `c.cohort_id = ${VIEW} AND c.role NOT IN ('counselor', 'admin')`}
+         AND c.removed_at IS NULL
        GROUP BY c.id, c.first_name, c.last_name, c.photo_url, t.name
        ORDER BY COUNT(a.id) DESC, c.first_name
        LIMIT 200`,

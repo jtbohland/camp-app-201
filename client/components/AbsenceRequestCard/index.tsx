@@ -10,6 +10,44 @@ import { useApiData } from "@/hooks/useApiData";
 import AbsenceLimitDialog from "@/components/AbsenceLimitDialog/index.js";
 import { formatDuration, toLocalInputValue } from "@/lib/absences.js";
 
+/** Attendance bonus tiers, with the cAMPer's current tier highlighted. */
+function AttendanceBonus({ used, limit }: { used: number; limit: number }) {
+  const tiers = Array.from({ length: limit + 1 }, (_, n) => ({ n, pts: limit - n }));
+  const current = Math.min(used, limit);
+  return (
+    <div className="mt-3 rounded-lg border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5">
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-900">
+        <Icon icon="trophy" className="h-4 w-4 text-amber-600" />
+        Attendance bonus at Close cAMP
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {tiers.map((t) => {
+          const active = t.n === current;
+          return (
+            <span
+              key={t.n}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                active
+                  ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-300"
+                  : t.n < current
+                    ? "bg-white/60 text-muted-foreground line-through"
+                    : "bg-white text-amber-900 border border-amber-200"
+              }`}
+            >
+              {t.n} absence{t.n === 1 ? "" : "s"} → <span className="font-extrabold">{t.pts > 0 ? `+${t.pts}` : "0"}</span>
+            </span>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-[11px] font-medium text-amber-900/80">
+        {used >= limit
+          ? "You've used all your excused absences. Any more need a counselor and may cost 1 point each."
+          : `You're on track for +${limit - used} points. Every absence you skip keeps more points on the table!`}
+      </p>
+    </div>
+  );
+}
+
 type Props = {
   camperId: number;
   /** Counselor preview: shows the card exactly as cAMPers see it, with submitting turned off. */
@@ -104,6 +142,7 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           <p className="text-sm text-muted-foreground mt-1">
             Need to step away? Log it so your team isn't held back in the check-in race.
           </p>
+          <AttendanceBonus used={used} limit={limit} />
         </div>
         <div
           className={`shrink-0 rounded-lg border px-3 py-1.5 text-center ${
@@ -146,10 +185,6 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           {loading ? "Submitting..." : "Submit"}
         </Button>
       </div>
-
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        Attendance bonus at the end of cAMP: 0 absences <b>+3</b>, 1 → <b>+2</b>, 2 → <b>+1</b>, 3 → <b>0</b>.
-      </p>
 
       {requests.length > 0 && (
         <div className="mt-4 border-t border-border pt-3">
