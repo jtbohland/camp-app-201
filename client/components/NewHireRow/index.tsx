@@ -2,6 +2,8 @@ import { memo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import RegionPill from "@/components/RegionPill/index.js";
+import { getRoleStyle, mapToStandardRole } from "@/lib/roles.js";
 
 export type HireStatus = "invited" | "accepted" | "declined";
 
@@ -53,6 +55,10 @@ function initials(first: string, last: string) {
 function NewHireRow({ hire, disabled, onStatusChange, onEdit }: Props) {
   const status = normalizeStatus(hire.status);
   const style = STATUS_STYLES[status];
+  const stdRole = hire.role_needs_review ? null : mapToStandardRole(hire.role_title);
+  const roleStyle = getRoleStyle(stdRole);
+  // The exact title from the CSV, unless it's just the short role again.
+  const officialTitle = hire.original_title && hire.original_title !== stdRole ? hire.original_title : null;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-muted/40">
@@ -88,18 +94,22 @@ function NewHireRow({ hire, disabled, onStatusChange, onEdit }: Props) {
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           <span className="truncate">{hire.email}</span>
-          {hire.role_title && (
-            <span className="flex items-center gap-1">
+          {officialTitle && (
+            <span className="flex items-center gap-1 text-foreground/80" title="Official title from the CSV">
               <Icon icon="briefcase" className="h-3 w-3" />
-              {hire.role_title}
+              {officialTitle}
             </span>
           )}
-          {hire.region && (
-            <span className="flex items-center gap-1">
-              <Icon icon="map-pin" className="h-3 w-3" />
-              {hire.region}
+          {stdRole && (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${roleStyle.pill}`}
+              title="cAMP role"
+            >
+              {!officialTitle && <Icon icon="briefcase" className="mr-1 h-3 w-3" />}
+              {stdRole}
             </span>
           )}
+          <RegionPill region={hire.region} />
           {hire.manager_name && (
             <span className="flex items-center gap-1">
               <Icon icon="user" className="h-3 w-3" />

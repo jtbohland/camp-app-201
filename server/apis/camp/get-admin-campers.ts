@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
+import { MANAGER_NAME_SQL } from "../../lib/regions.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -65,11 +66,7 @@ export default api({
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.role, c.team_id,
               t.name as team_name, t.color AS team_color, t.logo_url AS team_logo_url,
-              COALESCE(NULLIF(btrim(c.manager), ''),
-                       (SELECT NULLIF(btrim(nh.manager_name), '') FROM camp201_new_hires nh
-                         WHERE lower(nh.email) = lower(c.email) ORDER BY nh.updated_at DESC NULLS LAST LIMIT 1),
-                       (SELECT NULLIF(btrim(concat(m.first_name, ' ', m.last_name)), '') FROM camp201_campers m
-                         WHERE c.manager_email IS NOT NULL AND lower(m.email) = lower(c.manager_email) LIMIT 1)) AS manager,
+              ${MANAGER_NAME_SQL} AS manager,
               c.manager_email, c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.fun_fact,
               c.start_date::text AS start_date,
               (SELECT COUNT(*) FROM camp201_absence_requests ar

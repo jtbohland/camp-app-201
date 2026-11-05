@@ -16,7 +16,7 @@ const HireSchema = z.object({
   cohort_id: z.coerce.number().nullable(),
   camper_id: z.coerce.number().nullable(),
   uploaded_at: z.string(),
-  /** The title as it appeared in the CSV. */
+  /** The exact official title from the CSV, e.g. "Major Enterprise Account Executive". */
   original_title: z.string().nullable(),
   /** The CSV title didn't match one of the 12 roles: a counselor needs to pick one. */
   role_needs_review: z.boolean(),
@@ -55,6 +55,7 @@ export default api({
               nh.original_title, COALESCE(nh.role_needs_review, false) AS role_needs_review,
               CASE WHEN c.id IS NOT NULL AND c.role NOT IN ('counselor', 'admin')
                         AND nh.role_needs_review = false
+                        AND camp201_map_role(c.role) = c.role
                         AND c.role IS DISTINCT FROM nh.role_title
                    THEN c.role END AS registered_role
        FROM camp201_new_hires nh

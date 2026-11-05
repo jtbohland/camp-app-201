@@ -58,6 +58,9 @@ export function canonicalCountry(input: string | null | undefined): string | nul
   if (!raw) return null;
   const l = raw.toLowerCase();
   if (ALIASES[l]) return ALIASES[l];
+  // Typos like "Unites States of America" (matches camp201_map_country, migration 0019).
+  if (/^(the )?unit[a-z]* stat/.test(l)) return "United States";
+  if (/^(the )?unit[a-z]* king/.test(l)) return "United Kingdom";
   return BY_NAME.get(l)?.name ?? raw;
 }
 

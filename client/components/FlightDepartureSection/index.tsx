@@ -73,7 +73,7 @@ export default function FlightDepartureSection({
       </p>
 
       {/* Flying vs local */}
-      <div className="mb-4 inline-flex rounded-lg border border-border p-1" role="radiogroup" aria-label="Are you flying?">
+      <div className="mb-4 flex w-fit self-start rounded-lg border border-border p-1" role="radiogroup" aria-label="Are you flying?">
         {[
           { local: false, label: "I'm flying", icon: "plane" as const },
           { local: true, label: "Local (no flight)", icon: "house" as const },

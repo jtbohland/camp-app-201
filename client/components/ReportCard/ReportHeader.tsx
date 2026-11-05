@@ -1,5 +1,6 @@
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import RegionPill from "@/components/RegionPill/index.js";
 import { getRoleStyle, mapToStandardRole } from "@/lib/roles.js";
 import { getCountryDisplayName, getCountryStyle, formatTenure } from "@/lib/countryUtils.js";
 import type { ReportCardData } from "./types.js";
@@ -36,12 +37,7 @@ export default function ReportHeader({ data }: { data: ReportCardData }) {
                 {countryStyle.flag} {country.replace(/^the /, "")}
               </span>
             )}
-            {p.region && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                <Icon icon="globe" className="h-3 w-3" />
-                {p.region}
-              </span>
-            )}
+            <RegionPill region={p.region} country={p.country} />
             {p.manager_display && (
               <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
                 <Icon icon="user-round-check" className="h-3 w-3" />

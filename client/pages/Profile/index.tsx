@@ -14,7 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreakerSection/index.js";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
-import ProfileXPSummary from "@/components/ProfileXPSummary/index.js";
+import ProfileStandingBanner from "@/components/ProfileStandingBanner/index.js";
+import CheckInPinCard from "@/components/CheckInPinCard/index.js";
+import CheckInHistoryCard from "@/components/CheckInHistoryCard/index.js";
 import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
 import AbsenceRequestCard from "@/components/AbsenceRequestCard/index.js";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
@@ -27,15 +29,8 @@ export default function ProfilePage() {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
-  const { data: teamsData } = useApiData("GetTeams", {});
   const { run: updateProfile, loading: saving } = useApi("UpdateCamperProfile");
   const { run: toggleGoal } = useApi("ToggleGoalAchieved");
-
-  const { data: historyData } = useApiData("GetCheckInHistory", {
-    camper_id: data?.camper?.id ?? 0,
-  }, { enabled: !!data?.camper?.id });
-
-  const checkInHistory = historyData?.history ?? [];
 
   // Form state
   const [bio, setBio] = useState("");
@@ -186,79 +181,8 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* PIN & Check-in Info */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Icon icon="key-round" className="w-5 h-5 text-camp-amber" />
-          Your Check-in PIN
-        </h2>
-        <div className="flex items-center gap-4">
-          <div className="px-5 py-3 bg-muted rounded-xl border border-border">
-            <span className="text-2xl font-mono font-bold tracking-[0.3em] text-foreground">
-              {camper?.pin ?? "----"}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <p className="text-sm text-muted-foreground">Use this 4-digit PIN when checking back in after breaks.</p>
-            <p className="text-xs text-muted-foreground/70">Keep it secret — it proves it's really you!</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Excused absences: 3 included, counter + counselor approval beyond that */}
-      {camper?.id && camper.role !== "counselor" && camper.role !== "admin" && <AbsenceRequestCard camperId={camper.id} />}
-
-      {/* Flight Departure */}
-      <FlightDepartureSection
-        camperId={camper?.id ?? 0}
-        isLocal={camper?.flight_is_local ?? false}
-        flightDepartureDate={camper?.flight_departure_date ?? null}
-        flightDepartureTime={camper?.flight_departure_time ?? null}
-        leaveOfficeBy={camper?.leave_office_by ?? null}
-        onSaved={refetch}
-      />
-
-      {/* Check-in History */}
-      {checkInHistory.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Icon icon="history" className="w-5 h-5 text-camp-green" />
-            Check-in History
-          </h2>
-          <div className="flex flex-col gap-2">
-            {checkInHistory.slice(0, 10).map((entry: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${
-                    entry.timing === "early" ? "bg-green-500" :
-                    entry.timing === "on_time" ? "bg-yellow-500" : "bg-red-500"
-                  }`} />
-                  <span className="text-sm font-medium text-foreground">
-                    {entry.timing === "early" ? "Early" : entry.timing === "on_time" ? "On Time" : "Late"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold ${
-                    entry.points_awarded > 0 ? "text-green-600" : entry.points_awarded < 0 ? "text-red-600" : "text-muted-foreground"
-                  }`}>
-                    {entry.points_awarded > 0 ? "+" : ""}{entry.points_awarded} pts
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(entry.checked_in_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* XP Summary */}
-      <ProfileXPSummary
-        camperId={camper?.id ?? 0}
-        points={camper?.points ?? 0}
-        teamName={teamsData?.teams?.find((t: any) => t.id === camper?.team_id)?.name}
-      />
+      {/* XP / current place / team banner */}
+      <ProfileStandingBanner camperId={camper?.id ?? 0} />
 
       {/* Photo & Bio Section */}
       <Card className="p-6">
@@ -429,6 +353,29 @@ export default function ProfilePage() {
 
       {/* Ice Breaker Questions */}
       <IceBreakerSection answers={iceBreakerAnswers} onChange={setIceBreakerAnswers} />
+
+      {/* Logistics: PIN, flight, absences */}
+      <CheckInPinCard pin={camper?.pin} />
+
+      <FlightDepartureSection
+        camperId={camper?.id ?? 0}
+        isLocal={camper?.flight_is_local ?? false}
+        flightDepartureDate={camper?.flight_departure_date ?? null}
+        flightDepartureTime={camper?.flight_departure_time ?? null}
+        leaveOfficeBy={camper?.leave_office_by ?? null}
+        onSaved={refetch}
+      />
+
+      {/* Excused absences: 3 included, counselor approval beyond that.
+          Counselors see a read-only preview of what cAMPers see. */}
+      {camper?.id && (
+        <AbsenceRequestCard
+          camperId={camper.id}
+          preview={camper.role === "counselor" || camper.role === "admin"}
+        />
+      )}
+
+      <CheckInHistoryCard camperId={camper?.id ?? 0} />
 
       {/* Save Button */}
       <div className="flex items-center justify-between py-4 sticky bottom-0 bg-background border-t border-border -mx-8 px-8">

@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import RegionPill from "@/components/RegionPill/index.js";
 import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
 import { getRoleStyle, isCounselorRole, mapToStandardRole } from "@/lib/roles.js";
 import type { CohortMember } from "@/lib/cohortMember.js";
@@ -58,6 +59,7 @@ export default function CohortMemberDialog({ member, onClose }: Props) {
                 {countryStyle.flag} {countryName}
               </span>
             )}
+            {!isCounselor && <RegionPill region={member.region} country={member.country} size="md" />}
             {member.team_name && !isCounselor && (
               <span
                 className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
@@ -73,7 +75,6 @@ export default function CohortMemberDialog({ member, onClose }: Props) {
         <div className="flex flex-col gap-3 px-6 pb-6 pt-4">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {member.manager && !isCounselor && <Detail icon="user-round-check" label="Manager" value={member.manager} />}
-            {member.region && <Detail icon="globe" label="Region" value={member.region} />}
             {place && <Detail icon="map-pin" label="Based in" value={place} />}
             {tenure && <Detail icon="clock" label="Time at Amplitude" value={tenure} />}
             <Detail

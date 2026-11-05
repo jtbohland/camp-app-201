@@ -46,7 +46,7 @@ export default api({
         await db.execute(
           `INSERT INTO camp201_new_hires (first_name, last_name, email, role_title, original_title, role_needs_review,
                                           region, manager_name, manager_email, uploaded_by, cohort_id, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'invited')
+           VALUES ($1, $2, $3, $4, $5, $6, camp201_map_region($7, $12), $8, $9, $10, $11, 'invited')
            ON CONFLICT (email) DO UPDATE SET
              first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,
@@ -62,18 +62,24 @@ export default api({
            role ?? title, title, needsReview,
            row.region?.trim() || null,
            row.manager_name?.trim() || null, row.manager_email?.trim() || null,
-           uploaded_by, cohort_id],
+           uploaded_by, cohort_id, row.country?.trim() || null],
           { label: `Upsert hire: ${email}` }
         );
 
-        // Keep a registered cAMPer's CSV role, country and start date in step.
+        // Keep a registered cAMPer's CSV role, country, region, start date and manager in step.
+        // The CSV manager is the source of truth.
         await db.execute(
           `UPDATE camp201_campers SET
              country = COALESCE(camp201_map_country($2), country),
              start_date = COALESCE($3::date, start_date),
-             csv_role = COALESCE($4, csv_role)
-           WHERE LOWER(email) = $1`,
-          [email, row.country?.trim() || null, row.start_date?.trim() || null, role],
+             csv_role = COALESCE($4, csv_role),
+             region = COALESCE(camp201_map_region($5, COALESCE($2, country)), region),
+             manager = COALESCE($6, manager),
+             manager_email = COALESCE(NULLIF(btrim(manager_email), ''), $7)
+           WHERE LOWER(email) = $1 AND role NOT IN ('counselor', 'admin')`,
+          [email, row.country?.trim() || null, row.start_date?.trim() || null, role,
+           row.region?.trim() || null, row.manager_name?.trim() || null,
+           row.manager_email?.trim().toLowerCase() || null],
           { label: `Update camper CSV details: ${email}` }
         );
         inserted++;

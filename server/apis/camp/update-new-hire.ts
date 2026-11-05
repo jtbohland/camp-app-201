@@ -15,6 +15,8 @@ export default api({
     last_name: z.string(),
     email: z.string(),
     role_title: optionalText,
+    /** The exact official title, e.g. "Major Enterprise Account Executive". */
+    official_title: optionalText,
     region: optionalText,
     manager_name: optionalText,
     manager_email: optionalText,
@@ -83,10 +85,12 @@ export default api({
       `UPDATE camp201_new_hires SET
          first_name = $2, last_name = $3, email = $4, role_title = $5,
          role_needs_review = CASE WHEN $5::text IS NULL THEN role_needs_review ELSE false END,
-         region = $6, manager_name = $7, manager_email = $8, notes = $9, updated_at = NOW()
+         region = camp201_map_region($6, NULL), manager_name = $7, manager_email = $8, notes = $9,
+         original_title = $10, updated_at = NOW()
        WHERE id = $1`,
       [input.hire_id, firstName, lastName, email, role,
-       clean(input.region), clean(input.manager_name), managerEmail, clean(input.notes)],
+       clean(input.region), clean(input.manager_name), managerEmail, clean(input.notes),
+       clean(input.official_title)],
       { label: "Update new hire" }
     );
 
@@ -100,13 +104,25 @@ export default api({
       );
     }
 
-    // The counselor's role is the new CSV role. A cAMPer whose own role couldn't be matched
-    // takes this role so the review flag clears.
+    // The CSV manager is the source of truth for the cAMPer's manager.
+    const managerName = clean(input.manager_name);
+    if (managerName || managerEmail) {
+      await db.execute(
+        `UPDATE camp201_campers SET
+           manager = COALESCE($2, manager),
+           manager_email = COALESCE($3, manager_email)
+         WHERE lower(email) = $1 AND role NOT IN ('counselor', 'admin')`,
+        [email, managerName, managerEmail],
+        { label: "Sync CSV manager to camper" }
+      );
+    }
+
+    // The counselor's role is the cAMPer's role in the app.
     if (role) {
       await db.execute(
         `UPDATE camp201_campers SET
            csv_role = $2,
-           role = CASE WHEN role_needs_review THEN $2 ELSE role END,
+           role = $2,
            role_needs_review = false
          WHERE lower(email) = $1 AND role NOT IN ('counselor', 'admin')`,
         [email, role],

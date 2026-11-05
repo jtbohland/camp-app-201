@@ -7,6 +7,7 @@ const COHORT_SCOPED_APIS = [
   "GetFeatureGates",
   "GetTeams",
   "GetLeaderboard",
+  "GetMyStanding",
   "GetRegisteredCampers",
   "GetNewHires",
   "GetHubDashboard",
