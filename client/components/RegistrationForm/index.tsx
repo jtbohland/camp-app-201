@@ -10,6 +10,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
 import CountryPicker from "@/components/CountryPicker/index.js";
 import { STANDARD_ROLES, ROLE_HINTS, type StandardRole } from "@/lib/roles.js";
+import { REGIONS, REGION_STYLES, getRegion } from "@/lib/regions.js";
 
 type RegistrationFormProps = {
   userEmail: string;
@@ -17,8 +18,6 @@ type RegistrationFormProps = {
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const REGIONS = ["North America", "EMEA", "APAC", "LATAM"];
 
 export default function RegistrationForm({ userEmail, onSuccess }: RegistrationFormProps) {
   const [firstName, setFirstName] = useState("");
@@ -42,7 +41,8 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
     if (csvInfo.last_name) setLastName((v) => v || csvInfo.last_name!);
     if (csvInfo.role) setRole((v) => v || (csvInfo.role as StandardRole));
     if (csvInfo.manager_email) setManagerEmail((v) => v || csvInfo.manager_email!);
-    if (csvInfo.region) setRegion((v) => v || csvInfo.region!);
+    const csvRegion = getRegion(csvInfo.region);
+    if (csvRegion) setRegion((v) => v || csvRegion);
   }, [csvInfo]);
   const csvRole = csvInfo?.found ? csvInfo.role : null;
 
@@ -173,7 +173,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
                 </SelectTrigger>
                 <SelectContent>
                   {REGIONS.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                    <SelectItem key={r} value={r}>{REGION_STYLES[r].globe} {r}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

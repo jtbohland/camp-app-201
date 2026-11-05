@@ -212,7 +212,8 @@ export default api({
 
     const c = counts[0];
     const { surveys_days, ...rest } = c;
-    const managerDisplay = p.manager_name_csv || p.manager || (p.manager_email ? p.manager_email.split("@")[0].split(".").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ") : null);
+    const typedManager = p.manager?.trim() && !/^(other|n\/?a|none|-|tbd|unknown|\?)$/i.test(p.manager.trim()) ? p.manager.trim() : null;
+    const managerDisplay = p.manager_name_csv || typedManager || (p.manager_email ? p.manager_email.split("@")[0].split(".").map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(" ") : null);
 
     return {
       found: true,

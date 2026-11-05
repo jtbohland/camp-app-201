@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 import { getCohortSnapshot } from "../../lib/cohort-snapshot.js";
+import { MANAGER_NAME_SQL } from "../../lib/regions.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -27,13 +28,9 @@ const CohortMemberSchema = z.object({
   team_logo_url: z.string().nullable(),
 });
 
-// Manager name: what the cAMPer typed, else the counselor's CSV, else a registered manager's camper name.
+// Manager name: the counselor's CSV, else what the cAMPer typed, else a registered manager's name.
 const MEMBER_COLUMNS = `c.id, c.first_name, c.last_name, c.email, c.role,
-  COALESCE(NULLIF(btrim(c.manager), ''),
-           (SELECT NULLIF(btrim(nh.manager_name), '') FROM camp201_new_hires nh
-             WHERE lower(nh.email) = lower(c.email) ORDER BY nh.updated_at DESC NULLS LAST LIMIT 1),
-           (SELECT NULLIF(btrim(concat(m.first_name, ' ', m.last_name)), '') FROM camp201_campers m
-             WHERE c.manager_email IS NOT NULL AND lower(m.email) = lower(c.manager_email) LIMIT 1)) AS manager,
+  ${MANAGER_NAME_SQL} AS manager,
   c.manager_email,
   c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.bio, c.fun_fact,
   c.points, c.team_id, c.start_date::text AS start_date,

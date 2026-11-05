@@ -70,17 +70,32 @@ export default api({
     );
     const cohortId = activeCohort.length > 0 ? activeCohort[0].id : null;
 
-    // The role from the counselor's new-hire CSV, so a change can be flagged in Cohort Management.
+    // The counselor's new-hire CSV row: its role flags a change in Cohort Management, and its
+    // manager fills in a manager the cAMPer left blank (the CSV is the source of truth).
     const csvRows = await ctx.integrations.camp_201_db.query(
-      `SELECT role_title FROM camp201_new_hires
-       WHERE lower(email) = lower($1) AND role_needs_review = false AND role_title IS NOT NULL
+      `SELECT CASE WHEN role_needs_review = false THEN role_title END AS role_title,
+              NULLIF(btrim(manager_name), '') AS manager_name,
+              NULLIF(lower(btrim(manager_email)), '') AS manager_email,
+              NULLIF(btrim(region), '') AS region
+       FROM camp201_new_hires
+       WHERE lower(email) = lower($1)
        ORDER BY (cohort_id = $2) DESC NULLS LAST, updated_at DESC NULLS LAST
        LIMIT 1`,
-      z.object({ role_title: z.string() }),
+      z.object({
+        role_title: z.string().nullable(),
+        manager_name: z.string().nullable(),
+        manager_email: z.string().nullable(),
+        region: z.string().nullable(),
+      }),
       [input.email, cohortId],
-      { label: "Look up CSV role" }
+      { label: "Look up CSV row" }
     );
-    const csvRole = csvRows[0]?.role_title ?? null;
+    const csv = csvRows[0];
+    const csvRole = csv?.role_title ?? null;
+    const typedManager = input.manager?.trim();
+    const manager = csv?.manager_name ?? (typedManager && !/^(other|n\/?a|none|-|tbd|unknown|\?)$/i.test(typedManager) ? typedManager : "");
+    const managerEmail = input.manager_email ?? csv?.manager_email ?? null;
+    const region = input.region ?? csv?.region ?? null;
 
     // Check if already registered — prevents double points
     const existing = await ctx.integrations.camp_201_db.query(
@@ -99,7 +114,8 @@ export default api({
            first_name = $2, last_name = $3,
            role = CASE WHEN role IN ('counselor', 'admin') THEN role ELSE $4 END,
            manager = $5,
-           region = $6, country = $7, city = $8, start_date = $9::date,
+           region = COALESCE(camp201_map_region($6, $7), ''), country = COALESCE(camp201_map_country($7), ''),
+           city = $8, start_date = $9::date,
            manager_email = COALESCE($10, manager_email),
            csv_role = COALESCE($11, csv_role),
            role_needs_review = false,
@@ -111,12 +127,12 @@ export default api({
           input.first_name,
           input.last_name,
           input.role,
-          input.manager ?? "",
-          input.region ?? "",
-          input.country ?? "",
+          manager,
+          region,
+          input.country,
           input.city ?? "",
           input.start_date ?? null,
-          input.manager_email ?? null,
+          managerEmail,
           csvRole,
         ],
         { label: "Update existing camper info" }
@@ -149,20 +165,21 @@ export default api({
     // New registration: insert with initial points + PIN + cohort
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin, cohort_id, manager_email, csv_role)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, 10, $10, $11, $12, $13)`,
+       VALUES ($1, $2, $3, $4, $5, COALESCE(camp201_map_region($6, $7), ''), COALESCE(camp201_map_country($7), ''),
+               $8, $9::date, 10, $10, $11, $12, $13)`,
       [
         input.email,
         input.first_name,
         input.last_name,
         input.role,
-        input.manager ?? "",
-        input.region ?? "",
-        input.country ?? "",
+        manager,
+        region,
+        input.country,
         input.city ?? "",
         input.start_date ?? null,
         pin,
         cohortId,
-        input.manager_email ?? null,
+        managerEmail,
         csvRole,
       ],
       { label: "Register new cAMPer with PIN + cohort" }

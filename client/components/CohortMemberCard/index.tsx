@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import RegionPill from "@/components/RegionPill/index.js";
 import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
 import { getRoleStyle, isCounselorRole } from "@/lib/roles.js";
 import type { CohortMember } from "@/lib/cohortMember.js";
@@ -92,12 +93,7 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
             {countryStyle.flag} {countryName.replace(/^the /, "")}
           </span>
         )}
-        {member.region && !isCounselor && (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-            <Icon icon="globe" className="w-3 h-3" />
-            {member.region}
-          </span>
-        )}
+        {!isCounselor && <RegionPill region={member.region} country={member.country} />}
         {/* Counselors aren't on a team and don't have a manager here */}
         {member.manager && !isCounselor && (
           <span

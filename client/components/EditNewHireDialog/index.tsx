@@ -14,7 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApi } from "@/hooks/useApi";
-import { STANDARD_ROLES, isCounselorRole } from "@/lib/roles.js";
+import { STANDARD_ROLES, isCounselorRole, mapToStandardRole } from "@/lib/roles.js";
+import { REGIONS, getRegion } from "@/lib/regions.js";
 
 export type EditableHire = {
   id: number;
@@ -40,6 +41,7 @@ type FormState = {
   first_name: string;
   last_name: string;
   email: string;
+  official_title: string;
   role_title: string;
   region: string;
   manager_name: string;
@@ -47,11 +49,10 @@ type FormState = {
   notes: string;
 };
 
-const FIELDS: { key: Exclude<keyof FormState, "notes" | "role_title">; label: string; type?: string; required?: boolean; half?: boolean }[] = [
+const FIELDS: { key: Exclude<keyof FormState, "notes" | "role_title" | "region" | "official_title">; label: string; type?: string; required?: boolean; half?: boolean }[] = [
   { key: "first_name", label: "First name", required: true, half: true },
   { key: "last_name", label: "Last name", required: true, half: true },
   { key: "email", label: "Email", type: "email", required: true },
-  { key: "region", label: "Region" },
   { key: "manager_name", label: "Manager name", half: true },
   { key: "manager_email", label: "Manager email", type: "email", half: true },
 ];
@@ -61,9 +62,10 @@ function toForm(h: EditableHire): FormState {
     first_name: h.first_name ?? "",
     last_name: h.last_name ?? "",
     email: h.email ?? "",
+    official_title: h.original_title && !isCounselorRole(h.original_title) ? h.original_title : "",
     // Unmatched CSV titles start blank so the counselor picks one of the 12 roles.
-    role_title: h.role_title && (STANDARD_ROLES as readonly string[]).includes(h.role_title) ? h.role_title : "",
-    region: h.region ?? "",
+    role_title: h.role_needs_review ? "" : mapToStandardRole(h.role_title) ?? "",
+    region: getRegion(h.region) ?? "",
     manager_name: h.manager_name ?? "",
     manager_email: h.manager_email ?? "",
     notes: h.notes ?? "",
@@ -102,6 +104,7 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
         last_name: form.last_name,
         email: form.email,
         role_title: form.role_title || null,
+        official_title: form.official_title.trim() || null,
         region: form.region || null,
         manager_name: form.manager_name || null,
         manager_email: form.manager_email || null,
@@ -135,7 +138,16 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
             }}
           >
             <div className="col-span-2 flex flex-col gap-1.5">
-              <Label className="text-xs">Role</Label>
+              <Label htmlFor="hire-official_title" className="text-xs">Official title</Label>
+              <Input
+                id="hire-official_title"
+                placeholder="e.g. Major Enterprise Account Executive"
+                value={form.official_title}
+                onChange={(e) => setField("official_title", e.target.value)}
+              />
+            </div>
+            <div className="col-span-1 flex flex-col gap-1.5">
+              <Label className="text-xs">cAMP role</Label>
               <Select value={form.role_title} onValueChange={(v) => setField("role_title", v)}>
                 <SelectTrigger className={hire?.role_needs_review && !form.role_title ? "border-amber-400" : ""}>
                   <SelectValue placeholder="Pick a role" />
@@ -146,11 +158,22 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-              {hire?.original_title && !isCounselorRole(hire.original_title) && hire.original_title !== form.role_title && (
-                <p className={`text-xs ${hire.role_needs_review ? "text-amber-700" : "text-muted-foreground"}`}>
-                  CSV title: “{hire.original_title}”{hire.role_needs_review ? " didn't match a role. Please pick one." : ""}
-                </p>
+              {hire?.role_needs_review && !form.role_title && (
+                <p className="text-xs text-amber-700">This title didn't match a role. Please pick one.</p>
               )}
+            </div>
+            <div className="col-span-1 flex flex-col gap-1.5">
+              <Label className="text-xs">Region</Label>
+              <Select value={form.region} onValueChange={(v) => setField("region", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a region" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGIONS.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {FIELDS.map((f) => (
               <div key={f.key} className={`flex flex-col gap-1.5 ${f.half ? "col-span-1" : "col-span-2"}`}>

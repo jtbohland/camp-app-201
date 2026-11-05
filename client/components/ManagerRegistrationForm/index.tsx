@@ -16,7 +16,7 @@ type ManagerRegistrationFormProps = {
   onSuccess: () => void;
 };
 
-const REGIONS = ["North America", "EMEA", "APAC", "LATAM"];
+const REGIONS = ["NAMER", "EMEA", "APAC"];
 
 export default function ManagerRegistrationForm({ userEmail, onSuccess }: ManagerRegistrationFormProps) {
   const [firstName, setFirstName] = useState("");

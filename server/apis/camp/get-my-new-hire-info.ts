@@ -14,6 +14,7 @@ export default api({
     last_name: z.string().nullable(),
     /** One of the 12 standard roles, or null when the CSV title didn't match. */
     role: z.string().nullable(),
+    /** NAMER / EMEA / APAC. */
     region: z.string().nullable(),
     manager_email: z.string().nullable(),
   }),
@@ -23,7 +24,7 @@ export default api({
     if (!email) return empty;
 
     const rows = await ctx.integrations.camp_201_db.query(
-      `SELECT first_name, last_name, role_title, region, manager_email
+      `SELECT first_name, last_name, role_title, camp201_map_region(region, NULL) AS region, manager_email
        FROM camp201_new_hires
        WHERE lower(email) = $1
        ORDER BY (cohort_id = (SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1)) DESC NULLS LAST,
