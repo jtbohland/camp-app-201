@@ -11,6 +11,18 @@ const CamperMetricSchema = z.object({
   role: z.string(),
   team_id: z.coerce.number().nullable(),
   team_name: z.string().nullable(),
+  team_color: z.string().nullable(),
+  team_logo_url: z.string().nullable(),
+  manager: z.string().nullable(),
+  manager_email: z.string().nullable(),
+  region: z.string().nullable(),
+  country: z.string().nullable(),
+  city: z.string().nullable(),
+  photo_url: z.string().nullable(),
+  linkedin_url: z.string().nullable(),
+  fun_fact: z.string().nullable(),
+  start_date: z.string().nullable(),
+  absences_used: z.coerce.number(),
   points: z.coerce.number(),
   profile_completed: z.boolean(),
   goal_1: z.string().nullable(),
@@ -52,7 +64,19 @@ export default api({
 
     const campers = await ctx.integrations.camp_201_db.query(
       `SELECT c.id, c.first_name, c.last_name, c.email, c.role, c.team_id,
-              t.name as team_name, c.points, c.profile_completed,
+              t.name as team_name, t.color AS team_color, t.logo_url AS team_logo_url,
+              COALESCE(NULLIF(btrim(c.manager), ''),
+                       (SELECT NULLIF(btrim(nh.manager_name), '') FROM camp201_new_hires nh
+                         WHERE lower(nh.email) = lower(c.email) ORDER BY nh.updated_at DESC NULLS LAST LIMIT 1),
+                       (SELECT NULLIF(btrim(concat(m.first_name, ' ', m.last_name)), '') FROM camp201_campers m
+                         WHERE c.manager_email IS NOT NULL AND lower(m.email) = lower(c.manager_email) LIMIT 1)) AS manager,
+              c.manager_email, c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.fun_fact,
+              c.start_date::text AS start_date,
+              (SELECT COUNT(*) FROM camp201_absence_requests ar
+                WHERE ar.camper_id = c.id AND COALESCE(ar.status, 'approved') = 'approved'
+                  AND COALESCE(ar.approval_type, 'standard') = 'standard'
+                  AND (ar.cohort_id IS NULL OR ar.cohort_id = c.cohort_id))::int AS absences_used,
+              c.points, c.profile_completed,
               c.goal_1, c.goal_2, c.goal_3,
               c.goal_1_achieved, c.goal_2_achieved, c.goal_3_achieved,
               COALESCE(cr.checkin_count, 0)::int as checkin_count,
@@ -77,8 +101,15 @@ export default api({
 
     const totalPoints = campers.reduce((sum, c) => sum + c.points, 0);
 
+    // "first.last@amplitude.com" → "First Last" when no manager name is on file.
+    const nameFromEmail = (email: string | null) => {
+      const local = email?.split("@")[0]?.trim();
+      if (!local) return null;
+      return local.split(/[._-]+/).filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(" ");
+    };
+
     return {
-      campers,
+      campers: campers.map((c) => (c.manager ? c : { ...c, manager: nameFromEmail(c.manager_email) })),
       total_points: totalPoints,
       total_campers: campers.length,
     };

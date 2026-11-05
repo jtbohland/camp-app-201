@@ -48,7 +48,6 @@ import CreateCohort from './camp/create-cohort.js';
 import SetActiveCohort from './camp/set-active-cohort.js';
 import GetActiveCohort from './camp/get-active-cohort.js';
 import GetAdminCampers from './camp/get-admin-campers.js';
-import GetAdminCamperDetail from './camp/get-admin-camper-detail.js';
 import GetAdminTeams from './camp/get-admin-teams.js';
 import MigrateRubrics from './camp/migrate-rubrics.js';
 import GetRubricTemplates from './camp/get-rubric-templates.js';
@@ -188,6 +187,10 @@ import GetCloseCampStatus from './camp/get-close-camp-status.js';
 import CloseCamp from './camp/close-camp.js';
 import ArchiveCohortToLegacyWall from './camp/archive-cohort-to-legacy-wall.js';
 import { GetViewCohort, SetViewCohort } from './camp/cohort-view.js';
+import GetMyNewHireInfo from './camp/get-my-new-hire-info.js';
+import GetCampSnapshot from './camp/get-camp-snapshot.js';
+import GetCamperReportCard from './camp/get-camper-report-card.js';
+import { MarkSpeakerLinkCopied, AnswerExecQuestion } from './camp/speaker-access.js';
 import SetupCheckinTeamRace from './camp/setup-checkin-team-race.js';
 import SubmitLateCheckIn from './camp/submit-late-checkin.js';
 import RevealTeamStanding from './camp/reveal-team-standing.js';
@@ -243,7 +246,6 @@ const apis = {
   SetActiveCohort,
   GetActiveCohort,
   GetAdminCampers,
-  GetAdminCamperDetail,
   GetAdminTeams,
   MigrateRubrics,
   GetRubricTemplates,
@@ -399,6 +401,11 @@ const apis = {
   ArchiveCohortToLegacyWall,
   GetViewCohort,
   SetViewCohort,
+  GetMyNewHireInfo,
+  GetCampSnapshot,
+  GetCamperReportCard,
+  MarkSpeakerLinkCopied,
+  AnswerExecQuestion,
 } as const;
 
 export default apis;

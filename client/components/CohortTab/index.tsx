@@ -1,33 +1,14 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { Icon } from "@/components/ui/icon";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getCountryStyle, getCountryDisplayName } from "@/lib/countryUtils.js";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CohortMemberCard from "@/components/CohortMemberCard/index.js";
-
-type CohortMember = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string | null;
-  manager: string | null;
-  region: string | null;
-  country: string | null;
-  city: string | null;
-  photo_url: string | null;
-  linkedin_url: string | null;
-  bio?: string | null;
-  fun_fact: string | null;
-  points: number;
-  team_id: number | null;
-  team_name: string | null;
-  team_color: string | null;
-  team_logo_url: string | null;
-  start_date: string | null;
-};
+import CohortMemberDialog from "@/components/CohortMemberDialog/index.js";
+import CohortHeroStats from "@/components/CohortHeroStats/index.js";
+import { ROLE_GROUP_ORDER, getRoleGroup, mapToStandardRole, type RoleGroup } from "@/lib/roles.js";
+import { COHORT_SORTS, sortCohortMembers, isCounselorMember, type CohortMember, type CohortSort } from "@/lib/cohortMember.js";
 
 export default function CohortTab() {
   const { data, loading, fetching } = useApiData("GetCohort", {});
@@ -36,6 +17,10 @@ export default function CohortTab() {
   const cohortName = viewData?.cohort_name ?? null;
   const [search, setSearch] = useState("");
   const [localSearch, setLocalSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleGroup | null>(null);
+  const [sort, setSort] = useState<CohortSort>("name");
+  const [openMember, setOpenMember] = useState<CohortMember | null>(null);
+  const closeMember = useCallback(() => setOpenMember(null), []);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,55 +31,36 @@ export default function CohortTab() {
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  const members = useMemo(() => {
-    const all = data?.members ?? [];
-    if (!search.trim()) return all;
-    const q = search.toLowerCase();
-    return all.filter((m: CohortMember) =>
-      `${m.first_name} ${m.last_name} ${m.role ?? ""} ${m.region ?? ""} ${m.team_name ?? ""}`.toLowerCase().includes(q)
-    );
-  }, [data, search]);
-
-  const counselors = useMemo(() => members.filter((m: CohortMember) => m.role === "counselor" || m.role === "admin"), [members]);
-  const campers = useMemo(() => members.filter((m: CohortMember) => m.role !== "counselor" && m.role !== "admin"), [members]);
-
-  const teamCount = useMemo(() => {
-    const teams = new Set<string>();
-    members.forEach((m: CohortMember) => { if (m.team_name) teams.add(m.team_name); });
-    return teams.size;
-  }, [members]);
-
-  const countryList = useMemo(() => {
-    const map = new Map<string, string>();
-    members.forEach((m: CohortMember) => {
-      if (m.country) {
-        const canonical = getCountryDisplayName(m.country) ?? m.country;
-        const style = getCountryStyle(m.country);
-        if (style) map.set(canonical, style.flag);
-      }
-    });
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [members]);
-  const countryCount = countryList.length;
+  const allMembers = (data?.members ?? []) as CohortMember[];
+  const allCampers = useMemo(() => allMembers.filter((m) => !isCounselorMember(m)), [allMembers]);
 
   const roleCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    const ROLE_ABBREVS: Record<string, string> = {
-      "account executive": "AEs", "solutions engineer": "SEs",
-      "sales development": "SDRs", "customer success": "CSMs",
-      "technical success": "TSMs", "renewal": "Renewal",
-      "partner": "Partners", "velocity": "Velocity",
-    };
-    campers.forEach((m: CohortMember) => {
-      const role = m.role?.toLowerCase() ?? "";
-      let label = "Other";
-      for (const [key, abbr] of Object.entries(ROLE_ABBREVS)) {
-        if (role.includes(key)) { label = abbr; break; }
-      }
-      map.set(label, (map.get(label) ?? 0) + 1);
-    });
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-  }, [campers]);
+    const map = new Map<RoleGroup, number>();
+    for (const m of allCampers) {
+      const g = getRoleGroup(m.role);
+      if (g) map.set(g, (map.get(g) ?? 0) + 1);
+    }
+    return ROLE_GROUP_ORDER.filter((g) => map.has(g)).map((g) => [g, map.get(g)!] as const);
+  }, [allCampers]);
+
+  const members = useMemo(() => {
+    let list = allMembers;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((m) =>
+        `${m.first_name} ${m.last_name} ${mapToStandardRole(m.role) ?? m.role ?? ""} ${m.region ?? ""} ${m.country ?? ""} ${m.team_name ?? ""} ${m.manager ?? ""}`
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+    return sortCohortMembers(list, sort);
+  }, [allMembers, search, sort]);
+
+  const counselors = useMemo(() => (roleFilter ? [] : members.filter(isCounselorMember)), [members, roleFilter]);
+  const campers = useMemo(
+    () => members.filter((m) => !isCounselorMember(m) && (!roleFilter || getRoleGroup(m.role) === roleFilter)),
+    [members, roleFilter]
+  );
 
   if (loading) {
     return (
@@ -109,73 +75,52 @@ export default function CohortTab() {
     );
   }
 
+  const shownCount = counselors.length + campers.length;
+
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* Cohort Hero Stats */}
-      <div className="rounded-xl bg-gradient-to-r from-camp-green/90 to-emerald-700 p-5 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              🏕️ {!cohortName ? "cAMP 201" : /camp\s*201/i.test(cohortName) ? cohortName : `${cohortName} — cAMP 201`}
-            </h2>
-            <p className="text-sm text-white/70 mt-0.5">Your fellow cAMPers on this journey</p>
-          </div>
-          <div className="flex items-center gap-5">
-            <div className="text-center">
-              <div className="text-2xl font-bold tabular-nums">{members.length}</div>
-              <div className="text-[10px] uppercase tracking-wider text-white/60">cAMPers</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold tabular-nums">{teamCount}</div>
-              <div className="text-[10px] uppercase tracking-wider text-white/60">Teams</div>
-            </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="text-center cursor-pointer">
-                    <div className="text-2xl font-bold tabular-nums">{countryCount}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-white/60">Countries</div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-gray-900 text-white max-w-sm p-3">
-                  <p className="font-semibold text-xs mb-2">Representing {countryCount} countries</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {countryList.map(([name, flag]) => {
-                      const style = getCountryStyle(name);
-                      return (
-                        <span key={name} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${style?.bg ?? "bg-gray-100"} ${style?.text ?? "text-gray-700"}`}>
-                          {flag} {name.replace(/^the /, "")}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+      <CohortHeroStats
+        cohortName={cohortName}
+        members={allMembers}
+        roleCounts={roleCounts}
+        activeRole={roleFilter}
+        onRoleClick={(g) => setRoleFilter((cur) => (cur === g ? null : g))}
+      />
+
+      {/* Search + sort */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            {roleFilter ? `Showing ${campers.length} ${roleFilter} cAMPer${campers.length === 1 ? "" : "s"}` : `${shownCount} members in this cohort`}
+          </p>
+          {roleFilter && (
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setRoleFilter(null)}>
+              <Icon icon="users" className="mr-1 h-3.5 w-3.5" />
+              View all cAMPers
+            </Button>
+          )}
         </div>
-        {/* Role distribution mini pills */}
-        <div className="flex flex-wrap gap-1.5 mt-3">
-          {roleCounts.map(([role, count]) => (
-            <Badge key={role} className="bg-white/15 text-white border-white/20 text-[10px]">
-              {count} {role}
-            </Badge>
-          ))}
-        </div>
-      </div>
-      {/* Search */}
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          {members.length} members in this cohort
-        </p>
-        <div className="relative w-full max-w-xs">
-          <Icon icon="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={localSearch}
-            onChange={handleSearchChange}
-            placeholder="Search by name, role, region..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <Select value={sort} onValueChange={(v) => setSort(v as CohortSort)}>
+            <SelectTrigger className="h-9 w-48 text-sm" aria-label="Sort cAMPers">
+              <Icon icon="arrow-up-down" className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COHORT_SORTS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative w-full max-w-xs">
+            <Icon icon="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={localSearch}
+              onChange={handleSearchChange}
+              placeholder="Search name, role, country, manager..."
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
         </div>
       </div>
 
@@ -184,7 +129,6 @@ export default function CohortTab() {
       )}
 
       <div className={fetching ? "opacity-70" : ""}>
-        {/* Counselors section */}
         {counselors.length > 0 && (
           <div className="mb-8">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
@@ -192,37 +136,43 @@ export default function CohortTab() {
               Counselors ({counselors.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {counselors.map((m: CohortMember) => (
-                <CohortMemberCard key={m.id} member={m} />
+              {counselors.map((m) => (
+                <CohortMemberCard key={m.id} member={m} onOpen={setOpenMember} />
               ))}
             </div>
           </div>
         )}
 
-        {/* Campers section */}
         {campers.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
               <Icon icon="tent" className="w-4 h-4" />
-              cAMPers ({campers.length})
+              {roleFilter ? `${roleFilter} cAMPers` : "cAMPers"} ({campers.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {campers.map((m: CohortMember) => (
-                <CohortMemberCard key={m.id} member={m} />
+              {campers.map((m) => (
+                <CohortMemberCard key={m.id} member={m} onOpen={setOpenMember} />
               ))}
             </div>
           </div>
         )}
 
-        {members.length === 0 && (
+        {shownCount === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <Icon icon={search.trim() ? "search" : "tent"} className="w-12 h-12 opacity-30 mb-3" />
+            <Icon icon={search.trim() || roleFilter ? "search" : "tent"} className="w-12 h-12 opacity-30 mb-3" />
             <p className="text-sm">
-              {search.trim() ? "No members match your search" : "No one has registered for this cohort yet"}
+              {search.trim() || roleFilter ? "No one matches these filters" : "No one has registered for this cohort yet"}
             </p>
+            {roleFilter && (
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => setRoleFilter(null)}>
+                View all cAMPers
+              </Button>
+            )}
           </div>
         )}
       </div>
+
+      <CohortMemberDialog member={openMember} onClose={closeMember} />
     </div>
   );
 }

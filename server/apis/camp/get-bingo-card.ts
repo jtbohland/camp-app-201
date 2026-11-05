@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
+import { buildFairCard, type BingoPerson } from "../../lib/bingo.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -90,77 +91,30 @@ export default api({
       };
     }
 
-    // Generate a new card — gather fun facts from all non-admin campers
-    const facts = await ctx.integrations.camp_201_db.query(
-      `SELECT id, first_name, fun_fact, ice_breaker_q1, ice_breaker_q2, ice_breaker_q3, city, region
+    // Generate a new card from everyone else in the cohort (fair mix: see server/lib/bingo.ts).
+    const people = await ctx.integrations.camp_201_db.query(
+      `SELECT id, first_name, fun_fact, ice_breaker_q1, ice_breaker_q2, ice_breaker_q3, city, country,
+              start_date::text AS start_date
        FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
+         AND removed_at IS NULL
          AND cohort_id = ${VIEW}
-         AND (fun_fact IS NOT NULL OR ice_breaker_q1 IS NOT NULL)
-       LIMIT 50`,
+       ORDER BY id
+       LIMIT 200`,
       z.object({
         id: z.coerce.number(), first_name: z.string(),
         fun_fact: z.string().nullable(), ice_breaker_q1: z.string().nullable(),
         ice_breaker_q2: z.string().nullable(), ice_breaker_q3: z.string().nullable(),
-        city: z.string().nullable(), region: z.string().nullable(),
+        city: z.string().nullable(), country: z.string().nullable(), start_date: z.string().nullable(),
       }),
       undefined,
-      { label: "Gather fun facts from cohort" }
+      { label: "Gather cohort for bingo" }
     );
 
-    // Build fact pool: each camper contributes multiple facts
-    const factPool: { fact: string; camper_id: number }[] = [];
-    for (const c of facts) {
-      if (c.fun_fact?.trim()) factPool.push({ fact: c.fun_fact.trim(), camper_id: c.id });
-      if (c.ice_breaker_q1?.trim()) factPool.push({ fact: c.ice_breaker_q1.trim(), camper_id: c.id });
-      if (c.ice_breaker_q2?.trim()) factPool.push({ fact: c.ice_breaker_q2.trim(), camper_id: c.id });
-      if (c.ice_breaker_q3?.trim()) factPool.push({ fact: c.ice_breaker_q3.trim(), camper_id: c.id });
-      if (c.city?.trim()) factPool.push({ fact: `Lives in ${c.city.trim()}`, camper_id: c.id });
-    }
-
-    // We need 24 facts (25 squares minus 1 free center)
-    // Ensure each camper appears at least once
-    const camperIds = [...new Set(factPool.map((f) => f.camper_id))];
-    const selected: typeof factPool = [];
-
-    // First pass: one fact per camper
-    for (const cid of camperIds) {
-      const camperFacts = factPool.filter((f) => f.camper_id === cid);
-      if (camperFacts.length > 0 && selected.length < 24) {
-        const pick = camperFacts[Math.floor(seededRandom(camper_id + cid) * camperFacts.length)];
-        selected.push(pick);
-      }
-    }
-
-    // Second pass: fill to 24 with remaining facts
-    const usedFacts = new Set(selected.map((s) => s.fact));
-    const remaining = factPool.filter((f) => !usedFacts.has(f.fact));
-    // Shuffle remaining with seed
-    const shuffledRemaining = shuffleWithSeed(remaining, camper_id + 999);
-    for (const f of shuffledRemaining) {
-      if (selected.length >= 24) break;
-      selected.push(f);
-    }
-
-    // If still not 24 (very small cohort), pad with generic camp facts
-    const genericFacts = [
-      "Has been camping before", "Prefers coffee over tea", "Has a pet at home",
-      "Plays a musical instrument", "Has traveled to 5+ countries", "Is a morning person",
-      "Speaks more than one language", "Has run a marathon", "Loves hiking",
-      "Has a hidden talent", "Collects something unusual", "Has met a celebrity",
-      "Can cook a great meal", "Has binge-watched a show this month", "Prefers mountains over beach",
-      "Has a go-to karaoke song", "Has lived in another country", "Is a night owl",
-      "Has a green thumb", "Has skydived or bungee jumped", "Reads more than 10 books a year",
-      "Has a secret snack weakness", "Can do a cartwheel", "Has a tattoo",
-    ];
-    let gIdx = 0;
-    while (selected.length < 24 && gIdx < genericFacts.length) {
-      selected.push({ fact: genericFacts[gIdx], camper_id: 0 });
-      gIdx++;
-    }
-
-    // Shuffle the 24 facts uniquely per camper
-    const shuffled = shuffleWithSeed(selected.slice(0, 24), camper_id);
+    const others: BingoPerson[] = people.filter((p) => p.id !== camper_id);
+    // Card slot: this cAMPer's position in the cohort, so big cohorts rotate who's on each card.
+    const slot = Math.max(0, people.findIndex((p) => p.id === camper_id));
+    const shuffled = buildFairCard(others, camper_id, people.length, slot);
 
     // Build 5x5 grid with FREE center (index 12)
     const card = shuffled.map((f, i) => ({
@@ -194,18 +148,3 @@ export default api({
   },
 });
 
-// Seeded random number generator
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed * 9301 + 49297) * 49297;
-  return x - Math.floor(x);
-}
-
-// Shuffle array with a seed for deterministic per-camper cards
-function shuffleWithSeed<T>(arr: T[], seed: number): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(seededRandom(seed + i) * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}

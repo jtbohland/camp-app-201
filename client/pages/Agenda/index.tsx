@@ -8,6 +8,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import ExecutivesTab from "@/components/ExecutivesTab/index.js";
 import AgendaResources from "@/components/AgendaResources/index.js";
@@ -41,7 +42,15 @@ type TabId = "schedule" | "speakers" | "resources";
 
 export default function AgendaPage() {
   const user = useSuperblocksUser();
-  const [activeTab, setActiveTab] = useState<TabId>("schedule");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<TabId>(
+    tabParam === "speakers" || tabParam === "resources" ? tabParam : "schedule"
+  );
+  // Share links and the speaker sidebar link use ?tab=speakers.
+  useEffect(() => {
+    if (tabParam === "speakers" || tabParam === "resources" || tabParam === "schedule") setActiveTab(tabParam);
+  }, [tabParam]);
 
   const { data: configData } = useApiData("GetCampConfig", {});
   const { data: agendaData, loading } = useApiData("GetAgenda", {});

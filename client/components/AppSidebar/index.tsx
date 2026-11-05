@@ -32,6 +32,13 @@ const camperNavItems: NavItem[] = [
   { icon: "shield", label: "Counselor Hub", path: "/admin", adminOnly: true },
 ];
 
+/** Guest speakers: Agenda (with their Q&A), Base Camp, cohort/teams and past cAMPs. */
+const speakerNavItems: NavItem[] = [
+  { icon: "house", label: "Base Camp", path: "/" },
+  { icon: "calendar", label: "Agenda & My Q&A", path: "/agenda?tab=speakers" },
+  { icon: "users", label: "Teams & Cohort", path: "/teams" },
+];
+
 const managerNavItems: NavItem[] = [
   { icon: "binoculars", label: "My cAMPers", path: "/manager" },
   { icon: "calendar", label: "Agenda", path: "/agenda" },
@@ -44,7 +51,7 @@ export default function AppSidebar() {
   const user = useSuperblocksUser();
   const [showCheckin, setShowCheckin] = useState(false);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, isSpeaker } = useIsAdmin();
 
   const { data: checkinData } = useApiData("GetActiveCheckIn", {}, { refetchInterval: 5000 });
   const checkinOpen = checkinData?.checkin_open ?? false;
@@ -87,9 +94,10 @@ export default function AppSidebar() {
       // Registration not finished — profile only
       return [{ icon: "user" as IconName, label: "Complete Profile", path: "/profile" }];
     }
+    if (isSpeaker) return speakerNavItems;
     if (isManager) return managerNavItems;
     return [{ icon: "house" as IconName, label: "Home", path: "/" }];
-  }, [isAdmin, isCamper, profileDone, isManager, gates]);
+  }, [isAdmin, isCamper, profileDone, isManager, isSpeaker, gates]);
 
   const handleToggleLock = useCallback(async (gateKey: string) => {
     const gate = gates.get(gateKey);
@@ -119,7 +127,7 @@ export default function AppSidebar() {
           <div className="flex flex-col">
             <span className="text-sm font-bold tracking-wide">cAMP 201</span>
             <span className="text-xs text-sidebar-accent-foreground/60">
-              {isAdmin ? "Counselor view" : isManager && !isCamper ? "Manager Portal" : "Amplitude"}
+              {isAdmin ? "Counselor view" : isSpeaker && !isCamper ? "Guest speaker" : isManager && !isCamper ? "Manager Portal" : "Amplitude"}
             </span>
           </div>
         </div>

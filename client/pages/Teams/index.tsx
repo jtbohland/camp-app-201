@@ -23,7 +23,7 @@ type Gate = { feature_key: string; label: string; is_locked: boolean };
 
 export default function TeamsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("cohort");
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, isSpeaker } = useIsAdmin();
   const { data: gatesData } = useApiData("GetFeatureGates", {}, { refetchInterval: 30_000 });
   const { run: updateGate, loading: toggling } = useApi("UpdateFeatureGate");
 
@@ -36,10 +36,11 @@ export default function TeamsPage() {
   // Missing gate rows default to locked for cAMPers
   const isGateLocked = useCallback((key?: string) => (key ? gates.get(key)?.is_locked ?? true : false), [gates]);
 
-  // cAMPers only see unlocked tabs; counselors see every tab with a lock toggle
+  // cAMPers only see unlocked tabs; counselors see every tab with a lock toggle;
+  // guest speakers see every tab (cohort, teams/rankings, past cAMPs) read-only.
   const visibleTabs = useMemo(
-    () => (isAdmin ? tabs : tabs.filter((t) => !isGateLocked(t.gate))),
-    [isAdmin, isGateLocked],
+    () => (isAdmin || isSpeaker ? tabs : tabs.filter((t) => !isGateLocked(t.gate))),
+    [isAdmin, isSpeaker, isGateLocked],
   );
   const currentTab = visibleTabs.some((t) => t.id === activeTab) ? activeTab : "cohort";
 

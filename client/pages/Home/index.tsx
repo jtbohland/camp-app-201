@@ -11,6 +11,7 @@ import AnnouncementsFeed from "@/components/AnnouncementsFeed/index.js";
 import RoleChooser, { type JoinRole } from "@/components/RoleChooser/index.js";
 import CounselorAccessForm from "@/components/CounselorAccessForm/index.js";
 import RejoinPendingNotice from "@/components/RejoinPendingNotice/index.js";
+import SpeakerBaseCamp from "@/components/SpeakerBaseCamp/index.js";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { IconName } from "lucide-react/dynamic";
 
@@ -38,7 +39,7 @@ export default function HomePage() {
   const user = useSuperblocksUser();
   const navigate = useNavigate();
   const [regMode, setRegMode] = useState<RegistrationMode>("choose");
-  const { isAdmin, loading: loadingAccess } = useIsAdmin();
+  const { isAdmin, isSpeaker, speakerName, loading: loadingAccess } = useIsAdmin();
 
   const { data, loading, refetch } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
@@ -74,6 +75,11 @@ export default function HomePage() {
   // Removed by a counselor, then registered again: wait for a counselor to restore them
   if (data?.rejoinPending && !isAdmin) {
     return <RejoinPendingNotice />;
+  }
+
+  // Guest speakers (opened their share link): their own Base Camp
+  if (isSpeaker && !data?.isRegistered && !isAdmin) {
+    return <SpeakerBaseCamp name={speakerName ?? user?.name ?? "Speaker"} />;
   }
 
   // Not registered as camper or manager, and not a verified counselor: choose how you're joining

@@ -11,6 +11,8 @@ const FlightSchema = z.object({
   flight_departure_date: z.string().nullable(),
   flight_departure_time: z.string().nullable(),
   leave_office_by: z.string().nullable(),
+  /** Not flying (lives near San Francisco or local). */
+  flight_is_local: z.boolean(),
 });
 
 export default api({
@@ -27,10 +29,11 @@ export default api({
     // Active cohort for cAMPers; a counselor's chosen past cohort when viewing one.
     const VIEW = cohortIdSql((await resolveViewCohort(ctx.integrations.camp_db, ctx.user.email)).cohortId);
     const flights = await ctx.integrations.camp_db.query(
-      `SELECT id, first_name, last_name, email, flight_departure_date, flight_departure_time, leave_office_by
+      `SELECT id, first_name, last_name, email, flight_departure_date, flight_departure_time, leave_office_by,
+              COALESCE(flight_is_local, false) AS flight_is_local
        FROM camp201_campers
-       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${VIEW}
-       ORDER BY flight_departure_date NULLS LAST, flight_departure_time NULLS LAST, last_name
+       WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${VIEW} AND removed_at IS NULL
+       ORDER BY COALESCE(flight_is_local, false), flight_departure_date NULLS LAST, flight_departure_time NULLS LAST, last_name
        LIMIT 50`,
       FlightSchema,
       undefined,

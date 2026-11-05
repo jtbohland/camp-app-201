@@ -198,26 +198,38 @@ export default api({
     let teamPlace: number | null = null;
 
     if (teamId) {
-      const TeamStatusSchema = z.object({ checked_in: z.coerce.number(), total: z.coerce.number(), absent_approved: z.coerce.number() });
+      // Excused = an approved absence overlapping this session (from when it started until now).
+      // Excused members who haven't checked in don't hold the team back.
+      const EXCUSED_WHERE = `c.team_id = $2
+             AND c.role NOT IN ('counselor', 'admin')
+             AND c.removed_at IS NULL
+             AND c.id NOT IN (SELECT camper_id FROM camp201_checkin_responses WHERE session_id = $1)
+             AND EXISTS (
+               SELECT 1 FROM camp201_absence_requests ar
+               WHERE ar.camper_id = c.id
+                 AND ar.status = 'approved'
+                 AND ar.start_time <= NOW()
+                 AND ar.end_time >= COALESCE((SELECT started_at FROM camp201_checkin_sessions WHERE id = $1), NOW())
+             )`;
+      const TeamStatusSchema = z.object({ checked_in: z.coerce.number(), total: z.coerce.number(), excused: z.coerce.number() });
       const teamStatus = await ctx.integrations.camp_201_db.query(
         `SELECT
-          (SELECT COUNT(*) FROM camp201_checkin_responses WHERE session_id = $1 AND team_id = $2) as checked_in,
-          (SELECT COUNT(*) FROM camp201_campers WHERE team_id = $2 AND role != 'counselor') as total,
-          (SELECT COUNT(DISTINCT ar.camper_id)
-           FROM camp201_absence_requests ar
-           JOIN camp201_campers c2 ON c2.id = ar.camper_id
-           WHERE c2.team_id = $2
-             AND ar.status = 'approved'
-             AND ar.start_time <= NOW()
-             AND ar.end_time >= NOW()
-          ) as absent_approved`,
+          (SELECT COUNT(*) FROM camp201_checkin_responses r
+             JOIN camp201_campers c ON c.id = r.camper_id
+           WHERE r.session_id = $1 AND r.team_id = $2 AND c.removed_at IS NULL) as checked_in,
+          (SELECT COUNT(*) FROM camp201_campers c
+           WHERE c.team_id = $2 AND c.role NOT IN ('counselor', 'admin') AND c.removed_at IS NULL) as total,
+          (SELECT COUNT(*) FROM camp201_campers c WHERE ${EXCUSED_WHERE}) as excused`,
         TeamStatusSchema,
         [session_id, teamId],
         { label: "Check team completion" }
       );
 
-      const effectiveTotal = teamStatus[0].total - teamStatus[0].absent_approved;
-      if (teamStatus.length > 0 && teamStatus[0].checked_in >= effectiveTotal && effectiveTotal > 0) {
+      const status = teamStatus[0];
+      const accountedFor = status ? status.checked_in + status.excused : 0;
+      // Only the check-in that completes the team counts, so a team can't place twice.
+      const justCompleted = !!status && status.total > 0 && accountedFor >= status.total && accountedFor - 1 < status.total;
+      if (justCompleted) {
         teamComplete = true;
 
         // Atomically increment teams_finished counter and get the new value
@@ -254,19 +266,10 @@ export default api({
         // Auto-check-in absent members (0 pts, timing='absent')
         const AbsentSchema = z.object({ id: z.number() });
         const absentMembers = await ctx.integrations.camp_201_db.query(
-          `SELECT DISTINCT c.id
-           FROM camp201_campers c
-           JOIN camp201_absence_requests ar ON ar.camper_id = c.id
-           WHERE c.team_id = $1
-             AND c.role != 'counselor'
-             AND ar.status = 'approved'
-             AND ar.start_time <= NOW()
-             AND ar.end_time >= NOW()
-             AND c.id NOT IN (SELECT camper_id FROM camp201_checkin_responses WHERE session_id = $2)
-           LIMIT 10`,
+          `SELECT c.id FROM camp201_campers c WHERE ${EXCUSED_WHERE} LIMIT 20`,
           AbsentSchema,
-          [teamId, session_id],
-          { label: "Find absent team members" }
+          [session_id, teamId],
+          { label: "Find excused team members" }
         );
 
         for (const absent of absentMembers) {

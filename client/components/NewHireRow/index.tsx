@@ -34,6 +34,9 @@ type Hire = {
   manager_email: string | null;
   notes: string | null;
   status: string;
+  original_title?: string | null;
+  role_needs_review?: boolean;
+  registered_role?: string | null;
 };
 
 type Props = {
@@ -60,9 +63,29 @@ function NewHireRow({ hire, disabled, onStatusChange, onEdit }: Props) {
 
       {/* Name + details */}
       <div className="min-w-0 flex-1 text-left">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {hire.first_name} {hire.last_name}
-        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {hire.first_name} {hire.last_name}
+          </p>
+          {hire.role_needs_review && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+              title={`CSV title "${hire.original_title ?? hire.role_title ?? ""}" didn't match one of the 12 roles`}
+            >
+              <Icon icon="triangle-alert" className="h-3 w-3" />
+              Pick a role
+            </span>
+          )}
+          {hire.registered_role && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800"
+              title={`CSV role: ${hire.role_title ?? "none"}`}
+            >
+              <Icon icon="arrow-right-left" className="h-3 w-3" />
+              Changed from CSV: {hire.registered_role}
+            </span>
+          )}
+        </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           <span className="truncate">{hire.email}</span>
           {hire.role_title && (

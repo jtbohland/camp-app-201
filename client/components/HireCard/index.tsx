@@ -9,6 +9,7 @@ import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
+import { APPROVAL_LABELS, formatDuration } from "@/lib/absences.js";
 
 type Camper = {
   id: number;
@@ -29,7 +30,7 @@ type Camper = {
 };
 
 type PreworkItem = { item_key: string; title: string; completed: boolean };
-type AbsenceRequest = { id: number; reason: string; start_time: string | null; end_time: string | null; status: string; created_at: string };
+type AbsenceRequest = { id: number; reason: string; start_time: string | null; end_time: string | null; status: string; created_at: string; approval_type: string; minutes: number };
 type Comment = { id: number; comment_type: string; sentiment: string; content: string; created_at: string; manager_first_name: string; manager_last_name: string };
 type SurveyCompletion = { survey_id: number; survey_title: string; submitted_at: string };
 type ExecQuestion = { id: number; question_text: string; executive_name: string; vote_count: number; is_asked: boolean; created_at: string };
@@ -293,30 +294,36 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
             </div>
           )}
 
-          {/* Absence requests */}
-          {hire.absences.length > 0 && (
-            <div>
-              <SectionHeader icon="calendar-off" title="Absence Requests" count={hire.absences.length} />
+          {/* Excused absences */}
+          <div>
+            <SectionHeader
+              icon="calendar-off"
+              title={`Excused Absences · ${hire.absences.filter((a) => a.status === "approved" && a.approval_type === "standard").length}/3 used`}
+              count={hire.absences.length}
+            />
+            {hire.absences.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No absences. On track for perfect attendance (+3)</p>
+            ) : (
               <div className="flex flex-col gap-1.5">
-                {hire.absences.map(a => (
-                  <div key={a.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/30">
-                    <span>{a.reason}</span>
-                    <div className="flex items-center gap-2">
-                      {a.start_time && (
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(a.start_time).toLocaleDateString()}
-                          {a.end_time && ` – ${new Date(a.end_time).toLocaleDateString()}`}
-                        </span>
-                      )}
-                      <Badge variant={a.status === "approved" ? "default" : a.status === "pending" ? "secondary" : "outline"} className="text-[10px]">
-                        {a.status}
-                      </Badge>
+                {hire.absences.map((a) => {
+                  const tag = APPROVAL_LABELS[a.approval_type] ?? APPROVAL_LABELS.standard;
+                  return (
+                    <div key={a.id} className="flex items-center justify-between gap-2 text-sm p-2 rounded bg-muted/30">
+                      <span className="truncate">{a.reason || "No reason given"}</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {a.start_time && (
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(a.start_time).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · {formatDuration(a.minutes)}
+                          </span>
+                        )}
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tag.className}`}>{tag.label}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Survey completions */}
           <div>

@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { assertNotViewingPast } from "../../lib/cohort.js";
 import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
+import { ABSENCE_LIMIT } from "../../lib/absences.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -99,6 +100,42 @@ export default api({
       `UPDATE camp201_presentations SET is_locked = true`,
       undefined,
       { label: "Lock all presentations" }
+    );
+
+    // ─── 0. Attendance points (no badge) ────────────────
+    // 0 absences +3, 1 → +2, 2 → +1, 3 → 0, then -1 per extra absence a counselor approved
+    // with a penalty. Emergency approvals never cost points. Safe to repeat: each cAMPer
+    // gets at most one attendance entry per cohort.
+    await ctx.integrations.camp_201_db.execute(
+      `WITH usage AS (
+         SELECT c.id AS camper_id,
+                COUNT(a.id) FILTER (WHERE a.status = 'approved' AND COALESCE(a.approval_type, 'standard') = 'standard') AS std,
+                COUNT(a.id) FILTER (WHERE a.status = 'approved' AND a.approval_type = 'counselor_penalty') AS pen
+         FROM camp201_campers c
+         LEFT JOIN camp201_absence_requests a
+           ON a.camper_id = c.id AND (a.cohort_id IS NULL OR a.cohort_id = $1)
+         WHERE c.cohort_id = $1 AND c.role NOT IN ('counselor', 'admin') AND c.removed_at IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM camp201_points_log pl
+             WHERE pl.camper_id = c.id AND pl.category = 'attendance' AND pl.cohort_id = $1
+           )
+         GROUP BY c.id
+       ), scored AS (
+         SELECT camper_id, std, pen, (GREATEST(0, $2::int - std) - pen)::int AS pts FROM usage
+       ), logged AS (
+         INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
+         SELECT camper_id, pts,
+                CASE WHEN std = 0 AND pen = 0 THEN 'Perfect attendance: no excused absences'
+                     ELSE 'Attendance: ' || std || '/' || $2::int || ' excused absences used'
+                          || CASE WHEN pen > 0 THEN ', ' || pen || ' extra' ELSE '' END END,
+                'attendance', $1
+         FROM scored
+         RETURNING camper_id, points
+       )
+       UPDATE camp201_campers c SET points = c.points + l.points
+       FROM logged l WHERE c.id = l.camper_id AND l.points <> 0`,
+      [cohortId, ABSENCE_LIMIT],
+      { label: "Award attendance points" }
     );
 
     // ─── 1. Award milestone badges ──────────────────────

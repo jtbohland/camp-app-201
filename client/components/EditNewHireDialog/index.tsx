@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApi } from "@/hooks/useApi";
+import { STANDARD_ROLES, isCounselorRole } from "@/lib/roles.js";
 
 export type EditableHire = {
   id: number;
@@ -24,6 +26,8 @@ export type EditableHire = {
   manager_name: string | null;
   manager_email: string | null;
   notes: string | null;
+  original_title?: string | null;
+  role_needs_review?: boolean;
 };
 
 type Props = {
@@ -43,11 +47,10 @@ type FormState = {
   notes: string;
 };
 
-const FIELDS: { key: Exclude<keyof FormState, "notes">; label: string; type?: string; required?: boolean; half?: boolean }[] = [
+const FIELDS: { key: Exclude<keyof FormState, "notes" | "role_title">; label: string; type?: string; required?: boolean; half?: boolean }[] = [
   { key: "first_name", label: "First name", required: true, half: true },
   { key: "last_name", label: "Last name", required: true, half: true },
   { key: "email", label: "Email", type: "email", required: true },
-  { key: "role_title", label: "Role / Title" },
   { key: "region", label: "Region" },
   { key: "manager_name", label: "Manager name", half: true },
   { key: "manager_email", label: "Manager email", type: "email", half: true },
@@ -58,7 +61,8 @@ function toForm(h: EditableHire): FormState {
     first_name: h.first_name ?? "",
     last_name: h.last_name ?? "",
     email: h.email ?? "",
-    role_title: h.role_title ?? "",
+    // Unmatched CSV titles start blank so the counselor picks one of the 12 roles.
+    role_title: h.role_title && (STANDARD_ROLES as readonly string[]).includes(h.role_title) ? h.role_title : "",
     region: h.region ?? "",
     manager_name: h.manager_name ?? "",
     manager_email: h.manager_email ?? "",
@@ -130,6 +134,24 @@ export default function EditNewHireDialog({ hire, onClose, onSaved }: Props) {
               handleSave();
             }}
           >
+            <div className="col-span-2 flex flex-col gap-1.5">
+              <Label className="text-xs">Role</Label>
+              <Select value={form.role_title} onValueChange={(v) => setField("role_title", v)}>
+                <SelectTrigger className={hire?.role_needs_review && !form.role_title ? "border-amber-400" : ""}>
+                  <SelectValue placeholder="Pick a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STANDARD_ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hire?.original_title && !isCounselorRole(hire.original_title) && hire.original_title !== form.role_title && (
+                <p className={`text-xs ${hire.role_needs_review ? "text-amber-700" : "text-muted-foreground"}`}>
+                  CSV title: “{hire.original_title}”{hire.role_needs_review ? " didn't match a role. Please pick one." : ""}
+                </p>
+              )}
+            </div>
             {FIELDS.map((f) => (
               <div key={f.key} className={`flex flex-col gap-1.5 ${f.half ? "col-span-1" : "col-span-2"}`}>
                 <Label htmlFor={`hire-${f.key}`} className="text-xs">

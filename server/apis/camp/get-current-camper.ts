@@ -32,6 +32,7 @@ const CamperSchema = z.object({
   flight_departure_date: z.string().nullable(),
   flight_departure_time: z.string().nullable(),
   leave_office_by: z.string().nullable(),
+  flight_is_local: z.boolean().nullable(),
   pin: z.string().nullable(),
   profile_completed: z.boolean(),
   points: z.coerce.number(),
