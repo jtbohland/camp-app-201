@@ -88,6 +88,26 @@ export async function getCounselorAccess(db: any, email: string | null | undefin
   return { isAdmin: isCounselor || isGuest, isGuestJudge: isGuest && !isCounselor };
 }
 
+export type SpeakerAccess = { executiveId: number; name: string };
+
+/**
+ * The active guest speaker whose email matches the signed-in user, or null.
+ * Speakers get limited access: Cohort, Agenda, their own Q&A, Teams & Rankings, and Past cAMPs.
+ */
+export async function getSpeakerAccess(db: any, email: string | null | undefined): Promise<SpeakerAccess | null> {
+  const normalized = (email ?? "").toLowerCase().trim();
+  if (!normalized) return null;
+  const rows = await db.query(
+    `SELECT id, name FROM camp201_executives
+     WHERE lower(btrim(email)) = $1 AND is_active = true
+     ORDER BY id DESC LIMIT 1`,
+    z.object({ id: z.coerce.number(), name: z.string() }),
+    [normalized],
+    { label: "Check guest speaker access" }
+  );
+  return rows[0] ? { executiveId: rows[0].id, name: rows[0].name } : null;
+}
+
 /** Throws unless the signed-in user is a verified counselor or an active guest judge. */
 export async function requireCounselor(db: any, email: string | null | undefined): Promise<void> {
   if (!(email ?? "").trim()) throw new Error("You must be signed in.");

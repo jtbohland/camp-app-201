@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,27 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
+import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
+import CountryPicker from "@/components/CountryPicker/index.js";
+import { STANDARD_ROLES, ROLE_HINTS, type StandardRole } from "@/lib/roles.js";
 
 type RegistrationFormProps = {
   userEmail: string;
   onSuccess: () => void;
 };
-
-const TITLES = [
-  "Area Vice President (AVP)",
-  "Sales Manager",
-  "Partner Sales Manager",
-  "Strategic Enterprise Account Executive",
-  "Enterprise Account Executive",
-  "Emerging Enterprise Account Executive",
-  "Velocity Account Executive",
-  "Sales Development Representative",
-  "Solutions Engineer",
-  "Customer Success Manager",
-  "Technical Success Manager",
-  "Renewal Manager",
-];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,7 +23,7 @@ const REGIONS = ["North America", "EMEA", "APAC", "LATAM"];
 export default function RegistrationForm({ userEmail, onSuccess }: RegistrationFormProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState<StandardRole | "">("");
   const [managerEmail, setManagerEmail] = useState("");
   const [region, setRegion] = useState("");
   const [country, setCountry] = useState("");
@@ -43,6 +31,20 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
   const [startDate, setStartDate] = useState("");
 
   const { run: registerCamper, loading } = useApi("RegisterCamper");
+
+  // Pre-fill from the counselor's new-hire CSV (every field stays editable).
+  const { data: csvInfo } = useApiData("GetMyNewHireInfo", {});
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !csvInfo?.found) return;
+    prefilled.current = true;
+    if (csvInfo.first_name) setFirstName((v) => v || csvInfo.first_name!);
+    if (csvInfo.last_name) setLastName((v) => v || csvInfo.last_name!);
+    if (csvInfo.role) setRole((v) => v || (csvInfo.role as StandardRole));
+    if (csvInfo.manager_email) setManagerEmail((v) => v || csvInfo.manager_email!);
+    if (csvInfo.region) setRegion((v) => v || csvInfo.region!);
+  }, [csvInfo]);
+  const csvRole = csvInfo?.found ? csvInfo.role : null;
 
   const handleSubmit = useCallback(async () => {
     if (!firstName || !lastName || !role) {
@@ -121,19 +123,29 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
             </div>
           </div>
 
-          {/* Title */}
+          {/* Role */}
           <div className="flex flex-col gap-1.5">
-            <Label>Title *</Label>
-            <Select value={role} onValueChange={setRole}>
+            <Label>Role *</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as StandardRole)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select your title" />
+                <SelectValue placeholder="Select your role" />
               </SelectTrigger>
               <SelectContent>
-                {TITLES.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                {STANDARD_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    <span className="font-medium">{r}</span>
+                    {ROLE_HINTS[r] && <span className="ml-2 text-xs text-muted-foreground">{ROLE_HINTS[r]}</span>}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {csvRole && (
+              <p className="text-xs text-muted-foreground">
+                {role === csvRole
+                  ? "Pre-filled from your cAMP invite. Change it if it's not right."
+                  : `Your cAMP invite says ${csvRole}. Your counselors will see the change.`}
+              </p>
+            )}
           </div>
 
           {/* Manager */}
@@ -168,11 +180,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Country</Label>
-              <Input
-                placeholder="Country"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              />
+              <CountryPicker value={country} onChange={setCountry} placeholder="Country" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>City</Label>

@@ -34,6 +34,8 @@ const AbsenceSchema = z.object({
   end_time: z.string().nullable(),
   status: z.string(),
   created_at: z.string(),
+  approval_type: z.string(),
+  minutes: z.coerce.number(),
 });
 
 const CommentSchema = z.object({
@@ -203,7 +205,9 @@ export default api({
 
       // Absences
       const absences = await ctx.integrations.camp_201_db.query(
-        `SELECT id, reason, start_time::text, end_time::text, status, created_at::text
+        `SELECT id, COALESCE(reason, '') AS reason, start_time::text, end_time::text, status, created_at::text,
+                COALESCE(approval_type, 'standard') AS approval_type,
+                GREATEST(0, ROUND(EXTRACT(EPOCH FROM (end_time - start_time)) / 60))::int AS minutes
          FROM camp201_absence_requests
          WHERE camper_id = $1
          ORDER BY created_at DESC

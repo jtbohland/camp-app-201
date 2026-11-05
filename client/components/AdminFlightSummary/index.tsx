@@ -11,8 +11,10 @@ export default function AdminFlightSummary() {
     return <Skeleton className="h-64 rounded-xl" />;
   }
 
-  const withFlights = flights.filter((f) => f.flight_departure_date);
-  const withoutFlights = flights.filter((f) => !f.flight_departure_date);
+  const locals = flights.filter((f) => f.flight_is_local);
+  const withFlights = flights.filter((f) => !f.flight_is_local && f.flight_departure_date);
+  const withoutFlights = flights.filter((f) => !f.flight_is_local && !f.flight_departure_date);
+  const answered = withFlights.length + locals.length;
 
   return (
     <div className="space-y-4">
@@ -20,8 +22,11 @@ export default function AdminFlightSummary() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Icon icon="plane-takeoff" className="w-4 h-4 text-amber-600" />
-            Flight Departures ({withFlights.length}/{flights.length} submitted)
+            Flight Departures ({answered}/{flights.length} submitted)
           </h3>
+          {locals.length > 0 && (
+            <span className="text-xs text-muted-foreground">{locals.length} local (not flying)</span>
+          )}
         </div>
 
         {withFlights.length === 0 ? (
@@ -55,6 +60,22 @@ export default function AdminFlightSummary() {
           </div>
         )}
       </Card>
+
+      {locals.length > 0 && (
+        <Card className="p-4 bg-card border-border">
+          <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Icon icon="house" className="w-3.5 h-3.5" />
+            Local, no flight ({locals.length})
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {locals.map((f: any) => (
+              <span key={f.id} className="text-xs text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                {f.first_name} {f.last_name}
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {withoutFlights.length > 0 && (
         <Card className="p-4 bg-card border-border">

@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Pages managers may open without a camper record
 const MANAGER_PATHS = ["/manager", "/agenda", "/leaderboard"];
+// Pages guest speakers may open: Base Camp, Agenda (their Q&A), Teams & Cohort
+const SPEAKER_PATHS = ["/agenda", "/teams"];
 
 /**
  * Registration is required. Until a cAMPer has registered AND completed their
@@ -16,7 +18,7 @@ export default function RegistrationGuard({ children }: { children: ReactNode })
   const user = useSuperblocksUser();
   const { pathname } = useLocation();
   const email = user?.email ?? "";
-  const { isAdmin, loading: loadingAccess } = useIsAdmin();
+  const { isAdmin, isSpeaker, loading: loadingAccess } = useIsAdmin();
   const { data: camperData, loading: loadingCamper } = useApiData("GetCurrentCamper", { email }, { enabled: !!email });
   const { data: managerData, loading: loadingManager } = useApiData("GetCurrentManager", { email }, { enabled: !!email });
 
@@ -36,6 +38,7 @@ export default function RegistrationGuard({ children }: { children: ReactNode })
 
   // Not registered at all → landing page (choose cAMPer / Manager / Counselor)
   if (!camper) {
+    if (isSpeaker && (pathname === "/" || SPEAKER_PATHS.some((p) => pathname.startsWith(p)))) return <>{children}</>;
     if (isManager && MANAGER_PATHS.some((p) => pathname.startsWith(p))) return <>{children}</>;
     if (pathname !== "/") return <Navigate to="/" replace />;
     return <>{children}</>;

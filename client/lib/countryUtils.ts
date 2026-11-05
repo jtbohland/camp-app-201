@@ -1,5 +1,6 @@
 // Shared country → flag emoji + background color map
 // Used by Hall of Fame (PastCampsGallery) and Cohort Tab (CohortMemberCard)
+import { canonicalCountry, findCountry } from "./countries.js";
 
 export const COUNTRY_FLAGS: Record<string, { flag: string; bg: string; text: string }> = {
   "United States":       { flag: "🇺🇸", bg: "bg-blue-100",    text: "text-blue-800" },
@@ -28,37 +29,21 @@ export const COUNTRY_FLAGS: Record<string, { flag: string; bg: string; text: str
   "Colombia":            { flag: "🇨🇴", bg: "bg-yellow-100",  text: "text-yellow-800" },
 };
 
-/** Countries with a matching flag pill, for dropdowns (no "the …" duplicates). */
-export const COUNTRY_OPTIONS: string[] = Object.keys(COUNTRY_FLAGS)
-  .filter((c) => !c.startsWith("the "))
-  .sort((a, b) => a.localeCompare(b));
-
-// Common aliases → canonical name
-const COUNTRY_ALIASES: Record<string, string> = {
-  "USA": "United States",
-  "US": "United States",
-  "U.S.": "United States",
-  "U.S.A.": "United States",
-  "UK": "United Kingdom",
-  "U.K.": "United Kingdom",
-  "UAE": "United Arab Emirates",
-  "U.A.E.": "United Arab Emirates",
-  "S. Korea": "South Korea",
-  "KSA": "Saudi Arabia",
-};
-
 const DEFAULT_COUNTRY = { flag: "🌍", bg: "bg-gray-100", text: "text-gray-700" };
 
 export function getCountryStyle(country: string | null | undefined) {
   if (!country) return null;
-  const canonical = COUNTRY_ALIASES[country] ?? country;
-  return COUNTRY_FLAGS[canonical] ?? COUNTRY_FLAGS[`the ${canonical}`] ?? { ...DEFAULT_COUNTRY, flag: "🌍" };
+  const canonical = canonicalCountry(country) ?? country;
+  const styled = COUNTRY_FLAGS[canonical] ?? COUNTRY_FLAGS[`the ${canonical}`];
+  if (styled) return styled;
+  // Any other real country gets its flag on a neutral pill.
+  return { ...DEFAULT_COUNTRY, flag: findCountry(canonical)?.flag ?? "🌍" };
 }
 
-/** Return the display name (canonical) for a country, resolving aliases */
+/** Return the display name (canonical) for a country, resolving aliases, local spellings, and US states */
 export function getCountryDisplayName(country: string | null | undefined): string | null {
   if (!country) return null;
-  return COUNTRY_ALIASES[country] ?? country;
+  return canonicalCountry(country);
 }
 
 export function formatTenure(startDate: string | null | undefined): string | null {

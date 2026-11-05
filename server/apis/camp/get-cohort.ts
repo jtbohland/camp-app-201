@@ -11,6 +11,7 @@ const CohortMemberSchema = z.object({
   email: z.string(),
   role: z.string().nullable(),
   manager: z.string().nullable(),
+  manager_email: z.string().nullable(),
   region: z.string().nullable(),
   country: z.string().nullable(),
   city: z.string().nullable(),
@@ -26,10 +27,32 @@ const CohortMemberSchema = z.object({
   team_logo_url: z.string().nullable(),
 });
 
-const MEMBER_COLUMNS = `c.id, c.first_name, c.last_name, c.email, c.role, c.manager,
+// Manager name: what the cAMPer typed, else the counselor's CSV, else a registered manager's camper name.
+const MEMBER_COLUMNS = `c.id, c.first_name, c.last_name, c.email, c.role,
+  COALESCE(NULLIF(btrim(c.manager), ''),
+           (SELECT NULLIF(btrim(nh.manager_name), '') FROM camp201_new_hires nh
+             WHERE lower(nh.email) = lower(c.email) ORDER BY nh.updated_at DESC NULLS LAST LIMIT 1),
+           (SELECT NULLIF(btrim(concat(m.first_name, ' ', m.last_name)), '') FROM camp201_campers m
+             WHERE c.manager_email IS NOT NULL AND lower(m.email) = lower(c.manager_email) LIMIT 1)) AS manager,
+  c.manager_email,
   c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.bio, c.fun_fact,
-  c.points, c.team_id, c.start_date,
+  c.points, c.team_id, c.start_date::text AS start_date,
   t.name as team_name, t.color as team_color, t.logo_url as team_logo_url`;
+
+/** "first.last@amplitude.com" → "First Last" when no manager name is on file. */
+function nameFromEmail(email: string | null): string | null {
+  const local = email?.split("@")[0]?.trim();
+  if (!local) return null;
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function withManagerName<T extends { manager: string | null; manager_email: string | null }>(rows: T[]): T[] {
+  return rows.map((r) => (r.manager ? r : { ...r, manager: nameFromEmail(r.manager_email) }));
+}
 
 const MEMBER_ORDER = `ORDER BY
   CASE WHEN c.role IN ('counselor', 'admin') THEN 0 ELSE 1 END,
@@ -67,7 +90,7 @@ export default api({
         [counselorIds],
         { label: "Fetch past cohort directory" }
       );
-      return { members };
+      return { members: withManagerName(members) };
     }
 
     const members = await db.query(
@@ -82,6 +105,6 @@ export default api({
       { label: "Fetch active cohort directory" }
     );
 
-    return { members };
+    return { members: withManagerName(members) };
   },
 });

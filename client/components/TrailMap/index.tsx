@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import DailyTrail from "./DailyTrail.js";
 import AchievementTrail from "./AchievementTrail.js";
 import SpecialAwards from "./SpecialAwards.js";
@@ -27,7 +28,26 @@ const ACHIEVEMENT_GROUPS: { label: string; icon: IconName; color: string; ids: n
   { label: "Points Milestones", icon: "mountain", color: "text-amber-500", ids: [2, 3, 4] },
 ];
 
+/** Counselors don't earn badges, so they see a note instead of an empty personal trail. */
 export default function TrailMap() {
+  const { isAdmin, loading } = useIsAdmin();
+  if (loading) return <Skeleton className="h-24 w-full rounded-xl" />;
+  if (isAdmin) {
+    return (
+      <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/40 p-8 text-center">
+        <Icon icon="shield" className="mx-auto h-8 w-8 text-amber-500" />
+        <h3 className="mt-2 font-bold text-foreground">Counselors don't earn badges</h3>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+          The Trail Map is each cAMPer's personal badge journey. To see everyone's badges and rankings, open
+          Graduation → Summary for the full-camp snapshot, or any cAMPer's report card in the Counselor Hub.
+        </p>
+      </div>
+    );
+  }
+  return <CamperTrailMap />;
+}
+
+function CamperTrailMap() {
   const user = useSuperblocksUser();
 
   const { data: camperData, loading: loadingCamper } = useApiData("GetCurrentCamper", {

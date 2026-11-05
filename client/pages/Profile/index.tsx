@@ -16,6 +16,7 @@ import IceBreakerSection, { ICE_BREAKER_QUESTIONS } from "@/components/IceBreake
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import ProfileXPSummary from "@/components/ProfileXPSummary/index.js";
 import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
+import AbsenceRequestCard from "@/components/AbsenceRequestCard/index.js";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
 export default function ProfilePage() {
@@ -29,16 +30,12 @@ export default function ProfilePage() {
   const { data: teamsData } = useApiData("GetTeams", {});
   const { run: updateProfile, loading: saving } = useApi("UpdateCamperProfile");
   const { run: toggleGoal } = useApi("ToggleGoalAchieved");
-  const { run: requestAbsence, loading: requestingAbsence } = useApi("RequestAbsence");
 
   const { data: historyData } = useApiData("GetCheckInHistory", {
     camper_id: data?.camper?.id ?? 0,
   }, { enabled: !!data?.camper?.id });
 
   const checkInHistory = historyData?.history ?? [];
-
-  // Absence request state
-  const [absenceReason, setAbsenceReason] = useState("");
 
   // Form state
   const [bio, setBio] = useState("");
@@ -134,26 +131,6 @@ export default function ProfilePage() {
   const iceBreakerComplete = ICE_BREAKER_QUESTIONS.every((_, i) => iceBreakerAnswers[`q${i}`]?.trim());
   const isComplete = !!(bio && funFact && goal1 && goal2 && goal3 && iceBreakerComplete);
 
-  const handleAbsenceRequest = useCallback(async () => {
-    if (!absenceReason.trim() || !camper?.id) return;
-    try {
-      const now = new Date();
-      const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
-      await requestAbsence({
-        camper_id: camper.id,
-        start_time: now.toISOString(),
-        end_time: end.toISOString(),
-        reason: absenceReason.trim(),
-      });
-      toast.success("Absence request submitted. Your counselor will review it.");
-      setAbsenceReason("");
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("Failed to submit request: " + message);
-    }
-  }, [absenceReason, camper?.id, requestAbsence]);
-
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-8 max-w-3xl">
@@ -228,37 +205,13 @@ export default function ProfilePage() {
         </div>
       </Card>
 
-      {/* Absence Request */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Icon icon="calendar-x" className="w-5 h-5 text-camp-amber" />
-          Request Excused Absence
-        </h2>
-        <p className="text-sm text-muted-foreground mb-3">
-          Need to step away during a session? Submit a request so your team won't be penalized.
-        </p>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Reason for absence (e.g., client call, appointment)..."
-            value={absenceReason}
-            onChange={(e) => setAbsenceReason(e.target.value)}
-            className="flex-1"
-            onKeyDown={(e) => e.key === "Enter" && handleAbsenceRequest()}
-          />
-          <Button
-            onClick={handleAbsenceRequest}
-            disabled={!absenceReason.trim() || requestingAbsence}
-            variant="outline"
-            size="default"
-          >
-            {requestingAbsence ? "Submitting..." : "Submit"}
-          </Button>
-        </div>
-      </Card>
+      {/* Excused absences: 3 included, counter + counselor approval beyond that */}
+      {camper?.id && camper.role !== "counselor" && camper.role !== "admin" && <AbsenceRequestCard camperId={camper.id} />}
 
       {/* Flight Departure */}
       <FlightDepartureSection
         camperId={camper?.id ?? 0}
+        isLocal={camper?.flight_is_local ?? false}
         flightDepartureDate={camper?.flight_departure_date ?? null}
         flightDepartureTime={camper?.flight_departure_time ?? null}
         leaveOfficeBy={camper?.leave_office_by ?? null}

@@ -6,8 +6,8 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COUNTRY_OPTIONS, getCountryDisplayName, getCountryStyle } from "@/lib/countryUtils.js";
+import { getCountryDisplayName } from "@/lib/countryUtils.js";
+import CountryPicker from "@/components/CountryPicker/index.js";
 import { toast } from "sonner";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 
@@ -112,18 +112,7 @@ export default function AdminCounselorProfile() {
           </div>
           <div>
             <label className="text-sm text-foreground/80 mb-1 block">Country</label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent>
-                {COUNTRY_OPTIONS.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {getCountryStyle(c)?.flag} {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CountryPicker value={country} onChange={setCountry} />
             <p className="text-xs text-muted-foreground mt-1">Shows as a flag pill on your card.</p>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import SpeakerHeader, { type Speaker } from "@/components/SpeakerHeader/index.js";
+import ExecQuestionAnswer from "@/components/ExecQuestionAnswer/index.js";
 
 type ExecQAFeedProps = {
   speaker: Speaker;
@@ -15,14 +16,20 @@ type ExecQAFeedProps = {
   camperTeamId: number | null;
   isLocked: boolean;
   onBack: () => void;
+  /**
+   * "camper": ask and vote. "speaker": the guest speaker answers their own Q&A (no voting).
+   * "counselor": can do both, for moderating.
+   */
+  mode: "camper" | "speaker" | "counselor";
 };
 
-export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, onBack }: ExecQAFeedProps) {
+export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, onBack, mode }: ExecQAFeedProps) {
   const executiveId = speaker.id;
-  const { data, loading, fetching, refetch } = useApiData("GetExecQuestions", {
-    executive_id: executiveId,
-    camper_id: camperId,
-  }, { refetchInterval: 10_000 });
+  const { data, loading, fetching, refetch } = useApiData(
+    "GetExecQuestions",
+    { executive_id: executiveId, camper_id: camperId },
+    { refetchInterval: 10_000 }
+  );
 
   const { run: submitQuestion, loading: submitting } = useApi("SubmitExecQuestion");
   const { run: voteQuestion } = useApi("VoteExecQuestion");
@@ -30,6 +37,8 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
   const [newQuestion, setNewQuestion] = useState("");
 
   const questions = (data?.questions ?? []) as any[];
+  const canAnswer = mode !== "camper";
+  const canAsk = mode === "camper" && !isLocked;
 
   const handleSubmit = useCallback(async () => {
     if (!newQuestion.trim() || newQuestion.length < 5) {
@@ -51,44 +60,66 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
     }
   }, [newQuestion, executiveId, camperId, submitQuestion, refetch]);
 
-  const handleVote = useCallback(async (questionId: number, vote: number) => {
-    try {
-      const result = await voteQuestion({ question_id: questionId, voter_id: camperId, vote });
-      if (result && typeof result === "object" && "success" in result && !(result as any).success) {
-        toast.error((result as any).message || "Can't vote");
-        return;
+  const handleVote = useCallback(
+    async (questionId: number, vote: number) => {
+      try {
+        const result = await voteQuestion({ question_id: questionId, voter_id: camperId, vote });
+        if (result && typeof result === "object" && "success" in result && !(result as any).success) {
+          toast.error((result as any).message || "Can't vote");
+          return;
+        }
+        refetch();
+      } catch (err) {
+        const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
+        toast.error(message);
       }
-      refetch();
-    } catch (err) {
-      const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
-      toast.error(message);
-    }
-  }, [camperId, voteQuestion, refetch]);
+    },
+    [camperId, voteQuestion, refetch]
+  );
 
   const myQuestionCount = questions.filter((q: any) => q.submitted_by === camperId).length;
+  const answeredCount = questions.filter((q: any) => q.is_asked).length;
 
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
-        <Icon icon="arrow-left" className="w-4 h-4" />
-        Back to Speakers
-      </button>
+      {mode !== "speaker" && (
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
+          <Icon icon="arrow-left" className="w-4 h-4" />
+          Back to Speakers
+        </button>
+      )}
 
       <SpeakerHeader speaker={speaker} />
+
+      {mode === "speaker" && (
+        <Card className="p-4 border-primary/30 bg-primary/5">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">Welcome, {speaker.name.split(" ")[0]}!</span> These are the cAMPers' questions for
+            your session, ranked by votes. Reply to any of them and mark them answered. You can keep replying after the session
+            ends, and cAMPers will still see your answers.
+          </p>
+        </Card>
+      )}
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold flex items-center gap-2">
           <Icon icon="messages-square" className="w-5 h-5 text-camp-green" />
           Live Q&A
+          {questions.length > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">
+              {answeredCount}/{questions.length} answered
+            </span>
+          )}
         </h2>
         {isLocked && (
           <Badge variant="secondary" className="bg-red-100 text-red-700">
-            <Icon icon="lock" className="w-3 h-3 mr-1" /> Session ended
+            <Icon icon="lock" className="w-3 h-3 mr-1" />
+            {mode === "speaker" ? "Closed for cAMPers, you can still reply" : "Session ended"}
           </Badge>
         )}
       </div>
 
-      {!isLocked && (
+      {canAsk && (
         <Card className="p-4 border-camp-green/30 bg-camp-green/5">
           <div className="flex gap-2">
             <Input
@@ -103,9 +134,7 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
               {submitting ? "..." : "Submit"}
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            {myQuestionCount}/5 questions used
-          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">{myQuestionCount}/5 questions used</p>
         </Card>
       )}
 
@@ -113,40 +142,61 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
 
       <div className="space-y-2">
         {questions.length === 0 && !loading && (
-          <p className="text-sm text-muted-foreground text-center py-8">No questions yet. Be the first!</p>
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {mode === "speaker" ? "No questions yet. They'll show up here as cAMPers ask them." : "No questions yet. Be the first!"}
+          </p>
         )}
         {questions.map((q: any, idx: number) => {
           const isOwn = q.submitted_by === camperId;
           const isSameTeam = camperTeamId && q.submitter_team_id === camperTeamId;
-          const canVote = !isOwn && !isSameTeam && !isLocked;
+          const canVote = mode === "camper" && !isOwn && !isSameTeam && !isLocked;
 
           return (
-            <Card key={q.id} className={`p-3 flex gap-3 ${idx === 0 && q.vote_count > 0 ? "border-amber-400 bg-amber-50/50" : ""} ${q.is_asked ? "border-green-400 bg-green-50/50" : ""}`}>
+            <Card
+              key={q.id}
+              className={`p-3 flex gap-3 ${idx === 0 && q.vote_count > 0 ? "border-amber-400 bg-amber-50/50" : ""} ${q.is_asked ? "border-green-400 bg-green-50/50" : ""}`}
+            >
               <div className="flex flex-col items-center gap-0.5">
-                <button
-                  onClick={() => canVote && handleVote(q.id, 1)}
-                  disabled={!canVote}
-                  className={`p-0.5 rounded transition-colors ${q.user_vote === 1 ? "text-camp-green" : "text-muted-foreground"} ${canVote ? "hover:text-camp-green" : "opacity-40"}`}
-                >
-                  <Icon icon="chevron-up" className="w-4 h-4" />
-                </button>
-                <span className={`text-sm font-bold ${q.vote_count > 0 ? "text-camp-green" : q.vote_count < 0 ? "text-red-500" : "text-muted-foreground"}`}>
-                  {q.vote_count}
-                </span>
-                <button
-                  onClick={() => canVote && handleVote(q.id, -1)}
-                  disabled={!canVote}
-                  className={`p-0.5 rounded transition-colors ${q.user_vote === -1 ? "text-red-500" : "text-muted-foreground"} ${canVote ? "hover:text-red-500" : "opacity-40"}`}
-                >
-                  <Icon icon="chevron-down" className="w-4 h-4" />
-                </button>
+                {mode === "speaker" ? (
+                  <>
+                    <Icon icon="thumbs-up" className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className={`text-sm font-bold ${q.vote_count > 0 ? "text-camp-green" : "text-muted-foreground"}`}>{q.vote_count}</span>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => canVote && handleVote(q.id, 1)}
+                      disabled={!canVote}
+                      className={`p-0.5 rounded transition-colors ${q.user_vote === 1 ? "text-camp-green" : "text-muted-foreground"} ${canVote ? "hover:text-camp-green" : "opacity-40"}`}
+                    >
+                      <Icon icon="chevron-up" className="w-4 h-4" />
+                    </button>
+                    <span className={`text-sm font-bold ${q.vote_count > 0 ? "text-camp-green" : q.vote_count < 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                      {q.vote_count}
+                    </span>
+                    <button
+                      onClick={() => canVote && handleVote(q.id, -1)}
+                      disabled={!canVote}
+                      className={`p-0.5 rounded transition-colors ${q.user_vote === -1 ? "text-red-500" : "text-muted-foreground"} ${canVote ? "hover:text-red-500" : "opacity-40"}`}
+                    >
+                      <Icon icon="chevron-down" className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm">{q.question_text}</p>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {q.submitter_name} {isOwn && "(you)"} {q.is_asked && "✅ Asked!"}
+                  {q.submitter_name} {isOwn && mode === "camper" && "(you)"} {q.is_asked && "✅ Answered"}
                   {idx === 0 && q.vote_count > 0 && " 🏆 Top Question"}
                 </p>
+                <ExecQuestionAnswer
+                  questionId={q.id}
+                  answerText={q.answer_text ?? null}
+                  isAnswered={!!q.is_asked}
+                  canAnswer={canAnswer}
+                  onSaved={refetch}
+                />
               </div>
             </Card>
           );

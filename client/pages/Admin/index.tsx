@@ -14,8 +14,9 @@ import type { IconName } from "lucide-react/dynamic";
 // Existing components
 import AdminLearnerGrid from "@/components/AdminLearnerGrid";
 import AdminTeamView from "@/components/AdminTeamView";
-import AdminCamperDetail from "@/components/AdminCamperDetail";
+import ReportCard from "@/components/ReportCard/index.js";
 import AdminFlightSummary from "@/components/AdminFlightSummary/index.js";
+import AdminAbsences from "@/components/AdminAbsences/index.js";
 import AdminPreworkSettings from "@/components/AdminPreworkSettings/index.js";
 import AdminManagerOverview from "@/components/AdminManagerOverview/index.js";
 import RegistrationForm from "@/components/RegistrationForm/index.js";
@@ -68,6 +69,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: "Operations",
     items: [
       { key: "flights", label: "Travel & Flights", icon: "plane" },
+      { key: "absences", label: "Absences", icon: "calendar-x" },
       { key: "cabin", label: "Counselor Cabin", icon: "tent" },
       { key: "close-camp", label: "Close cAMP", icon: "flag" },
       { key: "cohort", label: "Cohort Management", icon: "archive" },
@@ -146,7 +148,7 @@ export default function AdminPage() {
   const allItems = NAV_SECTIONS.flatMap((s) => s.items);
   const activeItem = allItems.find((i) => i.key === view);
   const pageTitle = view === "camper-detail"
-    ? "cAMPer Detail"
+    ? "cAMPer Report Card"
     : activeItem?.label ?? "Dashboard";
 
   /* ─── Main Layout ─── */
@@ -256,7 +258,7 @@ export default function AdminPage() {
             <AdminLearnerGrid cohortId={viewCohortId} onCamperClick={handleCamperClick} canEdit={!isReadOnly} />
           )}
           {view === "camper-detail" && selectedCamperId && (
-            <AdminCamperDetail camperId={selectedCamperId} onBack={handleBack} />
+            <ReportCard camperId={selectedCamperId} />
           )}
           {view === "teams" && (
             <div className="space-y-6">
@@ -281,6 +283,9 @@ export default function AdminPage() {
           )}
           {view === "flights" && (
             <AdminFlightSummary />
+          )}
+          {view === "absences" && (
+            <AdminAbsences onCamperClick={handleCamperClick} />
           )}
           {view === "cabin" && (
             <div className="space-y-6">
