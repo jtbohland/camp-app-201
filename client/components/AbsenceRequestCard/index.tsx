@@ -15,18 +15,25 @@ function AttendanceBonus({ used, limit }: { used: number; limit: number }) {
   const tiers = Array.from({ length: limit + 1 }, (_, n) => ({ n, pts: limit - n }));
   const current = Math.min(used, limit);
   return (
-    <div className="mt-3 rounded-lg border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-900">
-        <Icon icon="trophy" className="h-4 w-4 text-amber-600" />
-        Attendance bonus at Close cAMP
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+    <div className="mb-4 rounded-lg border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+        <p className="flex shrink-0 items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-900">
+          <Icon icon="trophy" className="h-4 w-4 text-amber-600" />
+          Attendance bonus at Close cAMP
+        </p>
+        <p className="text-[11px] font-medium text-amber-900/80">
+          {used >= limit
+            ? "All excused absences used. More need a counselor and may cost 1 pt each."
+            : `On track for +${limit - used} pts. Every absence you skip keeps more on the table!`}
+        </p>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         {tiers.map((t) => {
           const active = t.n === current;
           return (
             <span
               key={t.n}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+              className={`inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
                 active
                   ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-300"
                   : t.n < current
@@ -39,11 +46,6 @@ function AttendanceBonus({ used, limit }: { used: number; limit: number }) {
           );
         })}
       </div>
-      <p className="mt-2 text-[11px] font-medium text-amber-900/80">
-        {used >= limit
-          ? "You've used all your excused absences. Any more need a counselor and may cost 1 point each."
-          : `You're on track for +${limit - used} points. Every absence you skip keeps more points on the table!`}
-      </p>
     </div>
   );
 }
@@ -142,7 +144,6 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           <p className="text-sm text-muted-foreground mt-1">
             Need to step away? Log it so your team isn't held back in the check-in race.
           </p>
-          <AttendanceBonus used={used} limit={limit} />
         </div>
         <div
           className={`shrink-0 rounded-lg border px-3 py-1.5 text-center ${
@@ -155,6 +156,8 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           <p className="text-[10px] font-medium mt-0.5">absences used</p>
         </div>
       </div>
+
+      <AttendanceBonus used={used} limit={limit} />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="md:col-span-2 flex flex-col gap-1.5">
