@@ -188,6 +188,7 @@ import CloseCamp from './camp/close-camp.js';
 import ArchiveCohortToLegacyWall from './camp/archive-cohort-to-legacy-wall.js';
 import { GetViewCohort, SetViewCohort } from './camp/cohort-view.js';
 import GetMyNewHireInfo from './camp/get-my-new-hire-info.js';
+import GetMyStanding from './camp/get-my-standing.js';
 import GetCampSnapshot from './camp/get-camp-snapshot.js';
 import GetCamperReportCard from './camp/get-camper-report-card.js';
 import { MarkSpeakerLinkCopied, AnswerExecQuestion } from './camp/speaker-access.js';
@@ -402,6 +403,7 @@ const apis = {
   GetViewCohort,
   SetViewCohort,
   GetMyNewHireInfo,
+  GetMyStanding,
   GetCampSnapshot,
   GetCamperReportCard,
   MarkSpeakerLinkCopied,
