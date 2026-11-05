@@ -11,6 +11,8 @@ const CohortMemberSchema = z.object({
   last_name: z.string(),
   email: z.string(),
   role: z.string().nullable(),
+  /** Full official title from the counselor's new-hire CSV (Cohort Management). */
+  official_title: z.string().nullable(),
   manager: z.string().nullable(),
   manager_email: z.string().nullable(),
   region: z.string().nullable(),
@@ -30,6 +32,8 @@ const CohortMemberSchema = z.object({
 
 // Manager name: the counselor's CSV, else what the cAMPer typed, else a registered manager's name.
 const MEMBER_COLUMNS = `c.id, c.first_name, c.last_name, c.email, c.role,
+  (SELECT NULLIF(btrim(nh.original_title), '') FROM camp201_new_hires nh
+    WHERE lower(nh.email) = lower(c.email) ORDER BY nh.updated_at DESC NULLS LAST, nh.id DESC LIMIT 1) AS official_title,
   ${MANAGER_NAME_SQL} AS manager,
   c.manager_email,
   c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.bio, c.fun_fact,

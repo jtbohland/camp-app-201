@@ -94,7 +94,7 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
       const unmatched = result?.unmatched?.length ?? 0;
       if (unmatched > 0) {
         toast.warning(
-          `${unmatched} title${unmatched === 1 ? "" : "s"} didn't match one of the 12 roles. Look for "Pick a role" below.`,
+          `${unmatched} title${unmatched === 1 ? "" : "s"} didn't match a standard role. Look for "Pick a role" below.`,
           { duration: 8000 }
         );
       }
@@ -170,7 +170,7 @@ export default function NewHireManager({ cohortId, camperId }: Props) {
       {needsRoleCount > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <Icon icon="triangle-alert" className="h-4 w-4 shrink-0" />
-          {needsRoleCount} new hire{needsRoleCount === 1 ? "" : "s"} need{needsRoleCount === 1 ? "s" : ""} a role. Click Edit and pick one of the 12 roles.
+          {needsRoleCount} new hire{needsRoleCount === 1 ? "" : "s"} need{needsRoleCount === 1 ? "s" : ""} a role. Click Edit and pick a role.
         </div>
       )}
 

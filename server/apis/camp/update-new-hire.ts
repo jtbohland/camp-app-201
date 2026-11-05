@@ -43,7 +43,7 @@ export default api({
     }
     const role = clean(input.role_title);
     if (role && !isStandardRole(role)) {
-      return { success: false, message: "Please pick one of the 12 standard roles." };
+      return { success: false, message: "Please pick one of the standard roles." };
     }
 
     const existing = await db.query(
