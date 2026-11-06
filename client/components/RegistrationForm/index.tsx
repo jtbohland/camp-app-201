@@ -10,24 +10,39 @@ import { useApiData } from "@/hooks/useApiData";
 import { toast } from "sonner";
 import CountryPicker from "@/components/CountryPicker/index.js";
 import { STANDARD_ROLES, ROLE_HINTS, type StandardRole } from "@/lib/roles.js";
-import { REGIONS, REGION_STYLES, getRegion } from "@/lib/regions.js";
+import { REGIONS, REGION_STYLES, getRegion, type Region } from "@/lib/regions.js";
+
+/** What's already on file for someone who has an account but is missing required details. */
+export type RegistrationPrefill = {
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+  manager_email?: string | null;
+  region: string | null;
+  country: string | null;
+  city: string | null;
+  start_date: string | null;
+};
 
 type RegistrationFormProps = {
   userEmail: string;
   onSuccess: () => void;
+  /** Saved details to start from (account created by a counselor, or registered with blanks). */
+  existing?: RegistrationPrefill | null;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function RegistrationForm({ userEmail, onSuccess }: RegistrationFormProps) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState<StandardRole | "">("");
-  const [managerEmail, setManagerEmail] = useState("");
-  const [region, setRegion] = useState("");
-  const [country, setCountry] = useState("");
-  const [city, setCity] = useState("");
-  const [startDate, setStartDate] = useState("");
+export default function RegistrationForm({ userEmail, onSuccess, existing }: RegistrationFormProps) {
+  const savedRole = existing?.role && (STANDARD_ROLES as readonly string[]).includes(existing.role) ? (existing.role as StandardRole) : "";
+  const [firstName, setFirstName] = useState(existing?.first_name ?? "");
+  const [lastName, setLastName] = useState(existing?.last_name ?? "");
+  const [role, setRole] = useState<StandardRole | "">(savedRole);
+  const [managerEmail, setManagerEmail] = useState(existing?.manager_email ?? "");
+  const [region, setRegion] = useState<Region | "">(getRegion(existing?.region, existing?.country) ?? "");
+  const [country, setCountry] = useState(existing?.country ?? "");
+  const [city, setCity] = useState(existing?.city ?? "");
+  const [startDate, setStartDate] = useState((existing?.start_date ?? "").slice(0, 10));
 
   const { run: registerCamper, loading } = useApi("RegisterCamper");
 
@@ -48,29 +63,37 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
   }, [csvInfo]);
   const csvRole = csvInfo?.found ? csvInfo.role : null;
 
+  // Every field is required: registration can't be finished with anything blank.
+  const mgrEmail = managerEmail.trim().toLowerCase();
+  const missing = [
+    !firstName.trim() && "First Name",
+    !lastName.trim() && "Last Name",
+    !role && "Role",
+    !EMAIL_RE.test(mgrEmail) && "Manager's Work Email",
+    !region && "Region",
+    !country.trim() && "Country",
+    !city.trim() && "City",
+    !startDate && "Start Date",
+  ].filter(Boolean) as string[];
+
   const handleSubmit = useCallback(async () => {
-    if (!firstName || !lastName || !role) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-    const mgrEmail = managerEmail.trim().toLowerCase();
-    if (mgrEmail && !EMAIL_RE.test(mgrEmail)) {
-      toast.error("Please enter a valid email for your manager");
+    if (missing.length > 0 || !role || !region) {
+      toast.error("Please fill in: " + missing.join(", "));
       return;
     }
 
     try {
       const result = await registerCamper({
         email: userEmail,
-        first_name: firstName,
-        last_name: lastName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         role,
         manager: null,
-        manager_email: mgrEmail || null,
-        region: region || null,
-        country: country || null,
-        city: city || null,
-        start_date: startDate || null,
+        manager_email: mgrEmail,
+        region,
+        country: country.trim(),
+        city: city.trim(),
+        start_date: startDate,
       });
       if (result?.pendingApproval) {
         toast.success("Thanks! A counselor will confirm your spot shortly.");
@@ -87,7 +110,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
           : String(error);
       toast.error("Registration failed: " + message);
     }
-  }, [firstName, lastName, role, managerEmail, region, country, city, startDate, userEmail, registerCamper, onSuccess]);
+  }, [missing, firstName, lastName, role, mgrEmail, region, country, city, startDate, userEmail, registerCamper, onSuccess]);
 
   return (
     <div className="flex items-center justify-center min-h-full p-8">
@@ -98,7 +121,9 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
             <Icon icon="mountain" className="w-8 h-8 text-camp-green" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Welcome to cAMP 201</h1>
-          <p className="text-sm text-muted-foreground mt-1">Register to begin your ascent</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {existing ? "Finish your registration: a few details are still missing" : "Register to begin your ascent"}
+          </p>
         </div>
 
         {/* Form */}
@@ -152,7 +177,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
 
           {/* Manager */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="managerEmail">Manager&apos;s Work Email</Label>
+            <Label htmlFor="managerEmail">Manager&apos;s Work Email *</Label>
             <Input
               id="managerEmail"
               type="email"
@@ -168,8 +193,8 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
           {/* Region / Country / City */}
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label>Region</Label>
-              <Select value={region} onValueChange={setRegion}>
+              <Label>Region *</Label>
+              <Select value={region} onValueChange={(v) => setRegion(v as Region)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Region" />
                 </SelectTrigger>
@@ -181,11 +206,11 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
               </Select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Country</Label>
+              <Label>Country *</Label>
               <CountryPicker value={country} onChange={setCountry} placeholder="Country" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>City</Label>
+              <Label>City *</Label>
               <Input
                 placeholder="City"
                 value={city}
@@ -196,7 +221,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
 
           {/* Start Date */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="startDate">Official Amplitude Start Date</Label>
+            <Label htmlFor="startDate">Official Amplitude Start Date *</Label>
             <Input
               id="startDate"
               type="date"
@@ -208,7 +233,7 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
           {/* Submit */}
           <Button
             onClick={handleSubmit}
-            disabled={loading || !firstName || !lastName || !role}
+            disabled={loading || missing.length > 0}
             className="w-full mt-2 bg-primary hover:bg-primary/90"
             size="lg"
           >
@@ -224,6 +249,12 @@ export default function RegistrationForm({ userEmail, onSuccess }: RegistrationF
               </>
             )}
           </Button>
+
+          {missing.length > 0 && (
+            <p className="text-xs text-center text-muted-foreground">
+              Still needed: {missing.join(", ")}
+            </p>
+          )}
 
           <p className="text-xs text-center text-muted-foreground">
             You'll earn <span className="font-semibold text-camp-amber">+10 points</span> for registering!

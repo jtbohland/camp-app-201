@@ -39,19 +39,20 @@ export default api({
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
+  // Every registration field is required (manager name comes from the CSV, so it stays optional).
   input: z.object({
     email: z.string(),
-    first_name: z.string(),
-    last_name: z.string(),
-    /** One of the 12 standard roles. */
+    first_name: z.string().trim().min(1, "First name is required").max(100),
+    last_name: z.string().trim().min(1, "Last name is required").max(100),
+    /** One of the 13 standard roles. */
     role: z.enum(STANDARD_ROLES),
     manager: z.string().nullable(),
     // Manager's work email: links this cAMPer to their manager's dashboard
-    manager_email: z.string().trim().toLowerCase().email().max(200).nullable(),
-    region: z.string().nullable(),
-    country: z.string().nullable(),
-    city: z.string().nullable(),
-    start_date: z.string().nullable(),
+    manager_email: z.string().trim().toLowerCase().email("Enter a valid manager email").max(200),
+    region: z.enum(["NAMER", "EMEA", "APAC"]),
+    country: z.string().trim().min(1, "Country is required").max(100),
+    city: z.string().trim().min(1, "City is required").max(100),
+    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is required"),
   }),
   output: z.object({
     camper: CamperSchema,
@@ -94,13 +95,28 @@ export default api({
     const csvRole = csv?.role_title ?? null;
     const typedManager = input.manager?.trim();
     const manager = csv?.manager_name ?? (typedManager && !/^(other|n\/?a|none|-|tbd|unknown|\?)$/i.test(typedManager) ? typedManager : "");
-    const managerEmail = input.manager_email ?? csv?.manager_email ?? null;
-    const region = input.region ?? csv?.region ?? null;
+    const managerEmail = input.manager_email;
+    const region = input.region;
+
+    // Unique 4-digit check-in PIN.
+    const newPin = async (): Promise<string> => {
+      for (;;) {
+        const pin = String(Math.floor(1000 + Math.random() * 9000)); // 1000-9999
+        const taken = await ctx.integrations.camp_201_db.query(
+          `SELECT COUNT(*) as count FROM camp201_campers WHERE pin = $1`,
+          z.object({ count: z.coerce.number() }),
+          [pin],
+          { label: "Check PIN uniqueness" }
+        );
+        if (taken[0].count === 0) return pin;
+      }
+    };
 
     // Check if already registered — prevents double points
     const existing = await ctx.integrations.camp_201_db.query(
-      `SELECT id, points, (removed_at IS NOT NULL) AS is_removed FROM camp201_campers WHERE email = $1 LIMIT 1`,
-      z.object({ id: z.coerce.number(), points: z.coerce.number(), is_removed: z.boolean() }),
+      `SELECT id, points, (removed_at IS NOT NULL) AS is_removed, (pin IS NULL OR btrim(pin) = '') AS needs_pin
+       FROM camp201_campers WHERE email = $1 LIMIT 1`,
+      z.object({ id: z.coerce.number(), points: z.coerce.number(), is_removed: z.boolean(), needs_pin: z.boolean() }),
       [input.email],
       { label: "Check existing registration" }
     );
@@ -109,6 +125,8 @@ export default api({
       // Already registered — update info but DON'T award points again.
       // A removed cAMPer registering again stays hidden and is flagged for a counselor to restore.
       const isRemoved = existing[0].is_removed;
+      // Accounts a counselor created (Accepted in Cohort Management) have no check-in PIN yet.
+      const pin = existing[0].needs_pin ? await newPin() : null;
       await ctx.integrations.camp_201_db.execute(
         `UPDATE camp201_campers SET
            first_name = $2, last_name = $3,
@@ -118,6 +136,7 @@ export default api({
            city = $8, start_date = $9::date,
            manager_email = COALESCE($10, manager_email),
            csv_role = COALESCE($11, csv_role),
+           pin = COALESCE(NULLIF(btrim(pin), ''), $12),
            role_needs_review = false,
            rejoin_requested_at = CASE WHEN removed_at IS NOT NULL THEN NOW() ELSE NULL END,
            updated_at = NOW()
@@ -130,10 +149,11 @@ export default api({
           manager,
           region,
           input.country,
-          input.city ?? "",
-          input.start_date ?? null,
+          input.city,
+          input.start_date,
           managerEmail,
           csvRole,
+          pin,
         ],
         { label: "Update existing camper info" }
       );
@@ -147,20 +167,7 @@ export default api({
       return { camper: campers[0], pointsAwarded: 0, pendingApproval: isRemoved };
     }
 
-    // Generate unique 4-digit PIN
-    let pin: string = "";
-    let pinUnique = false;
-    while (!pinUnique) {
-      pin = String(Math.floor(1000 + Math.random() * 9000)); // 1000-9999
-      const PinCheckSchema = z.object({ count: z.coerce.number() });
-      const pinCheck = await ctx.integrations.camp_201_db.query(
-        `SELECT COUNT(*) as count FROM camp201_campers WHERE pin = $1`,
-        PinCheckSchema,
-        [pin],
-        { label: "Check PIN uniqueness" }
-      );
-      if (pinCheck[0].count === 0) pinUnique = true;
-    }
+    const pin = await newPin();
 
     // New registration: insert with initial points + PIN + cohort
     await ctx.integrations.camp_201_db.execute(
@@ -175,8 +182,8 @@ export default api({
         manager,
         region,
         input.country,
-        input.city ?? "",
-        input.start_date ?? null,
+        input.city,
+        input.start_date,
         pin,
         cohortId,
         managerEmail,
