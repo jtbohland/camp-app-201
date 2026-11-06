@@ -59,6 +59,11 @@ export default api({
     isRemoved: z.boolean(),
     /** Removed, re-registered, and waiting for a counselor to restore them. */
     rejoinPending: z.boolean(),
+    /**
+     * Has an account but is missing required registration details (e.g. a counselor marked them
+     * Accepted, which creates the account before they ever saw the form). They must finish the form.
+     */
+    needsRegistration: z.boolean(),
   }),
   async run(ctx, { email }) {
     const campers = await ctx.integrations.camp_201_db.query(
@@ -69,15 +74,25 @@ export default api({
     );
 
     if (campers.length === 0) {
-      return { camper: null, isRegistered: false, isRemoved: false, rejoinPending: false };
+      return { camper: null, isRegistered: false, isRemoved: false, rejoinPending: false, needsRegistration: false };
     }
 
     // Removed cAMPers are treated as not registered everywhere in the app.
     const camper = campers[0];
     if (camper.removed_at) {
-      return { camper: null, isRegistered: false, isRemoved: true, rejoinPending: !!camper.rejoin_requested_at };
+      return { camper: null, isRegistered: false, isRemoved: true, rejoinPending: !!camper.rejoin_requested_at, needsRegistration: false };
     }
 
-    return { camper, isRegistered: true, isRemoved: false, rejoinPending: false };
+    // Every registration field is required. Counselors never register this way.
+    const blank = (v: string | null | undefined) => !(v ?? "").trim();
+    const isCounselor = camper.role === "counselor" || camper.role === "admin";
+    const needsRegistration = !isCounselor && (
+      blank(camper.first_name) || blank(camper.last_name) ||
+      blank(camper.role) || camper.role === "camper" ||
+      blank(camper.manager_email) || blank(camper.region) || blank(camper.country) ||
+      blank(camper.city) || blank(camper.start_date) || blank(camper.pin)
+    );
+
+    return { camper, isRegistered: true, isRemoved: false, rejoinPending: false, needsRegistration };
   },
 });

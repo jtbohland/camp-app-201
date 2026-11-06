@@ -55,6 +55,21 @@ function withManagerName<T extends { manager: string | null; manager_email: stri
   return rows.map((r) => (r.manager ? r : { ...r, manager: nameFromEmail(r.manager_email) }));
 }
 
+/** Teams stay secret until counselors unlock the Teams tab at camp (a missing gate counts as locked). */
+async function teamsRevealed(db: { query: (...args: any[]) => Promise<any[]> }): Promise<boolean> {
+  const rows = await db.query(
+    `SELECT is_locked FROM camp201_feature_gates WHERE feature_key = 'teams' LIMIT 1`,
+    z.object({ is_locked: z.boolean() }),
+    undefined,
+    { label: "Check Teams lock" }
+  );
+  return rows.length > 0 && !rows[0].is_locked;
+}
+
+function hideTeams<T extends { team_id: number | null; team_name: string | null; team_color: string | null; team_logo_url: string | null }>(rows: T[]): T[] {
+  return rows.map((r) => ({ ...r, team_id: null, team_name: null, team_color: null, team_logo_url: null }));
+}
+
 const MEMBER_ORDER = `ORDER BY
   CASE WHEN c.role IN ('counselor', 'admin') THEN 0 ELSE 1 END,
   c.first_name, c.last_name`;
@@ -106,6 +121,8 @@ export default api({
       { label: "Fetch active cohort directory" }
     );
 
-    return { members: withManagerName(members) };
+    // Before the reveal, nobody sees team assignments on the Cohort page.
+    const revealed = await teamsRevealed(db);
+    return { members: withManagerName(revealed ? members : hideTeams(members)) };
   },
 });

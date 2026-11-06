@@ -44,6 +44,12 @@ export default function RegistrationGuard({ children }: { children: ReactNode })
     return <>{children}</>;
   }
 
+  // Has an account but required registration details are missing → back to Base Camp to finish
+  if (camperData?.needsRegistration && pathname !== "/") {
+    return <Navigate to="/" replace />;
+  }
+  if (camperData?.needsRegistration) return <>{children}</>;
+
   // Registered but profile not complete → profile page only
   if (!camper.profile_completed && pathname !== "/profile") {
     return <Navigate to="/profile" replace />;
