@@ -10,9 +10,12 @@ type Props = {
   locked?: boolean;
   toggling?: boolean;
   onToggleLock?: () => void;
+  /** Unread count shown as a red pill (hidden when 0) */
+  badge?: number;
+  badgeTitle?: string;
 };
 
-export default function SidebarNavItem({ icon, label, path, locked, toggling, onToggleLock }: Props) {
+export default function SidebarNavItem({ icon, label, path, locked, toggling, onToggleLock, badge, badgeTitle }: Props) {
   const hasLock = locked !== undefined && !!onToggleLock;
 
   return (
@@ -32,6 +35,14 @@ export default function SidebarNavItem({ icon, label, path, locked, toggling, on
       >
         <Icon icon={icon} className="w-4 h-4" />
         <span className={hasLock && locked ? "opacity-60" : ""}>{label}</span>
+        {!!badge && badge > 0 && (
+          <span
+            className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center"
+            title={badgeTitle}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
       </NavLink>
 
       {hasLock && (

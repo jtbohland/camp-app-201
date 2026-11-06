@@ -85,6 +85,9 @@ export default function AdminPage() {
   const [view, setView] = useState<View>("dashboard");
   const [selectedCamperId, setSelectedCamperId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Unread manager messages → badge on Dashboard nav item
+  const { data: threadBadges } = useApiData("GetManagerThreadBadges", {}, { enabled: isAdmin, refetchInterval: 60_000 });
+  const counselorUnread = threadBadges?.counselor_unread ?? 0;
 
   // One app-wide cohort choice (stored server-side) drives the Hub and every cAMPer page.
   const { cohortId: viewCohortId, isReadOnly } = useCohortView();
@@ -203,6 +206,14 @@ export default function AdminPage() {
                   >
                     <Icon icon={item.icon} className={`w-4 h-4 shrink-0 ${isActive ? "text-emerald-600" : ""}`} />
                     {!sidebarCollapsed && <span>{item.label}</span>}
+                    {item.key === "dashboard" && counselorUnread > 0 && (
+                      <span
+                        className={`rounded-full bg-red-500 text-[10px] font-bold text-white px-1.5 min-w-5 h-5 flex items-center justify-center ${sidebarCollapsed ? "absolute ml-6 -mt-4" : "ml-auto"}`}
+                        title="New manager messages"
+                      >
+                        {counselorUnread}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -249,7 +260,7 @@ export default function AdminPage() {
         {/* Content area */}
         <div className="flex-1 overflow-auto p-6">
           {view === "dashboard" && (
-            <HubDashboard onNavigate={handleNavigate} />
+            <HubDashboard onNavigate={handleNavigate} onCamperClick={handleCamperClick} />
           )}
           {view === "guide" && (
             <LayOfTheLand onNavigate={handleNavigate} />

@@ -4,6 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import ReportHeader from "./ReportHeader.js";
+import ManagerConversationsSection from "./ManagerConversationsSection.js";
 import {
   AttendanceSection,
   BadgesSection,
@@ -52,6 +53,7 @@ export default function ReportCard({ camperId }: { camperId: number }) {
         </Button>
       </div>
       <ReportHeader data={data} />
+      <ManagerConversationsSection camperId={camperId} />
       <div className="grid gap-4 lg:grid-cols-2">
         <PointsSection data={data} />
         <AttendanceSection data={data} />

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -24,6 +25,7 @@ const ManagerCommentDetailSchema = z.object({
   comment_type: z.string(),
   sentiment: z.string(),
   content: z.string(),
+  visibility: z.string(),
   created_at: z.string(),
 });
 
@@ -39,6 +41,7 @@ export default api({
     recent_comments: z.array(ManagerCommentDetailSchema),
   }),
   async run(ctx) {
+    await requireCounselor(ctx.integrations.camp_201_db, ctx.user.email);
     const managers = await ctx.integrations.camp_201_db.query(
       `SELECT m.id, m.email, m.first_name, m.last_name, m.title, m.region,
               (SELECT COUNT(*) FROM camp201_manager_hires mh WHERE mh.manager_id = m.id)::integer as hire_count,
@@ -57,7 +60,7 @@ export default api({
       `SELECT mc.id,
               m.first_name as manager_first_name, m.last_name as manager_last_name,
               c.first_name as camper_first_name, c.last_name as camper_last_name,
-              mc.comment_type, mc.sentiment, mc.content, mc.created_at::text
+              mc.comment_type, mc.sentiment, mc.content, mc.visibility, mc.created_at::text
        FROM camp201_manager_comments mc
        JOIN camp201_managers m ON m.id = mc.manager_id
        JOIN camp201_campers c ON c.id = mc.camper_id

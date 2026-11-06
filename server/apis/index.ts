@@ -202,6 +202,15 @@ import ToggleSurveyDayLock from './camp/toggle-survey-day-lock.js';
 import GetMyAccess from './camp/get-my-access.js';
 import VerifyCounselor from './camp/verify-counselor.js';
 import GetCounselorRotation from './camp/get-counselor-rotation.js';
+import {
+  GetMyManagerThreads,
+  GetCamperManagerThreads,
+  GetCounselorManagerInbox,
+  GetManagerThreadBadges,
+  ReplyToManagerThread,
+  AcknowledgeManagerThread,
+  MarkManagerThreadsRead,
+} from './camp/manager-threads.js';
 
 const apis = {
   SetupDatabase,
@@ -309,6 +318,13 @@ const apis = {
   AddHireToManager,
   AddManagerComment,
   GetAdminManagerOverview,
+  GetMyManagerThreads,
+  GetCamperManagerThreads,
+  GetCounselorManagerInbox,
+  GetManagerThreadBadges,
+  ReplyToManagerThread,
+  AcknowledgeManagerThread,
+  MarkManagerThreadsRead,
   MigrateDailySurveys,
   GetDailySurvey,
   SubmitDailySurvey,

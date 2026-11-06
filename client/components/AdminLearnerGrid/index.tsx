@@ -30,6 +30,12 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
   const inputs = useMemo(() => ({ cohort_id: cohortId }), [cohortId]);
   const { data, loading, fetching } = useApiData("GetAdminCampers", inputs);
   const { run: removeCamper } = useApi("RemoveCamper");
+  // Manager message counts per cAMPer (tile badges)
+  const { data: threadBadges } = useApiData("GetManagerThreadBadges", {}, { refetchInterval: 60_000 });
+  const messagesByCamper = useMemo(
+    () => new Map((threadBadges?.by_camper ?? []).map((b) => [b.camper_id, b])),
+    [threadBadges],
+  );
   const [pendingRemove, setPendingRemove] = useState<{ id: number; name: string } | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<CohortSort | "points">("points");
@@ -152,6 +158,21 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
                     <Icon icon="calendar-x" className="h-3 w-3" />
                     {camper.absences_used}/3 absences
                   </span>
+                  {(() => {
+                    const m = messagesByCamper.get(camper.id);
+                    if (!m || m.total === 0) return null;
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          m.unread > 0 ? "bg-red-100 text-red-700" : "bg-blue-50 text-blue-700"
+                        }`}
+                        title={m.unread > 0 ? `${m.unread} new manager message${m.unread !== 1 ? "s" : ""}` : "Manager messages"}
+                      >
+                        <Icon icon="message-circle" className="h-3 w-3" />
+                        {m.unread > 0 ? `${m.unread} new` : m.total}
+                      </span>
+                    );
+                  })()}
                   {!camper.profile_completed && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                       <Icon icon="circle-alert" className="h-3 w-3" />

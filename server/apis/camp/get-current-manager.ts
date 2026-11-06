@@ -4,11 +4,12 @@ const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetCurrentManager",
-  description: "Checks if current user is a registered manager and returns their data",
+  description: "Checks if the signed-in user is a registered manager",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
+    // Kept for cache-keying on the client; identity always comes from the signed-in user.
     email: z.string(),
   }),
   output: z.object({
@@ -22,7 +23,10 @@ export default api({
       hire_count: z.coerce.number(),
     }).nullable(),
   }),
-  async run(ctx, input) {
+  async run(ctx) {
+    const email = (ctx.user.email ?? "").trim().toLowerCase();
+    if (!email) return { isManager: false, manager: null };
+
     const ManagerSchema = z.object({
       id: z.coerce.number(),
       first_name: z.string(),
@@ -36,17 +40,14 @@ export default api({
       `SELECT m.id, m.first_name, m.last_name, m.title, m.region,
               (SELECT COUNT(*) FROM camp201_manager_hires mh WHERE mh.manager_id = m.id)::integer as hire_count
        FROM camp201_managers m
-       WHERE m.email = $1
+       WHERE lower(m.email) = $1
        LIMIT 1`,
       ManagerSchema,
-      [input.email],
+      [email],
       { label: "Check if user is a manager" }
     );
 
-    if (managers.length === 0) {
-      return { isManager: false, manager: null };
-    }
-
+    if (managers.length === 0) return { isManager: false, manager: null };
     return { isManager: true, manager: managers[0] };
   },
 });

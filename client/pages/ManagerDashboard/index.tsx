@@ -146,8 +146,7 @@ export default function ManagerDashboard() {
               hire={hire}
               totalCampers={totalCampers}
               totalSurveys={totalSurveys}
-              managerEmail={user?.email ?? ""}
-              onCommentAdded={refetch}
+              canWrite={!campClosed}
             />
           ))}
         </div>

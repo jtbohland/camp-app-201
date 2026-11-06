@@ -20,6 +20,7 @@ import CheckInHistoryCard from "@/components/CheckInHistoryCard/index.js";
 import FlightDepartureSection from "@/components/FlightDepartureSection/index.js";
 import AbsenceRequestCard from "@/components/AbsenceRequestCard/index.js";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
+import FromYourManagerCard from "@/components/FromYourManagerCard/index.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -183,6 +184,9 @@ export default function ProfilePage() {
 
       {/* XP / current place / team banner */}
       <ProfileStandingBanner camperId={camper?.id ?? 0} />
+
+      {/* Notes shared by their manager (reply / acknowledge only) */}
+      <FromYourManagerCard />
 
       {/* Photo & Bio Section */}
       <Card className="p-6">

@@ -68,6 +68,9 @@ export default function AppSidebar() {
   // Refresh periodically so cAMPers see sections appear as soon as counselors unlock them
   const { data: gatesData } = useApiData("GetFeatureGates", {}, { refetchInterval: 30_000 });
   const { run: updateGate } = useApi("UpdateFeatureGate");
+  // Counselors: unread manager messages, shown on the Counselor Hub item
+  const { data: threadBadges } = useApiData("GetManagerThreadBadges", {}, { enabled: isAdmin, refetchInterval: 60_000 });
+  const counselorUnread = threadBadges?.counselor_unread ?? 0;
 
   const camper = camperData?.camper;
   const camperId = camper?.id ?? 0;
@@ -157,6 +160,8 @@ export default function AppSidebar() {
                 locked={gate?.is_locked}
                 toggling={togglingKey === item.gate}
                 onToggleLock={gate ? () => handleToggleLock(gate.feature_key) : undefined}
+                badge={item.path === "/admin" ? counselorUnread : undefined}
+                badgeTitle="New manager messages"
               />
             );
           })}
