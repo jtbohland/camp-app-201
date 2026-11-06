@@ -30,7 +30,8 @@ const quickLinks: QuickLink[] = [
   { icon: "users", label: "Teams & Rankings", description: "Collaborate with your team", path: "/teams", color: "text-camp-green" },
   { icon: "presentation", label: "Presentations", description: "Group presentations", path: "/presentations", color: "text-purple-500" },
   { icon: "award", label: "Badges & XP", description: "Earn achievements", path: "/badges", color: "text-camp-green" },
-  { icon: "graduation-cap", label: "Graduation", description: "Memories & summary", path: "/graduation", color: "text-camp-amber" },
+  { icon: "camera", label: "Memories", description: "Photos & favorite moments", path: "/memories", color: "text-rose-400" },
+  { icon: "graduation-cap", label: "Graduation", description: "Your cAMP journey summary", path: "/graduation", color: "text-camp-amber" },
 ];
 
 type RegistrationMode = "choose" | JoinRole;

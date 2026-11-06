@@ -33,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "/wheel-and-deal", lazy: () => import("./pages/WheelAndDeal/index.js").then((m) => ({ Component: gated(m.default, "wheel_and_deal") })) },
       { path: "/survey", lazy: () => import("./pages/Survey/index.js").then((m) => ({ Component: gated(m.default, "surveys") })) },
       { path: "/badges", lazy: () => import("./pages/Badges/index.js").then((m) => ({ Component: gated(m.default, "badges") })) },
+      { path: "/memories", lazy: () => import("./pages/Memories/index.js").then((m) => ({ Component: gated(m.default, "memories") })) },
       { path: "/graduation", lazy: () => import("./pages/Graduation/index.js").then((m) => ({ Component: gated(m.default, "graduation") })) },
 
       // Redirects for old standalone routes
@@ -40,7 +41,7 @@ export const router = createBrowserRouter([
       { path: "/team-history", element: <Navigate to="/teams" replace /> },
       { path: "/executives", element: <Navigate to="/agenda" replace /> },
       { path: "/announcements", element: <Navigate to="/" replace /> },
-      { path: "/gallery", element: <Navigate to="/graduation" replace /> },
+      { path: "/gallery", element: <Navigate to="/memories" replace /> },
       { path: "/xplanation", element: <Navigate to="/badges" replace /> },
       { path: "/feedback", element: <Navigate to="/presentations" replace /> },
       { path: "/rubric", element: <Navigate to="/presentations" replace /> },

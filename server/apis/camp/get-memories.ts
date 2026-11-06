@@ -60,13 +60,12 @@ export default api({
       )
       SELECT combined.id, combined.camper_id, combined.memory_type, combined.content, combined.image_url,
              combined.day_number, combined.created_at::text, c.first_name, c.last_name, c.photo_url,
-             CASE WHEN combined.id > 0 THEN
-               (SELECT json_agg(json_build_object('emoji', sub.emoji, 'count', sub.cnt,
-                 'reacted', COALESCE((SELECT true FROM camp201_memory_reactions r2
-                   WHERE r2.memory_id = combined.id AND r2.emoji = sub.emoji AND r2.camper_id = ${viewer_camper_id ?? 0}), false)))
-                FROM (SELECT emoji, COUNT(*) as cnt FROM camp201_memory_reactions WHERE memory_id = combined.id GROUP BY emoji) sub
-               )::text
-             ELSE NULL END as reactions
+             -- Legacy gallery photos use negative ids; their reactions are stored under that same id
+             (SELECT json_agg(json_build_object('emoji', sub.emoji, 'count', sub.cnt,
+               'reacted', COALESCE((SELECT true FROM camp201_memory_reactions r2
+                 WHERE r2.memory_id = combined.id AND r2.emoji = sub.emoji AND r2.camper_id = ${Math.trunc(Number(viewer_camper_id ?? 0))}), false)))
+              FROM (SELECT emoji, COUNT(*) as cnt FROM camp201_memory_reactions WHERE memory_id = combined.id GROUP BY emoji) sub
+             )::text as reactions
       FROM combined
       JOIN camp201_campers c ON c.id = combined.camper_id
       WHERE c.cohort_id = ${VIEW} ${dayClause}

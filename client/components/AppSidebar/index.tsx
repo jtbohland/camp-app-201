@@ -28,6 +28,7 @@ const camperNavItems: NavItem[] = [
   { icon: "refresh-cw", label: "Wheel & Deal", path: "/wheel-and-deal", gate: "wheel_and_deal" },
   { icon: "clipboard-list", label: "Surveys", path: "/survey", gate: "surveys" },
   { icon: "award", label: "Badges & XP", path: "/badges", gate: "badges" },
+  { icon: "camera", label: "Memories", path: "/memories", gate: "memories" },
   { icon: "graduation-cap", label: "Graduation", path: "/graduation", gate: "graduation" },
   { icon: "shield", label: "Counselor Hub", path: "/admin", adminOnly: true },
 ];
