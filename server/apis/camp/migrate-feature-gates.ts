@@ -10,6 +10,7 @@ const DEFAULT_GATES = [
   { key: "presentations", label: "Presentations", default_locked: true },
   { key: "exec_qa", label: "Executive Q&A", default_locked: true },
   { key: "badges", label: "Badges & XP", default_locked: true },
+  { key: "memories", label: "Memories", default_locked: true },
   { key: "graduation", label: "Graduation", default_locked: true },
   { key: "timer", label: "Timer", default_locked: false },
   { key: "teams", label: "Teams", default_locked: false },
