@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
+import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
+import { showPreworkResultToast, errorMessage } from "@/lib/preworkResult.js";
 
 const PRODUCTS = [
   "Analytics", "CDP", "Experiment", "Session Replay", "Web Analytics",
@@ -18,10 +19,41 @@ const CHALLENGE_TYPES = [
 
 type Props = {
   camperId: number;
+  isCompleted: boolean;
+  submission: Record<string, any> | null;
+  flagged?: boolean;
   onComplete: () => void;
 };
 
-export default function WheelAndDealForm({ camperId, onComplete }: Props) {
+function LockedAnswers({ submission, flagged }: { submission: Record<string, any> | null; flagged?: boolean }) {
+  const rows: [string, unknown][] = [
+    ["Product", submission?.product],
+    ["Challenge Type", submission?.challenge_type],
+    ["Your Score", submission?.score],
+    ["AI Coach Score", submission?.ai_coach_score],
+  ];
+  return (
+    <PreworkDoneTile title="Wheel & Deal — Product Pitch Practice" subtitle="Your submitted results (locked)" flagged={flagged}>
+      {submission ? (
+        <div className="grid grid-cols-2 gap-2">
+          {rows.map(([label, value]) => (
+            <div key={label} className="rounded-md border border-camp-green/20 bg-background px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <Icon icon="lock" className="w-3 h-3" />
+                {label}
+              </p>
+              <p className="text-sm font-medium text-foreground">{value === undefined || value === null || value === "" ? "—" : String(value)}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Completed.</p>
+      )}
+    </PreworkDoneTile>
+  );
+}
+
+export default function WheelAndDealForm({ camperId, isCompleted, submission, flagged, onComplete }: Props) {
   const showPoints = usePointsBubble();
   const [product, setProduct] = useState("");
   const [challengeType, setChallengeType] = useState("");
@@ -29,15 +61,16 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
   const [aiScore, setAiScore] = useState("");
 
   const { run: submit, loading } = useApi("SubmitPreworkValidation");
+  const allFilled = !!product && !!challengeType && score.trim() !== "" && aiScore.trim() !== "";
 
   const handleSubmit = useCallback(async () => {
-    if (!product.trim() || !challengeType || !score.trim() || !aiScore.trim()) {
+    if (!allFilled) {
       toast.error("Please fill in all fields");
       return;
     }
     const scoreNum = Number(score);
     const aiNum = Number(aiScore);
-    if (isNaN(scoreNum) || isNaN(aiNum)) {
+    if (!Number.isFinite(scoreNum) || !Number.isFinite(aiNum)) {
       toast.error("Scores must be numbers");
       return;
     }
@@ -53,23 +86,21 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
           ai_coach_score: aiNum,
         },
       });
-      if (result?.success) {
-        if (result.flagged) {
-          toast.warning("Submitted — a counselor will review your scores.");
-        } else {
-          toast.success(`Wheel & Deal submitted! +${result.points_awarded} pts`);
-          showPoints(result.points_awarded as number);
-        }
-        onComplete();
+      if (!result?.success) {
+        toast.error(result?.message || "Couldn't complete Wheel & Deal");
+        return;
       }
+      showPreworkResultToast("Wheel & Deal", result, showPoints);
+      onComplete();
     } catch (err) {
-      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
-      toast.error("Failed: " + msg);
+      toast.error("Failed: " + errorMessage(err));
     }
-  }, [product, challengeType, score, aiScore, camperId, submit, onComplete]);
+  }, [allFilled, product, challengeType, score, aiScore, camperId, submit, onComplete, showPoints]);
+
+  if (isCompleted) return <LockedAnswers submission={submission} flagged={flagged} />;
 
   return (
-    <div className="mt-3 space-y-3 p-4 rounded-lg border border-amber-200 bg-amber-50/30">
+    <div className="space-y-3 p-4 rounded-lg border border-amber-200 bg-amber-50/30">
       <div className="flex items-center gap-2 mb-1">
         <Icon icon="refresh-cw" className="w-5 h-5 text-amber-600" />
         <h4 className="font-semibold text-sm">Log Your Wheel & Deal Results</h4>
@@ -113,31 +144,21 @@ export default function WheelAndDealForm({ camperId, onComplete }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Your Score</label>
-          <Input
-            type="number"
-            placeholder="Type in your score"
-            value={score}
-            onChange={(e) => setScore(e.target.value)}
-          />
+          <Input type="number" placeholder="Type in your score" value={score} onChange={(e) => setScore(e.target.value)} />
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">AI Coach Score</label>
-          <Input
-            type="number"
-            placeholder="Type in your AI Coach score"
-            value={aiScore}
-            onChange={(e) => setAiScore(e.target.value)}
-          />
+          <Input type="number" placeholder="Type in your AI Coach score" value={aiScore} onChange={(e) => setAiScore(e.target.value)} />
         </div>
       </div>
 
       <Button
         onClick={handleSubmit}
-        disabled={loading || !product || !challengeType || !score || !aiScore}
+        disabled={loading || !allFilled}
         className="w-full bg-amber-600 hover:bg-amber-700 text-white"
         size="sm"
       >
-        {loading ? "Submitting..." : "Mark Complete"}
+        {loading ? "Completing..." : "Mark Complete"}
       </Button>
     </div>
   );

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { markPreworkComplete } from "../../lib/prework-complete.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const PENALTY_POINTS = -3;
@@ -209,52 +210,14 @@ export default api({
     }
 
     // Insert completion (ignore if already done)
-    const result = await ctx.integrations.camp_201_db.execute(
-      `INSERT INTO camp201_prework (user_id, item, completed)
-       VALUES ($1, $2, true)
-       ON CONFLICT (user_id, item) DO NOTHING`,
-      [user_id, item],
-      { label: "Mark pre-work item complete" }
-    );
-
-    // Award points if new completion
-    let pointsAwarded = 0;
-    if (result.rowCount && result.rowCount > 0) {
-      if (submissionFlagged) {
-        // Flagged submission — deduct points
-        pointsAwarded = PENALTY_POINTS;
-        await ctx.integrations.camp_201_db.execute(
-          `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-          [PENALTY_POINTS, user_id],
-          { label: "Deduct flagged submission penalty" }
-        );
-        await ctx.integrations.camp_201_db.execute(
-          `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-           VALUES ($1, $2, $3, 'system')`,
-          [user_id, PENALTY_POINTS, `Flagged pre-work submission: ${item}`],
-          { label: "Log flagged penalty" }
-        );
-        penalty_applied = true;
-      } else {
-        // Award points only if camp hasn't started yet
-        if (!campStarted) {
-          pointsAwarded = 5;
-          await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_campers SET points = points + 5 WHERE id = $1`,
-            [user_id],
-            { label: "Award pre-work points" }
-          );
-          await ctx.integrations.camp_201_db.execute(
-            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-             VALUES ($1, 5, $2, 'system')`,
-            [user_id, `Pre-work completed: ${item}`],
-            { label: "Log pre-work points" }
-          );
-        }
-      }
-    }
-
-    const netPoints = pointsAwarded + (penalty_applied ? PENALTY_POINTS : 0);
+    // Mark complete + award points (first time only). Shared with Challenger / Wheel & Deal.
+    const skipPenalty = penalty_applied;
+    const completion = await markPreworkComplete(ctx.integrations.camp_201_db, user_id, item, {
+      flagged: submissionFlagged,
+      awardPoints: !campStarted,
+    });
+    penalty_applied = skipPenalty || completion.penaltyApplied;
+    const netPoints = completion.pointsAwarded + (skipPenalty ? PENALTY_POINTS : 0);
 
     return {
       success: true,

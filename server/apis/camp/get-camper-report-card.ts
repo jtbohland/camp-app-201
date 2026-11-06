@@ -155,7 +155,8 @@ export default api({
            (SELECT MAX(b.score) FROM camp201_bingo_cards b WHERE b.camper_id = $1) AS bingo_score,
            (SELECT MAX((SELECT COUNT(*) FROM jsonb_object_keys(COALESCE(b.found_squares,'{}'::jsonb)))) FROM camp201_bingo_cards b WHERE b.camper_id = $1) AS bingo_found,
            (SELECT MAX(jsonb_array_length(COALESCE(b.bingos_claimed,'[]'::jsonb))) FROM camp201_bingo_cards b WHERE b.camper_id = $1) AS bingo_bingos,
-           (SELECT COUNT(DISTINCT ps.item_key) FROM camp201_prework_submissions ps WHERE ps.camper_id = $1) AS prework_done,
+           (SELECT COUNT(DISTINCT pw.item) FROM camp201_prework pw WHERE pw.user_id = $1 AND pw.completed = true
+              AND EXISTS (SELECT 1 FROM camp201_journey_content jc WHERE jc.section = 'prework' AND jc.item_key = pw.item)) AS prework_done,
            (SELECT COALESCE(SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points > 0) AS points_gained,
            (SELECT COALESCE(-SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points < 0) AS points_lost
          LIMIT 1`,

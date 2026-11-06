@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
+import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
 
 const APP_URL = "https://app.superblocks.com"; // Will be replaced with real deployed URL
 
@@ -16,10 +17,11 @@ Check out my progress: ${APP_URL}`;
 
 type Props = {
   camperId: number;
+  isCompleted: boolean;
   onComplete: () => void;
 };
 
-export default function ShareWithManagerTile({ camperId, onComplete }: Props) {
+export default function ShareWithManagerTile({ camperId, isCompleted, onComplete }: Props) {
   const showPoints = usePointsBubble();
   const [copied, setCopied] = useState(false);
   const { run: completeItem, loading: completing } = useApi("CompletePreworkItem");
@@ -51,10 +53,13 @@ export default function ShareWithManagerTile({ camperId, onComplete }: Props) {
         force: false,
       });
       if (result?.success) {
-        if ((result.pointsAwarded as number) > 0) {
-          showPoints(result.pointsAwarded as number);
+        const pts = Number(result.pointsAwarded) || 0;
+        if (pts > 0) {
+          showPoints(pts);
+          toast.success(`Shared with your manager! +${pts} pts 🏕️`);
+        } else {
+          toast.success("Shared with your manager — nice work! 🏕️");
         }
-        toast.success("Shared with manager — nice work! 🏕️");
         onComplete();
       }
     } catch (err) {
@@ -64,6 +69,10 @@ export default function ShareWithManagerTile({ camperId, onComplete }: Props) {
       toast.error("Failed: " + msg);
     }
   }, [camperId, completeItem, onComplete, showPoints]);
+
+  if (isCompleted) {
+    return <PreworkDoneTile title="Share cAMP 201 with Your Manager" subtitle="Shared ✓" />;
+  }
 
   return (
     <Card className="overflow-hidden border-2 border-sky-200 bg-gradient-to-br from-sky-50/80 to-blue-50/40">

@@ -61,7 +61,8 @@ export default function JourneyPage() {
 
   const camper = camperData.camper;
   const completedKeys = (preworkData?.completedItems ?? []).map((item) => item.item);
-  const allPreworkDone = completedKeys.length >= 3;
+  const preworkTotal = preworkData?.totalItems ?? 0;
+  const allPreworkDone = preworkTotal > 0 && completedKeys.length >= preworkTotal;
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-6xl">
@@ -98,6 +99,7 @@ export default function JourneyPage() {
           camperEmail={user?.email ?? ""}
           camperRole={camper?.role ?? ""}
           completedKeys={completedKeys}
+          submissions={preworkData?.submissions ?? []}
           onComplete={refetchPrework}
           isAdmin={isAdmin}
           deadline={deadline}
