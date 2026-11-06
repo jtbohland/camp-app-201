@@ -17,20 +17,26 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), message: z.string() }),
   async run(ctx, { team_id, camper_id, name, logo_url, color }) {
-    // Verify camper is on this team
+    // Only a member of this team, signed in as themselves, can save its design.
+    const email = (ctx.user.email ?? "").toLowerCase();
+    if (!email) return { success: false, message: "You must be signed in." };
     const check = await ctx.integrations.camp_201_db.query(
-      `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
+      `SELECT team_id FROM camp201_campers WHERE id = $1 AND lower(email) = $2 LIMIT 1`,
       z.object({ team_id: z.coerce.number().nullable() }),
-      [camper_id],
+      [camper_id, email],
       { label: "Verify team membership" }
     );
     if (check.length === 0 || check[0].team_id !== team_id) {
-      return { success: false, message: "You can only design your own team" };
+      return { success: false, message: "Only members of this team can save its design." };
+    }
+    const validLogo = logo_url.startsWith("data:image/") || /^https?:\/\//.test(logo_url);
+    if (!name.trim() || !validLogo || !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      return { success: false, message: "Add a team name, color and logo first." };
     }
 
     await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_teams SET name = $2, logo_url = $3, color = $4 WHERE id = $1`,
-      [team_id, name, logo_url, color],
+      [team_id, name.trim().slice(0, 40), logo_url, color],
       { label: "Update team design" }
     );
 

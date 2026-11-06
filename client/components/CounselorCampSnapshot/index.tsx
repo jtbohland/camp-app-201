@@ -128,7 +128,7 @@ export default function CounselorCampSnapshot() {
               <Card key={t.id} className="p-4">
                 <div className="mb-3 flex items-center gap-3">
                   {t.logo_url ? (
-                    <img src={t.logo_url} alt={t.name} className="h-11 w-11 rounded-lg border-2 object-cover" style={{ borderColor: t.color || "#ccc" }} />
+                    <img src={t.logo_url} alt={t.name} className="h-11 w-11 rounded-lg border-2 bg-white object-contain" style={{ borderColor: t.color || "#ccc" }} />
                   ) : (
                     <div className="flex h-11 w-11 items-center justify-center rounded-lg text-lg font-bold text-white" style={{ backgroundColor: t.color || "#4a7c59" }}>
                       {t.name.charAt(0)}

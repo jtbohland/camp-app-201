@@ -74,7 +74,7 @@ export default function ProfileStandingBanner({ camperId }: Props) {
 
         <div className="flex items-center gap-3 sm:pl-4">
           {team?.logo_url ? (
-            <img src={team.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-white object-cover" />
+            <img src={team.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-white object-contain" />
           ) : (
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
               <Icon icon="users" className="h-6 w-6 text-amber-200" />

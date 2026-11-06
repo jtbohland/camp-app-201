@@ -138,7 +138,7 @@ export default function LogoVoting({ teams, camperId, myTeamId }: LogoVotingProp
                 style={{ borderColor: team.color ?? '#666' }}
               >
                 {team.logo_url ? (
-                  <img src={team.logo_url} alt={team.name} className="w-full h-full object-cover" />
+                  <img src={team.logo_url} alt={team.name} className="w-full h-full bg-white object-contain" />
                 ) : (
                   <span className="text-2xl">🏕️</span>
                 )}

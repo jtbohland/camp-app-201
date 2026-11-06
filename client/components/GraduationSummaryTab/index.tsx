@@ -276,7 +276,7 @@ function CamperGraduationSummary() {
           </div>
           <div className="flex items-center gap-4 mb-4">
             {data.team_logo ? (
-              <img src={data.team_logo} alt={data.team_name} className="w-14 h-14 rounded-xl object-cover border-2" style={{ borderColor: data.team_color || "#ccc" }} />
+              <img src={data.team_logo} alt={data.team_name} className="w-14 h-14 rounded-xl bg-white object-contain border-2" style={{ borderColor: data.team_color || "#ccc" }} />
             ) : (
               <div className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: data.team_color || "#4a7c59" }}>
                 {data.team_name.charAt(0)}

@@ -112,7 +112,7 @@ export default function TeamHistoryTab() {
                       }}
                     >
                       {team.logo_url ? (
-                        <img src={team.logo_url} alt="" className="w-full h-full rounded-full object-cover" />
+                        <img src={team.logo_url} alt="" className="w-full h-full rounded-full bg-white object-contain" />
                       ) : (
                         team.team_name.charAt(0).toUpperCase()
                       )}
