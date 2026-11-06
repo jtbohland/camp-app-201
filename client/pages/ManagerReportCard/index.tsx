@@ -18,6 +18,7 @@ export default function ManagerReportCard() {
   const { data: dashboard } = useApiData("GetManagerDashboard", { manager_email: user?.email ?? "" }, { enabled: !!user?.email });
   const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 30000 });
   const hire = dashboard?.hires.find((h) => h.camper.id === id);
+  const canWrite = !(closeStatus?.camp_closed ?? false);
 
   const back = (
     <Button variant="ghost" size="sm" onClick={() => navigate("/manager")} className="print:hidden">
@@ -41,6 +42,7 @@ export default function ManagerReportCard() {
       <ReportCard
         camperId={id}
         viewer="manager"
+        canReact={canWrite}
         conversations={
           hire ? (
             <Card className="p-5 print:hidden">
@@ -53,7 +55,7 @@ export default function ManagerReportCard() {
                 camperFirstName={hire.camper.first_name}
                 threads={hire.threads}
                 unreadCount={hire.unread_count}
-                canWrite={!(closeStatus?.camp_closed ?? false)}
+                canWrite={canWrite}
               />
             </Card>
           ) : null

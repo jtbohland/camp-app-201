@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
+import { groupItemNotes } from "@/lib/managerThreads";
 import TimelineEventRow from "./TimelineEventRow.js";
 
 type Filter = "all" | "done" | "missed";
@@ -15,11 +16,22 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "missed", label: "Missed" },
 ];
 
+type Props = {
+  camperId: number;
+  viewer?: "manager" | "counselor";
+  /** Managers who can still write get a react/comment button on every item. */
+  canReact?: boolean;
+  camperFirstName?: string;
+};
+
 /** Everything a cAMPer did, and didn't do, newest first. Used on counselor and manager report cards. */
-export default function ActivityTimeline({ camperId }: { camperId: number }) {
+export default function ActivityTimeline({ camperId, viewer = "counselor", canReact = false, camperFirstName = "" }: Props) {
   const { data, loading, fetching, isError, refetch } = useApiData("GetCamperActivity", { camper_id: camperId });
   const [filter, setFilter] = useState<Filter>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
+
+  const notesByKey = useMemo(() => groupItemNotes(data?.item_notes), [data]);
+  const react = canReact && viewer === "manager" ? { camperId, camperFirstName } : undefined;
 
   const filtered = useMemo(() => {
     const events = data?.events ?? [];
@@ -46,7 +58,7 @@ export default function ActivityTimeline({ camperId }: { camperId: number }) {
 
   return (
     <Card className="p-5 print:break-inside-avoid">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
         <Icon icon="history" className="h-4 w-4 text-teal-600" />
         <h3 className="text-sm font-semibold text-foreground">Activity timeline</h3>
         <span className="text-xs text-muted-foreground">
@@ -68,6 +80,11 @@ export default function ActivityTimeline({ camperId }: { camperId: number }) {
           ))}
         </div>
       </div>
+      {react && (
+        <p className="mb-2 text-[11px] text-muted-foreground print:hidden">
+          Tap <Icon icon="smile-plus" className="inline h-3 w-3" /> on any item to react or leave a note about it.
+        </p>
+      )}
 
       {isError ? (
         <div className="py-4 text-center">
@@ -84,7 +101,9 @@ export default function ActivityTimeline({ camperId }: { camperId: number }) {
             <div key={g.day} className="mb-2">
               <p className="sticky top-0 bg-card py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{g.day}</p>
               <div className="divide-y divide-border">
-                {g.events.map((e) => <TimelineEventRow key={e.key} event={e} />)}
+                {g.events.map((e) => (
+                  <TimelineEventRow key={e.key} event={e} notes={notesByKey.get(e.key)} viewer={viewer} react={react} />
+                ))}
               </div>
             </div>
           ))}

@@ -47,6 +47,14 @@ export default function ManagerThreadCard({ thread, viewerRole, showParticipants
         )}
       </div>
 
+      {/* Which activity item this is about */}
+      {thread.target_label && (
+        <p className="mb-1 inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <Icon icon="link-2" className="h-3 w-3 shrink-0" />
+          <span className="truncate">About: {thread.target_label}</span>
+        </p>
+      )}
+
       {/* Original note */}
       <div className="flex items-start gap-2">
         {!isReaction && sentiment && <Icon icon={sentiment.icon} className={`w-4 h-4 mt-0.5 shrink-0 ${sentiment.color}`} />}

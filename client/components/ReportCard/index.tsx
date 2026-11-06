@@ -24,10 +24,12 @@ type Props = {
   viewer?: "counselor" | "manager";
   /** Shown above the sections, e.g. the manager's conversation panel. */
   conversations?: ReactNode;
+  /** Manager can still react to timeline items (false after camp closes). */
+  canReact?: boolean;
 };
 
 /** Everything one cAMPer has done, earned, lost and missed. */
-export default function ReportCard({ camperId, viewer = "counselor", conversations }: Props) {
+export default function ReportCard({ camperId, viewer = "counselor", conversations, canReact = false }: Props) {
   const isManager = viewer === "manager";
   const counselorQuery = useApiData("GetCamperReportCard", { camper_id: camperId }, { enabled: !isManager });
   const managerQuery = useApiData("GetManagerReportCard", { camper_id: camperId }, { enabled: isManager });
@@ -68,7 +70,7 @@ export default function ReportCard({ camperId, viewer = "counselor", conversatio
       <ReportHeader data={data} />
       {isManager ? conversations : <ManagerConversationsSection camperId={camperId} />}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ActivityTimeline camperId={camperId} />
+        <ActivityTimeline camperId={camperId} viewer={viewer} canReact={isManager && canReact} camperFirstName={data.profile.first_name} />
         <div className="space-y-4">
           <PointsSection data={data} />
           <AttendanceSection data={data} />

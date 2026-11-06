@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SuggestedHiresCard from "@/components/SuggestedHiresCard";
 import AddCamperDialog from "@/components/AddCamperDialog";
+import ManagerOverview from "@/components/ManagerOverview/index.js";
+import BroadcastDialog from "@/components/BroadcastDialog/index.js";
 
 export default function ManagerDashboard() {
   const user = useSuperblocksUser();
@@ -28,6 +30,7 @@ export default function ManagerDashboard() {
   const campClosed = closeStatus?.camp_closed ?? false;
 
   const [addOpen, setAddOpen] = useState(false);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
   const handleHireAdded = useCallback(async () => {
     await refetch();
   }, [refetch]);
@@ -71,9 +74,10 @@ export default function ManagerDashboard() {
   const hires = dashboard?.hires ?? [];
   const totalCampers = dashboard?.total_campers ?? 0;
   const totalSurveys = dashboard?.total_surveys ?? 0;
+  const totalUnread = hires.reduce((s, h) => s + h.unread_count, 0);
 
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-4xl overflow-auto">
+    <div className="flex flex-col gap-6 p-8 max-w-6xl overflow-auto">
       {/* Camp Closed Banner */}
       {campClosed && (
         <Card className="p-4 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
@@ -104,6 +108,12 @@ export default function ManagerDashboard() {
               <Icon icon="users" className="w-3.5 h-3.5 mr-1" />
               {hires.length} cAMPer{hires.length !== 1 ? "s" : ""}
             </Badge>
+            {totalUnread > 0 && (
+              <Badge className="bg-white text-blue-700 border-white">
+                <Icon icon="message-circle" className="w-3.5 h-3.5 mr-1" />
+                {totalUnread} new repl{totalUnread === 1 ? "y" : "ies"}
+              </Badge>
+            )}
             {fetching && (
               <span className="text-xs opacity-60 flex items-center gap-1">
                 <Icon icon="loader-2" className="w-3 h-3 animate-spin" />
@@ -117,6 +127,9 @@ export default function ManagerDashboard() {
       {/* New hires who listed this manager */}
       {!campClosed && <SuggestedHiresCard onAdded={handleHireAdded} />}
 
+      {/* Needs attention + recent activity across every hire */}
+      {hires.length > 0 && <ManagerOverview canReact={!campClosed} />}
+
       {/* Your cAMPers header + Add a cAMPer */}
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -124,10 +137,18 @@ export default function ManagerDashboard() {
           Your cAMPers
         </h2>
         {!campClosed && (
-          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-            <Icon icon="user-plus" className="w-4 h-4" />
-            Add a cAMPer
-          </Button>
+          <div className="flex items-center gap-2">
+            {hires.length > 0 && (
+              <Button size="sm" onClick={() => setBroadcastOpen(true)}>
+                <Icon icon="megaphone" className="w-4 h-4" />
+                Message {hires.length > 1 ? "all my cAMPers" : "my cAMPer"}
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+              <Icon icon="user-plus" className="w-4 h-4" />
+              Add a cAMPer
+            </Button>
+          </div>
         )}
       </div>
 
@@ -153,6 +174,11 @@ export default function ManagerDashboard() {
       )}
 
       <AddCamperDialog open={addOpen} onOpenChange={setAddOpen} onAdded={handleHireAdded} />
+      <BroadcastDialog
+        open={broadcastOpen}
+        onOpenChange={setBroadcastOpen}
+        hires={hires.map((h) => ({ id: h.camper.id, first_name: h.camper.first_name, last_name: h.camper.last_name }))}
+      />
     </div>
   );
 }

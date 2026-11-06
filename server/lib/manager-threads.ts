@@ -100,6 +100,9 @@ export const ThreadRowSchema = z.object({
   created_at: z.string(),
   acknowledged_at: z.string().nullable(),
   unread: z.boolean(),
+  /** Activity-timeline item this note is about (e.g. 'survey:68'), or null for a general note. */
+  target_key: z.string().nullable(),
+  target_label: z.string().nullable(),
 });
 
 /** Output shape shared by every thread API. */
@@ -115,7 +118,8 @@ export function threadSelectSql(role: ThreadRole): string {
             (m.first_name || ' ' || m.last_name) AS manager_name,
             mc.comment_type, mc.sentiment, mc.content, mc.visibility,
             mc.created_at::text, mc.acknowledged_at::text,
-            ${unreadSql(role)} AS unread
+            ${unreadSql(role)} AS unread,
+            mc.target_key, mc.target_label
           FROM camp201_manager_comments mc
           JOIN camp201_managers m ON m.id = mc.manager_id
           JOIN camp201_campers c ON c.id = mc.camper_id`;

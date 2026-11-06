@@ -1,5 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { requireManager } from "../../lib/manager-threads.js";
+import { TargetKeySchema } from "../../lib/item-notes.js";
+import { loadActivityTimeline } from "../../lib/activity-timeline.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -16,6 +18,8 @@ export default api({
     content: z.string().trim().min(1).max(2000),
     // 'camper' = the cAMPer sees it and can reply; 'counselor' = private to counselors
     visibility: z.enum(["camper", "counselor"]),
+    // Activity-timeline item this is about (e.g. 'survey:68'); null = general note
+    target_key: TargetKeySchema.nullable(),
   }),
   output: z.object({ success: z.boolean(), comment_id: z.number() }),
   async run(ctx, input) {
@@ -31,13 +35,22 @@ export default api({
     );
     if (link.length === 0) throw new Error("This cAMPer is not linked to your account");
 
+    // The item must be on this cAMPer's timeline; its label comes from the server, not the browser.
+    let targetLabel: string | null = null;
+    if (input.target_key) {
+      const { events } = await loadActivityTimeline(db, input.camper_id);
+      const event = events.find((e) => e.key === input.target_key);
+      if (!event) throw new Error("That activity item wasn't found for this cAMPer.");
+      targetLabel = event.title.slice(0, 200);
+    }
+
     const inserted = await db.query(
       `INSERT INTO camp201_manager_comments
-         (manager_id, camper_id, comment_type, sentiment, content, visibility, manager_read_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         (manager_id, camper_id, comment_type, sentiment, content, visibility, manager_read_at, target_key, target_label)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
        RETURNING id`,
       z.object({ id: z.coerce.number() }),
-      [manager.id, input.camper_id, input.comment_type, input.sentiment, input.content, input.visibility],
+      [manager.id, input.camper_id, input.comment_type, input.sentiment, input.content, input.visibility, input.target_key, targetLabel],
       { label: "Insert manager thread" }
     );
 

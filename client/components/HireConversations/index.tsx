@@ -8,16 +8,7 @@ import { useApi } from "@/hooks/useApi";
 import AudienceToggle from "@/components/AudienceToggle/index.js";
 import ManagerThreadCard from "@/components/ManagerThreadCard/index.js";
 import { errorMessage } from "@/lib/cohortRefresh";
-import { SENTIMENTS, refreshThreadViews, type ManagerThread, type Visibility } from "@/lib/managerThreads";
-
-const REACTIONS = [
-  { emoji: "🔥", label: "On fire!" },
-  { emoji: "👏", label: "Great job" },
-  { emoji: "💪", label: "Keep it up" },
-  { emoji: "🎯", label: "On target" },
-  { emoji: "⭐", label: "Star performer" },
-  { emoji: "👀", label: "Watching" },
-];
+import { REACTIONS, SENTIMENTS, refreshThreadViews, type ManagerThread, type Visibility } from "@/lib/managerThreads";
 
 type Props = {
   camperId: number;
@@ -58,6 +49,7 @@ export default function HireConversations({ camperId, camperFirstName, threads, 
         sentiment: args.sentiment as "positive" | "encouraging" | "feedback" | "concerning",
         content: args.content,
         visibility: args.visibility,
+        target_key: null,
       });
       await refreshThreadViews();
     },

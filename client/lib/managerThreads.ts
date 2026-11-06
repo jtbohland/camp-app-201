@@ -24,8 +24,45 @@ export type ManagerThread = {
   created_at: string;
   acknowledged_at: string | null;
   unread: boolean;
+  /** Activity item this note is about (e.g. 'survey:68'), or null for a general note. */
+  target_key: string | null;
+  target_label: string | null;
   replies: ThreadReply[];
 };
+
+/** A manager reaction/note pinned to one activity-timeline item. */
+export type ItemNote = {
+  id: number;
+  camper_id: number;
+  target_key: string;
+  comment_type: string;
+  content: string;
+  visibility: string;
+  manager_name: string;
+  mine: boolean;
+  created_at: string;
+};
+
+/** Quick reactions managers can send (general or on an item). */
+export const REACTIONS = [
+  { emoji: "🔥", label: "On fire!" },
+  { emoji: "👏", label: "Great job" },
+  { emoji: "💪", label: "Keep it up" },
+  { emoji: "🎯", label: "On target" },
+  { emoji: "⭐", label: "Star performer" },
+  { emoji: "👀", label: "Watching" },
+] as const;
+
+/** Group item notes by timeline key for quick lookup. */
+export function groupItemNotes(notes: ItemNote[] | undefined): Map<string, ItemNote[]> {
+  const map = new Map<string, ItemNote[]>();
+  for (const n of notes ?? []) {
+    const list = map.get(n.target_key) ?? [];
+    list.push(n);
+    map.set(n.target_key, list);
+  }
+  return map;
+}
 
 export const SENTIMENTS: { value: string; label: string; icon: IconName; color: string }[] = [
   { value: "positive", label: "Positive", icon: "thumbs-up", color: "text-green-500" },
@@ -48,6 +85,8 @@ const THREAD_APIS = [
   "GetCounselorManagerInbox",
   "GetManagerThreadBadges",
   "GetAdminManagerOverview",
+  "GetCamperActivity",
+  "GetManagerTodayFeed",
 ] as const;
 
 export async function refreshThreadViews(): Promise<void> {
