@@ -1,29 +1,30 @@
 ---
 name: Outstanding Work Items — Post Phase 5
-description: Pending tasks, bugs, and features to build after Phase 1-5
-  completion. Reference when resuming work on the cAMP 201 app.
+description: Pending tasks, bugs, and features still open for the cAMP 201 app
+  (validated against code Nov 6). Reference when resuming work or when JT asks
+  what's left on the to-do list.
 accessType: on_demand
 isEnabled: true
 createdAt: 2026-09-11T23:47:20.094Z
 ---
 
-## Outstanding Items (as of Sept 11)
+## Outstanding Items (validated against the code — Nov 6)
 
-### Critical Bug
-- **#8 Absence requests not counted in team check-in**: `submit-checkin.ts` does NOT account for `camp201_absence_requests` when calculating team completion. A team with an absent member (who filed an absence request) can never be "first team." Fix: subtract approved absences from total when checking `teamComplete`.
+### Still open
+- **#3 Badge audit**: 5 badges + 22 merits = 27 total — too many, confusing, repetitive. Needs to be cut to ~15 and feel ACHIEVABLE. Present a clean proposal to JT and wait for his decision before changing anything.
+- **#4 (small remainder) XPlanation**: The accelerator system, team_points, escalating surveys, and KINDling are all documented. Only gap: the tab never explains the **badge vs merit** difference. Add a short section.
 
-### Quick Fixes
-- **#2 Memory points**: Change from +5 KINDling badge to: +2 for first photo, +1 for first text memory. Badge earned only after doing 1 of each (photo + text post).
-- **#6 Survey progress display**: ProgressTrackers component incorrectly shows "0/5 to Tier 1" for Survey Complete. Surveys use day-based escalation (Day 1=2pts, Day 2=4pts, etc.), NOT the 5/10/15/20 tier system. Fix the tracker to show "Day X" progress instead.
-- **#5 Gallery photo reactions**: Legacy gallery photos (from `camp201_gallery`) don't have emoji reactions. Either migrate old photos into `camp201_memories` table or add reaction support to gallery photos.
+### Done (verified in code — do NOT re-list as to-dos)
+- #1 Close Camp button — `close-camp.ts` + `AdminCloseCamp` / `CloseCampModal`: attendance, milestone badges, Wheel Dealer, cAMP-V-P, cAMP Champ, Alpine Legend, frozen points, `camp_closed` flag
+- #2 Memory points — +2 first photo, +1 first text, KINDling after both
+- #5 Gallery photo reactions — fixed in Update 27 (GetMemories now reads reactions for legacy negative-id gallery photos)
+- #6 Survey tracker — `SurveyTrackerCard` shows day-based escalation
+- #8 Absences in team check-in — `submit-checkin.ts` excuses approved absences
+- #9 Timer dropdown — session types incl. Back from Break / Lunch
+- Memories is its own sidebar tab (`/memories`, gate `memories`) right above Graduation, lockable (Update 27)
 
-### Design-Heavy Features
-- **#1 Close Camp button**: Need a counselor-only "Close Camp" action that: freezes all points, evaluates milestone badges (Summit Seeker 100+, Peak Performer 250+, Legend of the Lake 500+), evaluates Alpine Legend (cAMP-V-P + Top Dealer + Camp Spirit), and sets a `camp_closed` flag. Currently no automatic trigger exists.
-- **#3 Badge audit**: Still 26 badges/merits — too many, confusing, repetitive. Needs to be cut to ~15 and feel ACHIEVABLE. Present a clean proposal to JT.
-- **#4 XPlanation rewrite**: "How Points Work" tab needs full rewrite explaining the accelerator system, team_points, escalating surveys, and the badge vs merit distinction.
-
-### UI Polish
-- **#9 Timer dropdown**: Add session type dropdown to Timer page for counselors: "cAMP begins in…", "Back from Break", "Back from Lunch", "Prep & Practice ends in…", "Presentation Timer". Currently only has check-in labels.
+### Known technical debt
+- `execute().rowCount` returns 0 for INSERT…ON CONFLICT. Still used in `server/lib/legacy-wall.ts`, `server/apis/camp/seed-word-bank.ts`, `server/apis/camp/verify-counselor.ts` — check whether those branches misbehave; switch to `RETURNING`.
 
 ### Scoring Model Reference
 - **cAMP-V-P** = individual leaderboard (highest individual points)
