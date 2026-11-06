@@ -262,7 +262,7 @@ export default function AdminPage() {
           )}
           {view === "teams" && (
             <div className="space-y-6">
-              <AdminTeamView cohortId={viewCohortId} onCamperClick={handleCamperClick} />
+              <AdminTeamView cohortId={viewCohortId} canEdit={!isReadOnly} onCamperClick={handleCamperClick} />
               {!isReadOnly && <AdminTeamGenerator />}
             </div>
           )}
