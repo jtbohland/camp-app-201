@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { markPreworkComplete } from "../../lib/prework-complete.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -6,12 +7,20 @@ const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const WD_MIN = 4;
 const WD_MAX = 15;
 
-// Roles that auto-complete Challenger (already did it elsewhere)
-const CHALLENGER_EXEMPT_ROLES = ["ae", "sdr", "psm", "renewals"];
+// Roles that already completed Challenger elsewhere (matches the Challenger tile)
+const CHALLENGER_EXEMPT_ROLES = ["ae", "account executive", "sdr", "sales development", "psm", "partner", "renewals", "renewal"];
+const isChallengerExempt = (role: string | null | undefined) => {
+  const r = (role ?? "").toLowerCase();
+  return CHALLENGER_EXEMPT_ROLES.some((x) => r.includes(x));
+};
+
+const SUPPORTED_ITEMS = ["wheel_and_deal", "challenger_sales"];
+
+const isImage = (v: unknown) => typeof v === "string" && v.startsWith("data:image/");
 
 export default api({
   name: "SubmitPreworkValidation",
-  description: "Submit Wheel & Deal scores or Challenger screenshots for pre-work validation",
+  description: "Saves Wheel & Deal or Challenger proof and marks the task complete",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
@@ -26,53 +35,87 @@ export default api({
     message: z.string(),
     auto_completed: z.boolean(),
     points_awarded: z.number(),
+    already_completed: z.boolean(),
   }),
   async run(ctx, { camper_id, item_key, submission_data }) {
-    const data = submission_data as Record<string, any>;
-    let flagged = false;
+    const db = ctx.integrations.camp_201_db;
+    const fail = (message: string) => ({
+      success: false, flagged: false, message, auto_completed: false, points_awarded: 0, already_completed: false,
+    });
 
-    // === WHEEL & DEAL VALIDATION ===
+    if (!SUPPORTED_ITEMS.includes(item_key)) return fail("This task can't be submitted here.");
+    const data = (submission_data ?? {}) as Record<string, any>;
+
+    const camperRows = await db.query(
+      `SELECT role FROM camp201_campers WHERE id = $1 LIMIT 1`,
+      z.object({ role: z.string().nullable() }),
+      [camper_id],
+      { label: "Look up camper role" }
+    );
+    if (camperRows.length === 0) return fail("cAMPer not found.");
+    const role = camperRows[0].role;
+
+    // Already done? Leave it exactly as it is (answers stay locked, no extra points).
+    const existing = await db.query(
+      `SELECT 1 AS done FROM camp201_prework WHERE user_id = $1 AND item = $2 AND completed = true LIMIT 1`,
+      z.object({ done: z.coerce.number() }),
+      [camper_id, item_key],
+      { label: "Check if already complete" }
+    );
+    if (existing.length > 0) {
+      return { success: true, flagged: false, message: "Already complete.", auto_completed: false, points_awarded: 0, already_completed: true };
+    }
+
+    let flagged = false;
+    let saved: Record<string, any> = {};
+    let exempt = false;
+
     if (item_key === "wheel_and_deal") {
+      const product = String(data.product ?? "").trim();
+      const challengeType = String(data.challenge_type ?? "").trim();
       const score = Number(data.score);
       const aiScore = Number(data.ai_coach_score);
-
-      // Flag if scores are outside valid range (camper didn't actually do it)
-      if (score < WD_MIN || score > WD_MAX || aiScore < WD_MIN || aiScore > WD_MAX) {
-        flagged = true;
+      if (!product || !challengeType || data.score === "" || data.ai_coach_score === "" || !Number.isFinite(score) || !Number.isFinite(aiScore)) {
+        return fail("Please fill in every field.");
       }
-      // Also flag if scores are suspiciously round or identical
-      if (score === aiScore && score === 15) {
-        flagged = true;
-      }
+      if (score < WD_MIN || score > WD_MAX || aiScore < WD_MIN || aiScore > WD_MAX) flagged = true;
+      if (score === aiScore && score === WD_MAX) flagged = true;
+      saved = { product, challenge_type: challengeType, score, ai_coach_score: aiScore };
     }
 
-    // === CHALLENGER VALIDATION ===
     if (item_key === "challenger_sales") {
-      // Check if screenshots were uploaded
-      const screenshots = data.screenshots as any[];
-      if (!screenshots || screenshots.length === 0) {
-        return { success: false, flagged: false, message: "Please upload at least one course completion screenshot", auto_completed: false, points_awarded: 0 };
+      if (data.auto_completed === true) {
+        if (!isChallengerExempt(role)) return fail("Please upload both course screenshots.");
+        exempt = true;
+        saved = { auto_completed: true, reason: `Role: ${role} (exempt — already completed Challenger)` };
+      } else {
+        const shots = Array.isArray(data.screenshots) ? data.screenshots : [];
+        const valid = shots
+          .filter((s: any) => s && typeof s.course === "string" && isImage(s.image))
+          .map((s: any) => ({ course: String(s.course), image: String(s.image) }));
+        if (valid.length < 2) return fail("Please upload a screenshot for both courses.");
+        saved = { screenshots: valid, courses_completed: valid.map((s: { course: string }) => s.course) };
       }
     }
 
-    // Save submission (does NOT auto-complete — camper must click Mark Complete)
-    await ctx.integrations.camp_201_db.execute(
+    await db.execute(
       `INSERT INTO camp201_prework_submissions (camper_id, item_key, submission_data, flagged)
        VALUES ($1, $2, $3::jsonb, $4)
        ON CONFLICT (camper_id, item_key) DO UPDATE
        SET submission_data = $3::jsonb, flagged = $4, created_at = NOW()`,
-      [camper_id, item_key, JSON.stringify(data), flagged],
+      [camper_id, item_key, JSON.stringify(saved), flagged],
       { label: `Save ${item_key} submission` }
     );
+
+    const result = await markPreworkComplete(db, camper_id, item_key, { flagged, awardPoints: !exempt });
 
     return {
       success: true,
       flagged,
-      message: flagged
-        ? "Submitted — but your scores look off. A counselor will review."
-        : "Submitted! Now click Mark Complete to finish.",
-      auto_completed: false,
-      points_awarded: 0,
+      message: flagged ? "Submitted — but your scores look off. A counselor will review." : "Complete!",
+      auto_completed: exempt,
+      points_awarded: result.pointsAwarded,
+      already_completed: !result.newlyCompleted,
     };
   },
 });

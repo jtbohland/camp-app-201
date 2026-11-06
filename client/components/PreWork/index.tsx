@@ -26,17 +26,24 @@ type ContentItem = {
   item_key: string | null;
 };
 
+export type PreworkSubmission = {
+  item_key: string;
+  submission_data?: any;
+  flagged: boolean;
+};
+
 type PreWorkProps = {
   userId: number;
   camperEmail: string;
   camperRole?: string;
   completedKeys: string[];
+  submissions: PreworkSubmission[];
   onComplete: () => void;
   isAdmin?: boolean;
   deadline?: string;
 };
 
-export default function PreWork({ userId, camperEmail, camperRole, completedKeys, onComplete, isAdmin, deadline }: PreWorkProps) {
+export default function PreWork({ userId, camperEmail, camperRole, completedKeys, submissions, onComplete, isAdmin, deadline }: PreWorkProps) {
   const { run: completeItem, loading: completing } = useApi("CompletePreworkItem");
   const { run: trackClick } = useApi("TrackLinkClick");
   const showPoints = usePointsBubble();
@@ -44,7 +51,10 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
   const [warningItem, setWarningItem] = useState<ContentItem | null>(null);
   const [missingLinks, setMissingLinks] = useState<Link[]>([]);
   const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);
-  const [submittedForms, setSubmittedForms] = useState<Set<string>>(new Set());
+  const submissionFor = useCallback(
+    (key: string) => submissions.find((s) => s.item_key === key) ?? null,
+    [submissions]
+  );
 
   const { data, loading } = useApiData("GetJourneyContent", {
     section: "prework",
@@ -139,9 +149,10 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
     );
   }
 
-  const completedCount = items.filter((i) => i.item_key && completedKeys.includes(i.item_key)).length;
-  const totalCount = items.length;
-  const allDone = completedCount === totalCount;
+  const taskItems = items.filter((i) => !!i.item_key);
+  const completedCount = taskItems.filter((i) => completedKeys.includes(i.item_key as string)).length;
+  const totalCount = taskItems.length;
+  const allDone = totalCount > 0 && completedCount === totalCount;
 
   return (
     <>
@@ -188,27 +199,36 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
 
             // Wheel & Deal and Challenger render their OWN colored tiles
             if (item.item_key === "wheel_and_deal") {
-              if (isCompleted) return null;
+              const sub = submissionFor("wheel_and_deal");
               return (
-                <WheelAndDealForm key={item.id} camperId={userId} onComplete={onComplete} />
+                <WheelAndDealForm
+                  key={item.id}
+                  camperId={userId}
+                  isCompleted={isCompleted}
+                  submission={sub?.submission_data ?? null}
+                  flagged={sub?.flagged}
+                  onComplete={onComplete}
+                />
               );
             }
             if (item.item_key === "challenger_sales") {
-              if (isCompleted) return null;
+              const sub = submissionFor("challenger_sales");
               return (
                 <ChallengerUpload
                   key={item.id}
                   camperId={userId}
                   camperRole={camperRole ?? ""}
                   links={itemLinks}
+                  isCompleted={isCompleted}
+                  submission={sub?.submission_data ?? null}
+                  flagged={sub?.flagged}
                   onComplete={onComplete}
                 />
               );
             }
             if (item.item_key === "share_with_manager") {
-              if (isCompleted) return null;
               return (
-                <ShareWithManagerTile key={item.id} camperId={userId} onComplete={onComplete} />
+                <ShareWithManagerTile key={item.id} camperId={userId} isCompleted={isCompleted} onComplete={onComplete} />
               );
             }
 

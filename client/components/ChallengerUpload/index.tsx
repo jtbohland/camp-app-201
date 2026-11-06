@@ -1,21 +1,23 @@
 import { useState, useCallback } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import ImageUpload from "@/components/ImageUpload";
+import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
+import { compressImage } from "@/lib/compressImage.js";
+import { showPreworkResultToast, errorMessage } from "@/lib/preworkResult.js";
 
-type CourseUpload = {
-  name: string;
-  screenshot: string | null;
-};
+const COURSES = ["Why Challenger", "Intro to Challenger Skills"];
 
 type Props = {
   camperId: number;
   camperRole: string;
   links: { label: string; url: string }[];
+  isCompleted: boolean;
+  submission: Record<string, any> | null;
+  flagged?: boolean;
   onComplete: () => void;
 };
 
@@ -27,69 +29,82 @@ function isExemptRole(role: string): boolean {
   return EXEMPT_ROLES.some((exempt) => r.includes(exempt));
 }
 
-export default function ChallengerUpload({ camperId, camperRole, links, onComplete }: Props) {
+function CompletedChallenger({ submission, flagged }: { submission: Record<string, any> | null; flagged?: boolean }) {
+  if (submission?.auto_completed) {
+    return <PreworkDoneTile title="Challenger Sales Methodology" subtitle="Already completed in your role's onboarding" flagged={flagged} />;
+  }
+  const shots = (Array.isArray(submission?.screenshots) ? submission!.screenshots : []) as { course: string; image: string }[];
+  return (
+    <PreworkDoneTile title="Challenger Sales Methodology" subtitle="Both course screenshots submitted" flagged={flagged}>
+      <div className="grid grid-cols-2 gap-3">
+        {COURSES.map((course) => {
+          const img = shots.find((s) => s.course === course)?.image ?? "";
+          const viewable = img.startsWith("data:image/") && !img.endsWith("...");
+          return (
+            <div key={course} className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Icon icon="check-circle" className="w-3.5 h-3.5 text-camp-green" />
+                {course}
+              </p>
+              {viewable ? (
+                <a href={img} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-camp-green/20">
+                  <img src={img} alt={`${course} completion`} className="w-full h-24 object-cover" />
+                </a>
+              ) : (
+                <div className="h-24 rounded-lg border border-dashed border-camp-green/30 flex items-center justify-center text-xs text-muted-foreground">
+                  Screenshot on file
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </PreworkDoneTile>
+  );
+}
+
+export default function ChallengerUpload({ camperId, camperRole, links, isCompleted, submission, flagged, onComplete }: Props) {
   const showPoints = usePointsBubble();
   const exempt = isExemptRole(camperRole);
   const { run: submit, loading } = useApi("SubmitPreworkValidation");
-
-  // For exempt roles, show auto-complete
-  const handleAutoComplete = useCallback(async () => {
-    try {
-      const result = await submit({
-        camper_id: camperId,
-        item_key: "challenger_sales",
-        submission_data: { auto_completed: true, reason: `Role: ${camperRole} (exempt — already completed Challenger)`, screenshots: ["auto"] },
-      });
-      if (result?.success) {
-        toast.success("Challenger auto-completed (already done in your role)");
-        onComplete();
-      }
-    } catch (err) {
-      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
-      toast.error("Failed: " + msg);
-    }
-  }, [camperId, camperRole, submit, onComplete]);
-
-  // For non-exempt roles, screenshot upload
-  const [courses] = useState<CourseUpload[]>([
-    { name: "Why Challenger", screenshot: null },
-    { name: "Intro to Challenger Skills", screenshot: null },
-  ]);
   const [screenshots, setScreenshots] = useState<Record<string, string>>({});
 
-  const handleScreenshot = useCallback((courseName: string, base64: string) => {
-    setScreenshots((prev) => ({ ...prev, [courseName]: base64 }));
+  const handleScreenshot = useCallback(async (courseName: string, base64: string) => {
+    if (!base64) return;
+    const small = await compressImage(base64);
+    setScreenshots((prev) => ({ ...prev, [courseName]: small }));
   }, []);
 
-  const handleSubmit = useCallback(async () => {
-    const uploaded = Object.keys(screenshots);
-    if (uploaded.length < courses.length) {
+  const send = useCallback(async (submission_data: Record<string, any>) => {
+    try {
+      const result = await submit({ camper_id: camperId, item_key: "challenger_sales", submission_data });
+      if (!result?.success) {
+        toast.error(result?.message || "Couldn't complete Challenger");
+        return;
+      }
+      showPreworkResultToast("Challenger", result, showPoints);
+      onComplete();
+    } catch (err) {
+      toast.error("Failed: " + errorMessage(err));
+    }
+  }, [camperId, submit, onComplete, showPoints]);
+
+  const handleAutoComplete = useCallback(() => send({ auto_completed: true }), [send]);
+
+  const uploadedCount = COURSES.filter((c) => screenshots[c]).length;
+  const handleSubmit = useCallback(() => {
+    if (uploadedCount < COURSES.length) {
       toast.error("Please upload a screenshot for each course");
       return;
     }
-    try {
-      const result = await submit({
-        camper_id: camperId,
-        item_key: "challenger_sales",
-        submission_data: {
-          screenshots: Object.entries(screenshots).map(([name, img]) => ({ course: name, image: img.slice(0, 100) + "..." })),
-          courses_completed: uploaded,
-        },
-      });
-      if (result?.success) {
-        toast.success(`Challenger verified! +${result.points_awarded} pts`);
-        showPoints(result.points_awarded as number);
-        onComplete();
-      }
-    } catch (err) {
-      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
-      toast.error("Failed: " + msg);
-    }
-  }, [screenshots, courses.length, camperId, submit, onComplete]);
+    send({ screenshots: COURSES.map((course) => ({ course, image: screenshots[course] })) });
+  }, [uploadedCount, screenshots, send]);
+
+  if (isCompleted) return <CompletedChallenger submission={submission} flagged={flagged} />;
 
   if (exempt) {
     return (
-      <div className="mt-3 p-4 rounded-lg border border-green-200 bg-green-50/30">
+      <div className="p-4 rounded-lg border border-green-200 bg-green-50/30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
             <Icon icon="check-circle" className="w-5 h-5 text-green-600" />
@@ -101,7 +116,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
             </p>
           </div>
           <Button size="sm" onClick={handleAutoComplete} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
-            {loading ? "..." : "Confirm Complete"}
+            {loading ? "..." : "Mark Complete"}
           </Button>
         </div>
       </div>
@@ -109,7 +124,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
   }
 
   return (
-    <div className="mt-3 space-y-3 p-4 rounded-lg border border-violet-200 bg-violet-50/30">
+    <div className="space-y-3 p-4 rounded-lg border border-violet-200 bg-violet-50/30">
       <div className="flex items-center gap-2 mb-1">
         <Icon icon="rocket" className="w-5 h-5 text-violet-600" />
         <h4 className="font-semibold text-sm">Challenger Completion</h4>
@@ -119,7 +134,6 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
         Complete both courses, then upload a screenshot of each completion screen as proof.
       </p>
 
-      {/* Course links */}
       {links.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {links.map((link, i) => (
@@ -137,29 +151,24 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
         </div>
       )}
 
-      {/* Screenshot uploads */}
       <div className="grid grid-cols-2 gap-3">
-        {courses.map((course) => (
-          <div key={course.name} className="space-y-1.5">
+        {COURSES.map((course) => (
+          <div key={course} className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              {screenshots[course.name] ? (
-                <Icon icon="check-circle" className="w-3.5 h-3.5 text-green-500" />
-              ) : (
-                <Icon icon="camera" className="w-3.5 h-3.5" />
-              )}
-              {course.name}
+              <Icon icon={screenshots[course] ? "check-circle" : "camera"} className={`w-3.5 h-3.5 ${screenshots[course] ? "text-green-500" : ""}`} />
+              {course}
             </label>
-            {screenshots[course.name] ? (
+            {screenshots[course] ? (
               <div className="relative rounded-lg overflow-hidden border border-green-200">
-                <img src={screenshots[course.name]} alt={course.name} className="w-full h-24 object-cover" />
-                <div className="absolute top-1 right-1">
-                  <button
-                    onClick={() => setScreenshots((prev) => { const n = { ...prev }; delete n[course.name]; return n; })}
-                    className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
-                  >
-                    ×
-                  </button>
-                </div>
+                <img src={screenshots[course]} alt={course} className="w-full h-24 object-cover" />
+                <button
+                  type="button"
+                  aria-label={`Remove ${course} screenshot`}
+                  onClick={() => setScreenshots((prev) => { const n = { ...prev }; delete n[course]; return n; })}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
+                >
+                  ×
+                </button>
                 <div className="absolute bottom-0 inset-x-0 bg-green-600/90 text-white text-[10px] text-center py-0.5 font-medium">
                   Screenshot uploaded
                 </div>
@@ -167,8 +176,9 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
             ) : (
               <ImageUpload
                 value=""
-                onChange={(base64: string) => handleScreenshot(course.name, base64)}
+                onChange={(base64: string) => handleScreenshot(course, base64)}
                 label="Upload"
+                maxSizeMB={5}
               />
             )}
           </div>
@@ -177,11 +187,11 @@ export default function ChallengerUpload({ camperId, camperRole, links, onComple
 
       <Button
         onClick={handleSubmit}
-        disabled={loading || Object.keys(screenshots).length < courses.length}
+        disabled={loading || uploadedCount < COURSES.length}
         className="w-full bg-violet-600 hover:bg-violet-700 text-white"
         size="sm"
       >
-        {loading ? "Submitting..." : `Mark Complete (${Object.keys(screenshots).length}/${courses.length} uploaded)`}
+        {loading ? "Completing..." : `Mark Complete (${uploadedCount}/${COURSES.length} uploaded)`}
       </Button>
     </div>
   );
