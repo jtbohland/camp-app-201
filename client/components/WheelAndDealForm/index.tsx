@@ -10,7 +10,7 @@ import { showPreworkResultToast, errorMessage } from "@/lib/preworkResult.js";
 
 const PRODUCTS = [
   "Analytics", "CDP", "Experiment", "Session Replay", "Web Analytics",
-  "Feature Flags", "Audiences", "Data Management",
+  "Feature Flags", "Audiences", "Data Management", "Wave",
 ];
 
 const CHALLENGE_TYPES = [

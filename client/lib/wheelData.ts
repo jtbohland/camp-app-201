@@ -222,6 +222,29 @@ export const PRODUCTS: WheelProduct[] = [
     challengerPrompt: "Don't describe AI Assistant. Tell me what a company loses every time someone has to file a ticket to get a data question answered.",
     challengerHint: "The insight is about access and speed — the cost of the gap between having data and being able to act on it.",
   },
+  {
+    id: "wave",
+    name: "Wave",
+    icon: "🌊",
+    color: "#0288D1",
+    confettiEmojis: ["🌊", "🏄🏻‍♀️"],
+    objections: [
+      {
+        text: "Our coding agents already ship features fast.",
+        reframe: "They do — they're great at executing a spec. Wave works one layer up: it reads your product data to decide which spec is actually worth building, then measures whether it moved the metric. Speed without direction just ships the wrong thing faster.",
+      },
+      {
+        text: "Our PMs already decide the roadmap.",
+        reframe: "And they still will. Wave just does the digging — analytics, feedback, replays, errors and experiments — and brings them a ranked feed of opportunities with the evidence attached. The PM's job shifts from hunting for the work to greenlighting it.",
+      },
+      {
+        text: "We already get alerts from Sentry and GitHub Issues.",
+        reframe: "Those tell you what broke, not whether it mattered to users. Wave connects the error to the funnel, the feedback and the replay — one signal is a guess, three corroborating signals are a decision.",
+      },
+    ],
+    challengerPrompt: "Don't describe Wave. Teach me why the bottleneck for product teams is no longer how fast they can build — and what that means for what they should build next.",
+    challengerHint: "The reframe is speed vs. direction — AI made building cheap, so the hard part is now deciding what's valuable and proving it landed.",
+  },
 ];
 
 // ── Scenarios ──────────────────────────────────────────────

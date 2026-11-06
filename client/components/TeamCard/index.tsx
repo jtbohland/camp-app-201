@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import TeamLogoBadge from "@/components/TeamLogoBadge/index.js";
 import TeamDesignEditor from "@/components/TeamDesignEditor/index.js";
+import TeamMemberPill from "@/components/TeamMemberPill/index.js";
 
 type TeamMember = {
   id: number;
@@ -12,6 +13,8 @@ type TeamMember = {
   email: string;
   points: number;
   photo_url: string | null;
+  role: string | null;
+  country: string | null;
 };
 
 type Team = {
@@ -100,17 +103,15 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
         {/* Members */}
         <div className="flex flex-wrap gap-1 mb-3">
           {team.members.map((member) => (
-            <span
+            <TeamMemberPill
               key={member.id}
-              className={`text-xs px-2 py-0.5 rounded-full ${
-                member.id === currentCamperId
-                  ? "bg-primary/20 text-primary font-medium"
-                  : "bg-white/80 text-foreground/70 border border-border/50"
-              }`}
-            >
-              {member.first_name} {member.last_name.charAt(0)}.
-              <span className="text-muted-foreground ml-1 text-[10px]">{member.points}</span>
-            </span>
+              firstName={member.first_name}
+              lastName={member.last_name}
+              points={member.points}
+              role={member.role}
+              country={member.country}
+              isMe={member.id === currentCamperId}
+            />
           ))}
           {team.members.length === 0 && (
             <p className="text-xs text-muted-foreground italic">No members assigned yet</p>

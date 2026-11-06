@@ -11,8 +11,8 @@ type Props = {
 };
 
 const NUM = PRODUCTS.length;
-const SEG_DEG = 360 / NUM;          // 45°
-const SEG_RAD = (Math.PI * 2) / NUM; // π/4
+const SEG_DEG = 360 / NUM;          // degrees per slice
+const SEG_RAD = (Math.PI * 2) / NUM; // radians per slice
 const R = 260;
 const CX = 290;
 const CY = 290;
