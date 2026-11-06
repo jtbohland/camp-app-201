@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ function SectionHeader({ icon, title, count }: { icon: IconName; title: string; 
 
 function HireCard({ hire, totalCampers, totalSurveys, canWrite }: HireCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
 
   // Wheel & Deal data — shared between name pill and W&D section
   const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
@@ -134,9 +136,15 @@ function HireCard({ hire, totalCampers, totalSurveys, canWrite }: HireCardProps)
             )}
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
-          <Icon icon={expanded ? "chevron-up" : "chevron-down"} className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/manager/hire/${hire.camper.id}`)}>
+            <Icon icon="file-chart-column" className="w-4 h-4" />
+            Full report card
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} aria-label={expanded ? "Hide details" : "Show details"}>
+            <Icon icon={expanded ? "chevron-up" : "chevron-down"} className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Stats row */}

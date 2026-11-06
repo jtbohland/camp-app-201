@@ -191,7 +191,8 @@ import GetMyNewHireInfo from './camp/get-my-new-hire-info.js';
 import GetMyStanding from './camp/get-my-standing.js';
 import AddNewHire from './camp/add-new-hire.js';
 import GetCampSnapshot from './camp/get-camp-snapshot.js';
-import GetCamperReportCard from './camp/get-camper-report-card.js';
+import GetCamperReportCard, { GetManagerReportCard } from './camp/get-camper-report-card.js';
+import GetCamperActivity from './camp/get-camper-activity.js';
 import { MarkSpeakerLinkCopied, AnswerExecQuestion } from './camp/speaker-access.js';
 import SetupCheckinTeamRace from './camp/setup-checkin-team-race.js';
 import SubmitLateCheckIn from './camp/submit-late-checkin.js';
@@ -424,6 +425,8 @@ const apis = {
   AddNewHire,
   GetCampSnapshot,
   GetCamperReportCard,
+  GetManagerReportCard,
+  GetCamperActivity,
   MarkSpeakerLinkCopied,
   AnswerExecQuestion,
 } as const;

@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
+import ActivityTimeline from "@/components/ActivityTimeline/index.js";
 import ReportHeader from "./ReportHeader.js";
 import ManagerConversationsSection from "./ManagerConversationsSection.js";
 import {
@@ -16,9 +18,20 @@ import {
   TeamSection,
 } from "./ReportSections.js";
 
-/** Counselor Hub → cAMPer report card: everything one cAMPer has done, earned and lost. */
-export default function ReportCard({ camperId }: { camperId: number }) {
-  const { data, loading, fetching, isError, error, refetch } = useApiData("GetCamperReportCard", { camper_id: camperId });
+type Props = {
+  camperId: number;
+  /** counselor (default): Counselor Hub. manager: only their own hires, no PIN. */
+  viewer?: "counselor" | "manager";
+  /** Shown above the sections, e.g. the manager's conversation panel. */
+  conversations?: ReactNode;
+};
+
+/** Everything one cAMPer has done, earned, lost and missed. */
+export default function ReportCard({ camperId, viewer = "counselor", conversations }: Props) {
+  const isManager = viewer === "manager";
+  const counselorQuery = useApiData("GetCamperReportCard", { camper_id: camperId }, { enabled: !isManager });
+  const managerQuery = useApiData("GetManagerReportCard", { camper_id: camperId }, { enabled: isManager });
+  const { data, loading, fetching, isError, error, refetch } = isManager ? managerQuery : counselorQuery;
 
   if (loading) {
     return (
@@ -53,16 +66,19 @@ export default function ReportCard({ camperId }: { camperId: number }) {
         </Button>
       </div>
       <ReportHeader data={data} />
-      <ManagerConversationsSection camperId={camperId} />
+      {isManager ? conversations : <ManagerConversationsSection camperId={camperId} />}
       <div className="grid gap-4 lg:grid-cols-2">
-        <PointsSection data={data} />
-        <AttendanceSection data={data} />
+        <ActivityTimeline camperId={camperId} />
+        <div className="space-y-4">
+          <PointsSection data={data} />
+          <AttendanceSection data={data} />
+        </div>
         <EngagementSection data={data} />
         <BadgesSection data={data} />
         <GoalsSection data={data} />
         <PresentationsSection data={data} />
         <TeamSection data={data} />
-        <ProfileSection data={data} />
+        <ProfileSection data={data} showPin={!isManager} />
       </div>
     </div>
   );
