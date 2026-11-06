@@ -21,6 +21,7 @@ export const router = createBrowserRouter([
       { path: "/", index: true, lazy: () => import("./pages/Home/index.js").then((m) => ({ Component: m.default })) },
       { path: "/profile", lazy: () => import("./pages/Profile/index.js").then((m) => ({ Component: m.default })) },
       { path: "/manager", lazy: () => import("./pages/ManagerDashboard/index.js").then((m) => ({ Component: m.default })) },
+      { path: "/manager/hire/:camperId", lazy: () => import("./pages/ManagerReportCard/index.js").then((m) => ({ Component: m.default })) },
       { path: "/admin", lazy: () => import("./pages/Admin/index.js").then((m) => ({ Component: m.default })) },
 
       // Gated pages

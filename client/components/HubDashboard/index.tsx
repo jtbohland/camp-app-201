@@ -3,12 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { IconName } from "lucide-react/dynamic";
+import CounselorManagerInbox from "@/components/CounselorManagerInbox/index.js";
 
 type Props = {
   onNavigate: (section: string) => void;
+  onCamperClick: (camperId: number) => void;
 };
 
-export default function HubDashboard({ onNavigate }: Props) {
+export default function HubDashboard({ onNavigate, onCamperClick }: Props) {
   const { data, loading, fetching, refetch } = useApiData("GetHubDashboard", {});
 
   if (loading) {
@@ -153,6 +155,9 @@ export default function HubDashboard({ onNavigate }: Props) {
           <p className="text-xs text-muted-foreground">per cAMPer</p>
         </Card>
       </div>
+
+      {/* Manager Messages */}
+      <CounselorManagerInbox onCamperClick={onCamperClick} />
 
       {/* Quick Actions */}
       <div>

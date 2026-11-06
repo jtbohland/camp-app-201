@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
+import { ThreadRowSchema, ThreadSchema, threadSelectSql, withReplies } from "../../lib/manager-threads.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -38,16 +39,6 @@ const AbsenceSchema = z.object({
   minutes: z.coerce.number(),
 });
 
-const CommentSchema = z.object({
-  id: z.coerce.number(),
-  comment_type: z.string(),
-  sentiment: z.string(),
-  content: z.string(),
-  created_at: z.string(),
-  manager_first_name: z.string(),
-  manager_last_name: z.string(),
-});
-
 const SurveyCompletionSchema = z.object({
   survey_id: z.coerce.number(),
   survey_title: z.string(),
@@ -82,6 +73,7 @@ export default api({
     camp_201_db: postgres(APPS_DB),
   },
   input: z.object({
+    // Kept for cache-keying on the client; identity always comes from the signed-in user.
     manager_email: z.string(),
   }),
   output: z.object({
@@ -95,7 +87,8 @@ export default api({
       camper: HireDetailSchema,
       prework: z.array(PreworkItemSchema),
       absences: z.array(AbsenceSchema),
-      comments: z.array(CommentSchema),
+      threads: z.array(ThreadSchema),
+      unread_count: z.number(),
       surveys: z.array(SurveyCompletionSchema),
       exec_questions: z.array(ExecQuestionSchema),
       presentation_scores: z.array(PresentationScoreSchema),
@@ -104,7 +97,8 @@ export default api({
     total_campers: z.number(),
     total_surveys: z.number(),
   }),
-  async run(ctx, input) {
+  async run(ctx) {
+    const signedIn = (ctx.user.email ?? "").trim().toLowerCase();
     // Find manager
     const ManagerSchema = z.object({
       id: z.coerce.number(),
@@ -113,13 +107,13 @@ export default api({
       title: z.string(),
     });
     const managers = await ctx.integrations.camp_201_db.query(
-      `SELECT id, first_name, last_name, title FROM camp201_managers WHERE email = $1 LIMIT 1`,
+      `SELECT id, first_name, last_name, title FROM camp201_managers WHERE lower(email) = $1 LIMIT 1`,
       ManagerSchema,
-      [input.manager_email],
+      [signedIn],
       { label: "Find manager" }
     );
 
-    if (managers.length === 0) {
+    if (!signedIn || managers.length === 0) {
       return { manager: null, hires: [], total_campers: 0, total_surveys: 0 };
     }
 
@@ -217,20 +211,6 @@ export default api({
         { label: `Absences for ${hire.first_name}` }
       );
 
-      // Manager comments
-      const comments = await ctx.integrations.camp_201_db.query(
-        `SELECT mc.id, mc.comment_type, mc.sentiment, mc.content, mc.created_at::text,
-                m.first_name as manager_first_name, m.last_name as manager_last_name
-         FROM camp201_manager_comments mc
-         JOIN camp201_managers m ON m.id = mc.manager_id
-         WHERE mc.camper_id = $1
-         ORDER BY mc.created_at DESC
-         LIMIT 50`,
-        CommentSchema,
-        [hire.id],
-        { label: `Comments for ${hire.first_name}` }
-      );
-
       // Survey completions
       const surveys = await ctx.integrations.camp_201_db.query(
         `SELECT sr.survey_id, s.title as survey_title, sr.submitted_at::text
@@ -280,7 +260,6 @@ export default api({
         camper: hire,
         prework,
         absences,
-        comments,
         surveys,
         exec_questions: execQuestions,
         presentation_scores: presentationScores,
@@ -288,6 +267,26 @@ export default api({
       });
     }
 
-    return { manager, hires: hireDetails, total_campers: totalCampers, total_surveys: totalSurveys };
+    // This manager's threads with each hire (newest first), with replies attached
+    const threadRows = hires.length === 0 ? [] : await ctx.integrations.camp_201_db.query(
+      `${threadSelectSql("manager")}
+       WHERE mc.manager_id = $1 AND mc.camper_id = ANY($2::int[])
+       ORDER BY mc.created_at DESC
+       LIMIT 300`,
+      ThreadRowSchema,
+      [manager.id, hires.map((h) => h.id)],
+      { label: "Manager threads with hires" }
+    );
+    const threads = await withReplies(ctx.integrations.camp_201_db, threadRows);
+
+    return {
+      manager,
+      hires: hireDetails.map((h) => {
+        const mine = threads.filter((t) => t.camper_id === h.camper.id);
+        return { ...h, threads: mine, unread_count: mine.filter((t) => t.unread).length };
+      }),
+      total_campers: totalCampers,
+      total_surveys: totalSurveys,
+    };
   },
 });

@@ -1,15 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
-import { toast } from "sonner";
 import type { IconName } from "lucide-react/dynamic";
 import { APPROVAL_LABELS, formatDuration } from "@/lib/absences.js";
+import HireConversations from "@/components/HireConversations/index.js";
+import type { ManagerThread } from "@/lib/managerThreads";
 
 type Camper = {
   id: number;
@@ -31,7 +30,6 @@ type Camper = {
 
 type PreworkItem = { item_key: string; title: string; completed: boolean };
 type AbsenceRequest = { id: number; reason: string; start_time: string | null; end_time: string | null; status: string; created_at: string; approval_type: string; minutes: number };
-type Comment = { id: number; comment_type: string; sentiment: string; content: string; created_at: string; manager_first_name: string; manager_last_name: string };
 type SurveyCompletion = { survey_id: number; survey_title: string; submitted_at: string };
 type ExecQuestion = { id: number; question_text: string; executive_name: string; vote_count: number; is_asked: boolean; created_at: string };
 type PresentationScore = { presentation_title: string; day_number: number; total_score: number; max_possible: number };
@@ -40,7 +38,8 @@ type HireDetail = {
   camper: Camper;
   prework: PreworkItem[];
   absences: AbsenceRequest[];
-  comments: Comment[];
+  threads: ManagerThread[];
+  unread_count: number;
   surveys: SurveyCompletion[];
   exec_questions: ExecQuestion[];
   presentation_scores: PresentationScore[];
@@ -51,25 +50,9 @@ type HireCardProps = {
   hire: HireDetail;
   totalCampers: number;
   totalSurveys: number;
-  managerEmail: string;
-  onCommentAdded: () => void;
+  /** False after camp closes: conversations stay readable, but no new notes. */
+  canWrite: boolean;
 };
-
-const SENTIMENTS: { value: string; label: string; icon: IconName; color: string }[] = [
-  { value: "positive", label: "Positive", icon: "thumbs-up", color: "text-green-500" },
-  { value: "encouraging", label: "Encouraging", icon: "heart", color: "text-pink-500" },
-  { value: "feedback", label: "Feedback", icon: "message-circle", color: "text-blue-500" },
-  { value: "concerning", label: "Concerning", icon: "alert-triangle", color: "text-amber-500" },
-];
-
-const REACTIONS = [
-  { emoji: "🔥", label: "On fire!" },
-  { emoji: "👏", label: "Great job" },
-  { emoji: "💪", label: "Keep it up" },
-  { emoji: "🎯", label: "On target" },
-  { emoji: "⭐", label: "Star performer" },
-  { emoji: "👀", label: "Watching" },
-];
 
 function SectionHeader({ icon, title, count }: { icon: IconName; title: string; count?: number }) {
   return (
@@ -81,13 +64,9 @@ function SectionHeader({ icon, title, count }: { icon: IconName; title: string; 
   );
 }
 
-function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdded }: HireCardProps) {
-  const [showCommentForm, setShowCommentForm] = useState(false);
-  const [commentContent, setCommentContent] = useState("");
-  const [sentiment, setSentiment] = useState("positive");
+function HireCard({ hire, totalCampers, totalSurveys, canWrite }: HireCardProps) {
   const [expanded, setExpanded] = useState(false);
-
-  const { run: addComment, loading: addingComment } = useApi("AddManagerComment");
+  const navigate = useNavigate();
 
   // Wheel & Deal data — shared between name pill and W&D section
   const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
@@ -114,41 +93,6 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
   const totalPrework = hire.prework.length;
   const preworkPct = totalPrework > 0 ? Math.round((completedPrework / totalPrework) * 100) : 0;
   const isBottomQuartile = hire.rank !== null && totalCampers > 0 && hire.rank > totalCampers * 0.75;
-
-  const handleSubmitComment = useCallback(async () => {
-    if (!commentContent.trim()) return;
-    try {
-      await addComment({
-        manager_email: managerEmail,
-        camper_id: hire.camper.id,
-        comment_type: "comment",
-        sentiment,
-        content: commentContent.trim(),
-      });
-      toast.success("Comment added");
-      setCommentContent("");
-      setShowCommentForm(false);
-      onCommentAdded();
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("Failed: " + message);
-    }
-  }, [commentContent, sentiment, managerEmail, hire.camper.id, addComment, onCommentAdded]);
-
-  const handleReaction = useCallback(async (emoji: string, label: string) => {
-    try {
-      await addComment({
-        manager_email: managerEmail,
-        camper_id: hire.camper.id,
-        comment_type: "reaction",
-        sentiment: "positive",
-        content: `${emoji} ${label}`,
-      });
-      toast.success(`Reacted with ${emoji}`);
-      onCommentAdded();
-    } catch { toast.error("Failed to react"); }
-  }, [managerEmail, hire.camper.id, addComment, onCommentAdded]);
 
   return (
     <Card className={`p-5 ${isBottomQuartile ? "border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/10" : ""}`}>
@@ -192,9 +136,15 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
             )}
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
-          <Icon icon={expanded ? "chevron-up" : "chevron-down"} className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/manager/hire/${hire.camper.id}`)}>
+            <Icon icon="file-chart-column" className="w-4 h-4" />
+            Full report card
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} aria-label={expanded ? "Hide details" : "Show details"}>
+            <Icon icon={expanded ? "chevron-up" : "chevron-down"} className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -206,49 +156,14 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
         <StatBox icon="user-check" iconColor="text-blue-500" value={hire.camper.profile_completed ? "✓" : "✗"} label="Profile" />
       </div>
 
-      {/* Quick reactions */}
-      <div className="flex items-center gap-1 mb-3">
-        <span className="text-xs text-muted-foreground mr-1">React:</span>
-        {REACTIONS.map(r => (
-          <button key={r.emoji} onClick={() => handleReaction(r.emoji, r.label)} title={r.label}
-            className="text-lg hover:scale-125 transition-transform">{r.emoji}</button>
-        ))}
-        <Button variant="ghost" size="sm" className="ml-auto text-xs h-7"
-          onClick={() => setShowCommentForm(!showCommentForm)}>
-          <Icon icon="message-circle" className="w-3.5 h-3.5 mr-1" />Comment
-        </Button>
-      </div>
-
-      {/* Comment form */}
-      {showCommentForm && (
-        <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/30 border mb-3">
-          <Select value={sentiment} onValueChange={setSentiment}>
-            <SelectTrigger className="w-40 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SENTIMENTS.map(s => (
-                <SelectItem key={s.value} value={s.value}>
-                  <span className="flex items-center gap-1.5">
-                    <Icon icon={s.icon} className={`w-3.5 h-3.5 ${s.color}`} />{s.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Textarea placeholder="Add a note about this cAMPer's progress..." value={commentContent}
-            onChange={(e) => setCommentContent(e.target.value)} rows={2} className="text-sm" />
-          <p className="text-[10px] text-muted-foreground">
-            <Icon icon="eye" className="w-3 h-3 inline mr-0.5" />Visible to you and cAMP counselors/admins
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowCommentForm(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSubmitComment} disabled={addingComment || !commentContent.trim()}>
-              {addingComment ? "Saving..." : "Post Comment"}
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Conversations: reactions, notes (cAMPer or counselors only), replies */}
+      <HireConversations
+        camperId={hire.camper.id}
+        camperFirstName={hire.camper.first_name}
+        threads={hire.threads}
+        unreadCount={hire.unread_count}
+        canWrite={canWrite}
+      />
 
       {/* Expanded details */}
       {expanded && (
@@ -407,29 +322,6 @@ function HireCard({ hire, totalCampers, totalSurveys, managerEmail, onCommentAdd
             )}
           </div>
 
-          {/* Manager notes history */}
-          {hire.comments.length > 0 && (
-            <div>
-              <SectionHeader icon="message-circle" title="Manager Notes" count={hire.comments.length} />
-              <div className="flex flex-col gap-2">
-                {hire.comments.slice(0, 10).map(c => {
-                  const sentimentInfo = SENTIMENTS.find(s => s.value === c.sentiment);
-                  return (
-                    <div key={c.id} className="flex items-start gap-2 text-sm p-2 rounded bg-muted/30">
-                      {sentimentInfo && <Icon icon={sentimentInfo.icon} className={`w-4 h-4 mt-0.5 ${sentimentInfo.color}`} />}
-                      <div className="flex-1">
-                        <p>{c.content}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {c.manager_first_name} {c.manager_last_name} · {new Date(c.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      {c.comment_type === "reaction" && <Badge variant="outline" className="text-[10px]">Reaction</Badge>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </Card>

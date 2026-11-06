@@ -41,6 +41,14 @@ export default api({
     hires_linked: z.number(),
   }),
   async run(ctx, input) {
+    // Only the signed-in user can register themselves. The Counselor Hub preview passes a demo
+    // email, so it never saves anything.
+    const email = (ctx.user.email ?? "").trim().toLowerCase();
+    if (!email) throw new Error("You must be signed in.");
+    if (input.email.trim().toLowerCase() !== email) {
+      throw new Error("Preview only: registration was not saved.");
+    }
+
     // Get active cohort
     const CohortIdSchema = z.object({ id: z.coerce.number() });
     const activeCohort = await ctx.integrations.camp_201_db.query(
@@ -53,9 +61,9 @@ export default api({
 
     // Check if already registered (upsert)
     const existing = await ctx.integrations.camp_201_db.query(
-      `SELECT id FROM camp201_managers WHERE email = $1 LIMIT 1`,
+      `SELECT id FROM camp201_managers WHERE lower(email) = $1 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
-      [input.email],
+      [email],
       { label: "Check existing manager" }
     );
 
@@ -78,7 +86,7 @@ export default api({
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
         z.object({ id: z.coerce.number() }),
-        [input.email, input.first_name, input.last_name, input.title, input.region ?? "", cohortId],
+        [email, input.first_name, input.last_name, input.title, input.region ?? "", cohortId],
         { label: "Insert new manager" }
       );
       managerId = inserted[0].id;

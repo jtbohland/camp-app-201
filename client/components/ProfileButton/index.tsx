@@ -17,6 +17,12 @@ export default function ProfileButton() {
   }, { enabled: !!user?.email });
 
   const { isAdmin } = useIsAdmin();
+  // Unread notes from their manager (counselors-only notes never count here)
+  const { data: badges } = useApiData("GetManagerThreadBadges", {}, {
+    enabled: !!camperData?.camper,
+    refetchInterval: 60_000,
+  });
+  const managerUnread = badges?.camper_unread ?? 0;
   const isActive = location.pathname === "/profile" || location.pathname === "/admin";
 
   const initials = user?.name
@@ -53,8 +59,16 @@ export default function ProfileButton() {
         }`}
         title={isAdmin ? "Profile & Hub" : "My Profile"}
       >
-        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+        <div className="relative w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
           {initials}
+          {managerUnread > 0 && (
+            <span
+              className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center"
+              title={`${managerUnread} new note${managerUnread !== 1 ? "s" : ""} from your manager`}
+            >
+              {managerUnread}
+            </span>
+          )}
         </div>
         <span className="hidden sm:inline font-medium">{user?.name?.split(" ")[0] ?? "Profile"}</span>
         <Icon icon="chevron-right" className="w-3.5 h-3.5 opacity-50" />

@@ -282,7 +282,7 @@ export function TeamSection({ data }: Props) {
   );
 }
 
-export function ProfileSection({ data }: Props) {
+export function ProfileSection({ data, showPin = true }: Props & { showPin?: boolean }) {
   const p = data.profile!;
   const flight = p.flight_is_local
     ? "Local (not flying)"
@@ -295,7 +295,7 @@ export function ProfileSection({ data }: Props) {
     { label: "Start date", value: p.start_date ? fmtDate(p.start_date) : "—" },
     { label: "City", value: p.city || "—" },
     { label: "Departure flight", value: flight },
-    { label: "PIN", value: p.pin || "—" },
+    ...(showPin ? [{ label: "PIN", value: p.pin || "—" }] : []),
   ];
   return (
     <ReportSection icon="id-card" iconClass="text-sky-600" title="Profile & travel">
