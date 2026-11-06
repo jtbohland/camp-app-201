@@ -1,12 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
-import ImageUpload from "@/components/ImageUpload/index.js";
-import { useApi } from "@/hooks/useApi.js";
-import { toast } from "sonner";
-
-type LogoTab = "upload" | "generate";
+import TeamLogoBadge from "@/components/TeamLogoBadge/index.js";
+import TeamDesignEditor from "@/components/TeamDesignEditor/index.js";
+import TeamMemberPill from "@/components/TeamMemberPill/index.js";
 
 type TeamMember = {
   id: number;
@@ -15,6 +13,8 @@ type TeamMember = {
   email: string;
   points: number;
   photo_url: string | null;
+  role: string | null;
+  country: string | null;
 };
 
 type Team = {
@@ -45,28 +45,20 @@ const RANK_CONFIG: Record<number, { banner: string; bg: string; border: string; 
 
 const DEFAULT_RANK = { banner: "bg-gradient-to-r from-slate-200 to-slate-300", bg: "bg-card", border: "border-border", glow: "", emoji: "", label: "" };
 
-// 24 nature palette — same as CreateTeamDialog
-const NATURE_PALETTE = [
-  "#2d6a4f", "#1b4332", "#40916c", "#52b788", "#606c38", "#283618",
-  "#d4a373", "#bc6c25", "#dda15e", "#8b5e3c", "#6f4e37",
-  "#3a5a8c", "#2b4570", "#1d3557", "#457b9d",
-  "#6b4c9a", "#7b2d8b", "#9c4dcc",
-  "#c44536", "#8d2b23", "#e76f51",
-  "#264653", "#2a9d8f", "#555b6e",
-];
+type EditorMode = "none" | "design" | "demo";
 
-export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTeams, usedColors = [], onRefresh }: TeamCardProps) {
+export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedColors = [], onRefresh }: TeamCardProps) {
   const navigate = useNavigate();
   const isMyTeam = team.members.some((m) => m.id === currentCamperId);
   const canAccessHub = isAdmin || isMyTeam;
-  const teamColor = team.color || "#2d6a4f";
   const config = RANK_CONFIG[rank] ?? DEFAULT_RANK;
 
-  // "Needs design" = generic team name (starts with "Team ") and no logo/color
+  // Team members design their own team until it has both a logo and a color.
   const needsDesign = isMyTeam && (!team.logo_url || !team.color);
-  const [designing, setDesigning] = useState(false);
+  // Counselors (not on the team) get a no-save walkthrough on every tile, anytime.
+  const canDemo = isAdmin && !isMyTeam;
+  const [editor, setEditor] = useState<EditorMode>("none");
 
-  // Top scorer on this team
   const topScorer = team.members.length > 0
     ? team.members.reduce((a, b) => a.points > b.points ? a : b)
     : null;
@@ -89,16 +81,7 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTe
       {/* Team Identity */}
       <div className={`p-4 ${config.bg} flex-1 flex flex-col`}>
         <div className="flex items-center gap-3 mb-3">
-          {team.logo_url ? (
-            <img src={team.logo_url} alt={team.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow" />
-          ) : (
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow"
-              style={{ backgroundColor: teamColor }}
-            >
-              {team.name.slice(0, 2).toUpperCase()}
-            </div>
-          )}
+          <TeamLogoBadge src={team.logo_url} name={team.name} color={team.color} />
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-foreground text-lg">{team.name}</h3>
             <p className="text-xs text-muted-foreground">{team.members.length} member{team.members.length !== 1 ? "s" : ""}</p>
@@ -120,17 +103,15 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTe
         {/* Members */}
         <div className="flex flex-wrap gap-1 mb-3">
           {team.members.map((member) => (
-            <span
+            <TeamMemberPill
               key={member.id}
-              className={`text-xs px-2 py-0.5 rounded-full ${
-                member.id === currentCamperId
-                  ? "bg-primary/20 text-primary font-medium"
-                  : "bg-white/80 text-foreground/70 border border-border/50"
-              }`}
-            >
-              {member.first_name} {member.last_name.charAt(0)}.
-              <span className="text-muted-foreground ml-1 text-[10px]">{member.points}</span>
-            </span>
+              firstName={member.first_name}
+              lastName={member.last_name}
+              points={member.points}
+              role={member.role}
+              country={member.country}
+              isMe={member.id === currentCamperId}
+            />
           ))}
           {team.members.length === 0 && (
             <p className="text-xs text-muted-foreground italic">No members assigned yet</p>
@@ -147,33 +128,44 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTe
           </div>
         )}
 
-        {/* Design prompt for un-designed teams */}
-        {needsDesign && !designing && (
+        {/* Design prompt for team members */}
+        {needsDesign && editor === "none" && (
           <div className="mb-3 flex flex-col gap-1.5">
             <button
-              onClick={() => setDesigning(true)}
+              onClick={() => setEditor("design")}
               className="px-3 py-2 text-sm font-medium rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors flex items-center gap-2"
-          >
-            <Icon icon="palette" className="w-4 h-4" />
-            Design Your Team — Add a name, logo & color!
-          </button>
+            >
+              <Icon icon="palette" className="w-4 h-4" />
+              Design Your Team — Add a name, logo & color!
+            </button>
             <p className="text-[10px] text-amber-600/70 px-1 leading-tight">
-              💡 Pick one teammate to type the name, upload the logo & save — collaborate on the design together, but only one person should submit to avoid conflicts.
+              💡 Pick one teammate to type the name, add the logo & save — collaborate on the design together, but only one person should submit to avoid conflicts.
             </p>
           </div>
         )}
 
-        {/* Inline design editor */}
-        {designing && (
-          <DesignEditor
+        {/* Counselor walkthrough */}
+        {canDemo && editor === "none" && (
+          <button
+            onClick={() => setEditor("demo")}
+            className="mb-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Icon icon="presentation" className="w-3.5 h-3.5" />
+            Preview Design Steps
+          </button>
+        )}
+
+        {editor !== "none" && (
+          <TeamDesignEditor
             teamId={team.id}
             camperId={currentCamperId ?? 0}
             currentName={team.name}
             currentColor={team.color}
             currentLogo={team.logo_url}
             usedColors={usedColors}
-            onDone={() => { setDesigning(false); onRefresh?.(); }}
-            onCancel={() => setDesigning(false)}
+            demo={editor === "demo"}
+            onDone={() => { setEditor("none"); onRefresh?.(); }}
+            onCancel={() => setEditor("none")}
           />
         )}
 
@@ -189,220 +181,6 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, totalTe
             </button>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Inline team design editor
-function DesignEditor({
-  teamId,
-  camperId,
-  currentName,
-  currentColor,
-  currentLogo,
-  usedColors,
-  onDone,
-  onCancel,
-}: {
-  teamId: number;
-  camperId: number;
-  currentName: string;
-  currentColor: string | null;
-  currentLogo: string | null;
-  usedColors: string[];
-  onDone: () => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState(currentName);
-  const [color, setColor] = useState(currentColor || "");
-  const [logo, setLogo] = useState(currentLogo || "");
-  const [logoTab, setLogoTab] = useState<LogoTab>("upload");
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiDescription, setAiDescription] = useState("");
-
-  const { run: updateDesign, loading } = useApi("UpdateTeamDesign");
-  const { run: generateLogo, loading: generating } = useApi("GenerateTeamLogo");
-
-  const handleGenerate = useCallback(async () => {
-    if (!aiPrompt.trim()) { toast.error("Enter a concept or theme for your logo"); return; }
-    if (!name.trim()) { toast.error("Enter a team name first"); return; }
-    try {
-      const result = await generateLogo({
-        teamName: name.trim(),
-        prompt: aiPrompt.trim(),
-        color: color || "#2d6a4f",
-      });
-      if (result?.logoDescription) {
-        setAiDescription(result.logoDescription);
-        toast.success("Logo concept generated! Use this as inspiration for your team logo.");
-      }
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("AI generation failed: " + message);
-    }
-  }, [aiPrompt, name, color, generateLogo]);
-
-  const handleSave = async () => {
-    if (!name.trim()) { toast.error("Team name is required"); return; }
-    if (!logo) { toast.error("Upload a logo for your team!"); return; }
-    if (!color) { toast.error("Pick a team color"); return; }
-
-    try {
-      // We need to know the current camper ID - pass via a data attribute or context
-      const result = await updateDesign({
-        team_id: teamId,
-        camper_id: camperId,
-        name: name.trim(),
-        logo_url: logo,
-        color,
-      });
-      if (result?.success) {
-        toast.success("Team design saved! 🎨");
-        onDone();
-      } else {
-        toast.error(result?.message ?? "Failed to save design");
-      }
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("Error: " + message);
-    }
-  };
-
-  const usedColorsLower = usedColors.map(c => c.toLowerCase());
-
-  return (
-    <div className="bg-white/90 rounded-lg border border-border p-4 mb-3 flex flex-col gap-3">
-      <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">Team Name</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full px-2 py-1.5 border border-border rounded text-sm bg-background"
-        />
-      </div>
-      <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">Team Color</label>
-        <div className="flex flex-wrap gap-1">
-          {NATURE_PALETTE.map((c) => {
-            const taken = usedColorsLower.includes(c.toLowerCase()) && c.toLowerCase() !== currentColor?.toLowerCase();
-            return (
-              <button
-                key={c}
-                type="button"
-                disabled={taken}
-                onClick={() => setColor(c)}
-                className={`w-5 h-5 rounded-full border transition-all ${
-                  color === c ? "border-foreground scale-110 ring-1 ring-primary/30" :
-                  taken ? "opacity-20 cursor-not-allowed border-transparent" :
-                  "border-transparent hover:scale-105"
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            );
-          })}
-        </div>
-      </div>
-      <div>
-        <label className="text-xs font-medium text-foreground mb-1 block">Team Logo</label>
-        <div className="flex gap-1 mb-2">
-          <button
-            type="button"
-            onClick={() => setLogoTab("upload")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
-              logoTab === "upload"
-                ? "bg-primary/10 text-primary border border-primary/30"
-                : "text-muted-foreground hover:bg-muted border border-transparent"
-            }`}
-          >
-            <Icon icon="upload" className="w-3.5 h-3.5" />
-            Upload
-          </button>
-          <button
-            type="button"
-            onClick={() => setLogoTab("generate")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
-              logoTab === "generate"
-                ? "bg-purple-100 text-purple-700 border border-purple-300"
-                : "text-muted-foreground hover:bg-muted border border-transparent"
-            }`}
-          >
-            <Icon icon="sparkles" className="w-3.5 h-3.5" />
-            AI Assist
-          </button>
-        </div>
-
-        {logoTab === "upload" && (
-          <ImageUpload
-            value={logo}
-            onChange={setLogo}
-            label=""
-            hint="Upload logo"
-            shape="square"
-            maxSizeMB={2}
-          />
-        )}
-
-        {logoTab === "generate" && (
-          <div className="flex flex-col gap-2">
-            <p className="text-[11px] text-muted-foreground">
-              Describe your logo concept and AI will generate a description to inspire your design.
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="e.g. fierce bear with a compass…"
-                className="flex-1 px-2.5 py-1.5 border border-border rounded-lg bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-purple-400/40"
-                onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-              />
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={generating || !aiPrompt.trim() || !name.trim()}
-                className="px-2.5 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-1"
-              >
-                {generating ? (
-                  <Icon icon="loader-2" className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Icon icon="sparkles" className="w-3.5 h-3.5" />
-                )}
-                {generating ? "Generating…" : "Generate"}
-              </button>
-            </div>
-
-            {aiDescription && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-2.5">
-                <p className="text-[11px] font-medium text-purple-700 mb-0.5">✨ AI Logo Concept:</p>
-                <p className="text-xs text-purple-900">{aiDescription}</p>
-                <p className="text-[10px] text-purple-500 mt-1.5 italic">
-                  Use this as inspiration — create or find a matching image and upload it!
-                </p>
-              </div>
-            )}
-
-            <div className="pt-2 border-t border-border">
-              <p className="text-[11px] text-muted-foreground mb-1.5">Upload your final logo:</p>
-              <ImageUpload
-                value={logo}
-                onChange={setLogo}
-                label=""
-                hint="Upload your logo image here"
-                shape="square"
-                maxSizeMB={2}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs border border-border rounded hover:bg-muted">Cancel</button>
-        <button onClick={handleSave} disabled={loading} className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50">
-          {loading ? "Saving..." : "Save Design"}
-        </button>
       </div>
     </div>
   );

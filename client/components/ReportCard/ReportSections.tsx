@@ -261,7 +261,7 @@ export function TeamSection({ data }: Props) {
     <ReportSection icon="flag" iconClass="text-camp-green" title="Team" aside={s.team_rank ? `#${s.team_rank} of ${s.total_teams}` : undefined}>
       <div className="mb-3 flex items-center gap-3">
         {p.team_logo_url ? (
-          <img src={p.team_logo_url} alt={p.team_name} className="h-12 w-12 rounded-lg border-2 object-cover" style={{ borderColor: p.team_color || "#ccc" }} />
+          <img src={p.team_logo_url} alt={p.team_name} className="h-12 w-12 rounded-lg border-2 bg-white object-contain" style={{ borderColor: p.team_color || "#ccc" }} />
         ) : (
           <div className="flex h-12 w-12 items-center justify-center rounded-lg text-lg font-bold text-white" style={{ backgroundColor: p.team_color || "#4a7c59" }}>
             {p.team_name.charAt(0)}

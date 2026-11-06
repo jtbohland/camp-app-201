@@ -60,7 +60,7 @@ export default function TeamHubPage() {
         {team && (
           <div className="flex items-center gap-3">
             {team.logo_url ? (
-              <img src={team.logo_url} alt={team.name} className="w-8 h-8 rounded-full object-cover" />
+              <img src={team.logo_url} alt={team.name} className="w-8 h-8 rounded-full bg-white object-contain" />
             ) : (
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
