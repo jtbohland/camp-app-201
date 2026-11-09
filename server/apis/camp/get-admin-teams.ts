@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
+import { countedSessionSql } from "../../lib/checkin-sessions.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -43,15 +44,19 @@ export default api({
               CASE
                 WHEN COUNT(c.id) = 0 THEN 0
                 ELSE COALESCE(
-                  (SELECT COUNT(*)::float FROM camp201_checkin_responses cr WHERE cr.camper_id = ANY(ARRAY_AGG(c.id)))
-                  / NULLIF(COUNT(c.id) * (SELECT COUNT(*) FROM camp201_checkin_sessions WHERE status = 'closed'), 0)
+                  (SELECT COUNT(*)::float FROM camp201_checkin_responses cr
+                     JOIN camp201_checkin_sessions s ON s.id = cr.session_id
+                     WHERE cr.camper_id = ANY(ARRAY_AGG(c.id)) AND s.status = 'closed'
+                       AND s.cohort_id = t.cohort_id AND ${countedSessionSql("s")})
+                  / NULLIF(COUNT(c.id) * (SELECT COUNT(*) FROM camp201_checkin_sessions s
+                     WHERE s.status = 'closed' AND s.cohort_id = t.cohort_id AND ${countedSessionSql("s")}), 0)
                   * 100, 0
                 )::int
               END as checkin_rate
        FROM camp201_teams t
        LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
        WHERE 1=1 ${cohortFilter}
-       GROUP BY t.id, t.team_points
+       GROUP BY t.id, t.team_points, t.cohort_id
        ORDER BY total_points DESC
        LIMIT 50`,
       TeamMetricSchema,

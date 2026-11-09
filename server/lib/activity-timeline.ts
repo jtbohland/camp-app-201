@@ -1,4 +1,5 @@
 import { z } from "@superblocksteam/sdk-api";
+import { countedSessionSql } from "./checkin-sessions.js";
 
 /**
  * One cAMPer's activity timeline: everything they did, plus everything they missed.
@@ -65,6 +66,7 @@ export async function loadActivityTimeline(
            LIMIT 1
          ) ex ON true
          WHERE s.cohort_id = $2 AND s.status <> 'active' AND s.started_at >= $3::timestamptz
+           AND ${countedSessionSql("s")}
            AND NOT EXISTS (SELECT 1 FROM camp201_checkin_responses r WHERE r.session_id = s.id AND r.camper_id = $1)
 
          UNION ALL
