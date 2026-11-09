@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { countedSessionSql } from "../../lib/checkin-sessions.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -59,8 +60,13 @@ export default api({
 
     const stats = await ctx.integrations.camp_201_db.query(
       `SELECT
-        (SELECT COUNT(*) FROM camp201_checkin_sessions WHERE status = 'closed') as total_sessions,
-        COUNT(*) as attended,
+        (SELECT COUNT(*) FROM camp201_checkin_sessions s
+          WHERE s.status = 'closed' AND s.cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)
+            AND ${countedSessionSql("s")}) as total_sessions,
+        COUNT(*) FILTER (WHERE EXISTS (
+          SELECT 1 FROM camp201_checkin_sessions s
+          WHERE s.id = r.session_id AND s.status = 'closed' AND ${countedSessionSql("s")}
+        )) as attended,
         COUNT(*) FILTER (WHERE r.timing = 'early') as early_count,
         COUNT(*) FILTER (WHERE r.timing = 'on_time') as on_time_count,
         COUNT(*) FILTER (WHERE r.timing = 'late') as late_count
@@ -79,7 +85,7 @@ export default api({
         early_count: s.early_count,
         on_time_count: s.on_time_count,
         late_count: s.late_count,
-        missed_count: s.total_sessions - s.attended,
+        missed_count: Math.max(0, s.total_sessions - s.attended),
       },
     };
   },

@@ -1,5 +1,6 @@
 import { z } from "@superblocksteam/sdk-api";
 import { ABSENCE_LIMIT, countsTowardLimit } from "./absences.js";
+import { countedSessionSql } from "./checkin-sessions.js";
 
 /** Shared report card loader used by the counselor and manager report card APIs. */
 
@@ -133,9 +134,11 @@ export async function loadReportCard(db: any, camperId: number, opts: { includeP
             GROUP BY t.id
           ) ranked WHERE ranked.id = (SELECT team FROM me)) AS team_rank,
          (SELECT COUNT(*) FROM camp201_teams t, me WHERE t.cohort_id = me.cohort) AS total_teams,
-         (SELECT COUNT(*) FROM camp201_checkin_responses r WHERE r.camper_id = $1 AND r.timing <> 'late') AS checkins_on_time,
-         (SELECT COUNT(*) FROM camp201_checkin_responses r WHERE r.camper_id = $1 AND r.timing = 'late') AS checkins_late,
-         (SELECT COUNT(*) FROM camp201_checkin_sessions s, me WHERE s.cohort_id = me.cohort) AS checkins_total_sessions,
+         (SELECT COUNT(*) FROM camp201_checkin_responses r JOIN camp201_checkin_sessions s ON s.id = r.session_id, me
+            WHERE r.camper_id = $1 AND r.timing <> 'late' AND s.cohort_id = me.cohort AND ${countedSessionSql("s")}) AS checkins_on_time,
+         (SELECT COUNT(*) FROM camp201_checkin_responses r JOIN camp201_checkin_sessions s ON s.id = r.session_id, me
+            WHERE r.camper_id = $1 AND r.timing = 'late' AND s.cohort_id = me.cohort AND ${countedSessionSql("s")}) AS checkins_late,
+         (SELECT COUNT(*) FROM camp201_checkin_sessions s, me WHERE s.cohort_id = me.cohort AND ${countedSessionSql("s")}) AS checkins_total_sessions,
          (SELECT string_agg(DISTINCT d.day_number::text, ',') FROM camp201_daily_survey_submissions d WHERE d.camper_id = $1) AS surveys_days,
          (SELECT COUNT(*) FROM camp201_exec_questions q WHERE q.submitted_by = $1) AS questions_asked,
          (SELECT COUNT(*) FROM camp201_exec_votes v WHERE v.voter_id = $1) AS votes_cast,
