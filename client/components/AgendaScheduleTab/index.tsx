@@ -83,6 +83,7 @@ export default function AgendaScheduleTab() {
   const { run: updateConfig } = useApi("UpdateCampConfig");
   const { run: clearDay } = useApi("ClearDaySchedule");
   const { run: moveItem } = useApi("MoveAgendaItem");
+  const { run: editItem } = useApi("EditAgendaItem");
 
   const [numDays, setNumDays] = useState<number | null>(null);
   const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
@@ -316,15 +317,21 @@ export default function AgendaScheduleTab() {
     refetchAgenda();
   }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey, computeTarget, stopTrackingPointer]);
 
-  // Edit timing of one calendar session (does not change the Session Bank default).
-  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string) => {
+  // Edit one calendar tile's name + timing. The original Session Bank session is never changed;
+  // a new name is added to the Session Bank as its own session.
+  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string, title: string) => {
     setSavingEdit(true);
     const prev = patchAgenda((items) =>
-      items.map((i) => (i.id === item.id ? { ...i, start_time: startTime, end_time: endTime } : i))
+      items.map((i) => (i.id === item.id ? { ...i, start_time: startTime, end_time: endTime, title } : i))
     );
     try {
-      await moveItem({ id: item.id, day_number: item.day_number, start_time: startTime, end_time: endTime });
-      toast.success(`Updated "${item.title}" to ${formatTime(startTime)} – ${formatTime(endTime)}`);
+      const result = await editItem({ id: item.id, start_time: startTime, end_time: endTime, title });
+      if (result?.created_bank_session) {
+        toast.success(`Updated tile and added "${title}" to the Session Bank`);
+      } else {
+        toast.success(`Updated "${title}" to ${formatTime(startTime)} – ${formatTime(endTime)}`);
+      }
+      if (result?.renamed) refetchBank();
       setEditingItem(null);
     } catch (err) {
       if (prev) queryClient.setQueryData(agendaKey, prev);
@@ -332,7 +339,12 @@ export default function AgendaScheduleTab() {
     }
     setSavingEdit(false);
     refetchAgenda();
-  }, [patchAgenda, moveItem, agendaKey, refetchAgenda]);
+  }, [patchAgenda, editItem, agendaKey, refetchAgenda, refetchBank]);
+
+  const bankTitles = useMemo(
+    () => ((bankData?.sessions ?? []) as { title: string }[]).map((s) => s.title),
+    [bankData]
+  );
 
   const editingDefaultMinutes = useMemo(() => {
     if (!editingItem?.session_bank_id) return null;
@@ -501,6 +513,7 @@ export default function AgendaScheduleTab() {
         item={editingItem}
         allItems={agendaItems as AgendaItem[]}
         defaultMinutes={editingDefaultMinutes}
+        bankTitles={bankTitles}
         saving={savingEdit}
         onCancel={() => setEditingItem(null)}
         onSave={handleSaveEdit}
