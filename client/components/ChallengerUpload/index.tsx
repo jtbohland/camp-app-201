@@ -8,6 +8,7 @@ import ImageUpload from "@/components/ImageUpload";
 import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
 import { compressImage } from "@/lib/compressImage.js";
 import { showPreworkResultToast, errorMessage } from "@/lib/preworkResult.js";
+import { isChallengerExempt } from "@/lib/roles.js";
 
 const COURSES = ["Why Challenger", "Intro to Challenger Skills"];
 
@@ -21,17 +22,12 @@ type Props = {
   onComplete: () => void;
 };
 
-// Roles that already completed Challenger elsewhere
-const EXEMPT_ROLES = ["ae", "account executive", "sdr", "sales development", "psm", "partner", "renewals", "renewal"];
+const ASCENT_SUBTITLE = "Already completed in cAMP Ascent onboarding · +5 pts";
 
-function isExemptRole(role: string): boolean {
-  const r = role.toLowerCase();
-  return EXEMPT_ROLES.some((exempt) => r.includes(exempt));
-}
-
-function CompletedChallenger({ submission, flagged }: { submission: Record<string, any> | null; flagged?: boolean }) {
-  if (submission?.auto_completed) {
-    return <PreworkDoneTile title="Challenger Sales Methodology" subtitle="Already completed in your role's onboarding" flagged={flagged} />;
+function CompletedChallenger({ submission, flagged, exempt }: { submission: Record<string, any> | null; flagged?: boolean; exempt: boolean }) {
+  const hasShots = Array.isArray(submission?.screenshots) && submission!.screenshots.length > 0;
+  if (submission?.auto_completed || (exempt && !hasShots)) {
+    return <PreworkDoneTile title="Challenger Sales Methodology" subtitle={ASCENT_SUBTITLE} flagged={flagged} />;
   }
   const shots = (Array.isArray(submission?.screenshots) ? submission!.screenshots : []) as { course: string; image: string }[];
   return (
@@ -65,7 +61,7 @@ function CompletedChallenger({ submission, flagged }: { submission: Record<strin
 
 export default function ChallengerUpload({ camperId, camperRole, links, isCompleted, submission, flagged, onComplete }: Props) {
   const showPoints = usePointsBubble();
-  const exempt = isExemptRole(camperRole);
+  const exempt = isChallengerExempt(camperRole);
   const { run: submit, loading } = useApi("SubmitPreworkValidation");
   const [screenshots, setScreenshots] = useState<Record<string, string>>({});
 
@@ -89,8 +85,6 @@ export default function ChallengerUpload({ camperId, camperRole, links, isComple
     }
   }, [camperId, submit, onComplete, showPoints]);
 
-  const handleAutoComplete = useCallback(() => send({ auto_completed: true }), [send]);
-
   const uploadedCount = COURSES.filter((c) => screenshots[c]).length;
   const handleSubmit = useCallback(() => {
     if (uploadedCount < COURSES.length) {
@@ -100,27 +94,11 @@ export default function ChallengerUpload({ camperId, camperRole, links, isComple
     send({ screenshots: COURSES.map((course) => ({ course, image: screenshots[course] })) });
   }, [uploadedCount, screenshots, send]);
 
-  if (isCompleted) return <CompletedChallenger submission={submission} flagged={flagged} />;
+  if (isCompleted) return <CompletedChallenger submission={submission} flagged={flagged} exempt={exempt} />;
 
+  // Exempt roles are checked off automatically when Pre-work loads. Nothing to do here.
   if (exempt) {
-    return (
-      <div className="p-4 rounded-lg border border-green-200 bg-green-50/30">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-            <Icon icon="check-circle" className="w-5 h-5 text-green-600" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-semibold text-sm text-green-800">Challenger — Already Completed</h4>
-            <p className="text-xs text-green-600 mt-0.5">
-              As a {camperRole}, you've already completed Challenger in your onboarding. No additional points for this module, but it counts toward your full pre-work completion.
-            </p>
-          </div>
-          <Button size="sm" onClick={handleAutoComplete} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
-            {loading ? "..." : "Mark Complete"}
-          </Button>
-        </div>
-      </div>
-    );
+    return <PreworkDoneTile title="Challenger Sales Methodology" subtitle="Already completed in cAMP Ascent onboarding" />;
   }
 
   return (

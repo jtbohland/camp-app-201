@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isStandardRole } from "../../lib/roles.js";
+import { tryChallengerAutoComplete } from "../../lib/challenger-exempt.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -128,6 +129,8 @@ export default api({
         [email, role],
         { label: "Sync CSV role to camper" }
       );
+      // Role changed to SDR / AE / Renewals / Partners: check off Challenger right away.
+      await tryChallengerAutoComplete(db, { email });
     }
 
     return { success: true, message: "Saved." };

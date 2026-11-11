@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { STANDARD_ROLES } from "../../lib/roles.js";
+import { tryChallengerAutoComplete } from "../../lib/challenger-exempt.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -157,6 +158,8 @@ export default api({
         ],
         { label: "Update existing camper info" }
       );
+      // SDR / AE / Renewals / Partners: Challenger was done in cAMP Ascent, check it off now.
+      await tryChallengerAutoComplete(ctx.integrations.camp_201_db, { email: input.email });
 
       const campers = await ctx.integrations.camp_201_db.query(
         `SELECT * FROM camp201_campers WHERE email = $1 LIMIT 1`,
@@ -210,6 +213,12 @@ export default api({
       [camper.id, cohortId],
       { label: "Award registration points" }
     );
+
+    // SDR / AE / Renewals / Partners: Challenger was done in cAMP Ascent, check it off now (+5).
+    const auto = await tryChallengerAutoComplete(ctx.integrations.camp_201_db, { camperId: camper.id });
+    if (auto.completed && auto.pointsAwarded > 0) {
+      camper.points += auto.pointsAwarded;
+    }
 
     return { camper, pointsAwarded: 10, pendingApproval: false };
   },

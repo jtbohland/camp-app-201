@@ -164,8 +164,8 @@ export function EngagementSection({ data }: Props) {
     { icon: "sparkles", label: "Camp Spirit votes received", value: s.spirit_votes_received },
     { icon: "ferris-wheel", label: "Wheel & Deal pitches", value: s.wheel_pitches ? `${s.wheel_pitches} (${s.wheel_points} pts)` : 0 },
     { icon: "grid-3x3", label: "Fireside Finder", value: s.bingo_found != null ? `${s.bingo_found} found · ${s.bingo_bingos ?? 0} bingo${(s.bingo_bingos ?? 0) === 1 ? "" : "s"}` : "Not played" },
-    { icon: "book-open", label: "Pre-work items done", value: s.prework_done },
   ];
+  const preworkComplete = s.prework_total > 0 && s.prework_open.length === 0;
   return (
     <ReportSection icon="activity" iconClass="text-orange-500" title="Engagement">
       <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
@@ -178,6 +178,23 @@ export function EngagementSection({ data }: Props) {
             <span className="shrink-0 text-xs font-bold text-foreground">{it.value}</span>
           </div>
         ))}
+      </div>
+      <div className="mt-2 border-t border-border pt-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 text-xs text-foreground">
+            <Icon icon="book-open" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            Pre-work items done
+          </span>
+          <span className={`shrink-0 text-xs font-bold ${preworkComplete ? "text-emerald-600" : "text-foreground"}`}>
+            {s.prework_done} / {s.prework_total}
+            {preworkComplete && " ✓ All done"}
+          </span>
+        </div>
+        {s.prework_open.length > 0 && (
+          <p className="mt-1 pl-[22px] text-[11px] text-muted-foreground">
+            <span className="font-semibold text-amber-700">Open:</span> {s.prework_open.join(", ")}
+          </p>
+        )}
       </div>
       <div className="mt-3">
         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily surveys</p>

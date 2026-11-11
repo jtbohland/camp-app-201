@@ -22,7 +22,7 @@ export function showPreworkResultToast(
     toast.success(`${label} complete! +${pts} pts 🏕️`);
     showPoints(pts);
   } else if (result.auto_completed) {
-    toast.success(`${label} complete (already done in your role — no extra points).`);
+    toast.success(`${label} complete (already done in cAMP Ascent onboarding).`);
   } else {
     toast.success(`${label} complete! (Pre-work points ended when cAMP started.)`);
   }

@@ -63,6 +63,8 @@ const CountsRow = z.object({
   bingo_found: z.coerce.number().nullable(),
   bingo_bingos: z.coerce.number().nullable(),
   prework_done: z.coerce.number(),
+  prework_total: z.coerce.number(),
+  prework_open: z.string().nullable(),
   points_gained: z.coerce.number(),
   points_lost: z.coerce.number(),
 });
@@ -74,7 +76,11 @@ const AbsenceRow = z.object({ id: z.coerce.number(), reason: z.string().nullable
 const RubricRow = z.object({ presentation: z.string().nullable(), judge_name: z.string().nullable(), is_guest_judge: z.boolean().nullable(), total_score: z.coerce.number().nullable(), max_score: z.coerce.number().nullable(), notes: z.string().nullable() });
 const TeammateRow = z.object({ id: z.coerce.number(), name: z.string(), photo_url: z.string().nullable(), points: z.coerce.number() });
 
-const StatsOut = CountsRow.omit({ surveys_days: true }).extend({ survey_days: z.array(z.number()) });
+const StatsOut = CountsRow.omit({ surveys_days: true, prework_open: true }).extend({
+  survey_days: z.array(z.number()),
+  /** Titles of pre-work items this cAMPer hasn't finished, in display order. */
+  prework_open: z.array(z.string()),
+});
 
 export const ReportCardSchema = z.object({
   found: z.boolean(),
@@ -154,6 +160,15 @@ export async function loadReportCard(db: any, camperId: number, opts: { includeP
          (SELECT MAX(jsonb_array_length(COALESCE(b.bingos_claimed,'[]'::jsonb))) FROM camp201_bingo_cards b WHERE b.camper_id = $1) AS bingo_bingos,
          (SELECT COUNT(DISTINCT pw.item) FROM camp201_prework pw WHERE pw.user_id = $1 AND pw.completed = true
             AND EXISTS (SELECT 1 FROM camp201_journey_content jc WHERE jc.section = 'prework' AND jc.item_key = pw.item)) AS prework_done,
+         (SELECT COUNT(DISTINCT jc.item_key) FROM camp201_journey_content jc
+            WHERE jc.section = 'prework' AND jc.item_key IS NOT NULL) AS prework_total,
+         (SELECT string_agg(t.title, '||' ORDER BY t.sort_order) FROM (
+            SELECT DISTINCT ON (jc.item_key) jc.item_key, COALESCE(jc.title, jc.item_key) AS title, jc.sort_order
+            FROM camp201_journey_content jc
+            WHERE jc.section = 'prework' AND jc.item_key IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM camp201_prework pw WHERE pw.user_id = $1 AND pw.item = jc.item_key AND pw.completed = true)
+            ORDER BY jc.item_key, jc.sort_order
+          ) t) AS prework_open,
          (SELECT COALESCE(SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points > 0) AS points_gained,
          (SELECT COALESCE(-SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points < 0) AS points_lost
        LIMIT 1`,
@@ -209,7 +224,7 @@ export async function loadReportCard(db: any, camperId: number, opts: { includeP
   ]);
 
   const c: z.infer<typeof CountsRow> = counts[0];
-  const { surveys_days, ...rest } = c;
+  const { surveys_days, prework_open, ...rest } = c;
   const typedManager = p.manager?.trim() && !/^(other|n\/?a|none|-|tbd|unknown|\?)$/i.test(p.manager.trim()) ? p.manager.trim() : null;
   const managerDisplay =
     p.manager_name_csv ||
@@ -223,6 +238,7 @@ export async function loadReportCard(db: any, camperId: number, opts: { includeP
     stats: {
       ...rest,
       survey_days: (surveys_days ?? "").split(",").filter(Boolean).map(Number).sort((a, b) => a - b),
+      prework_open: (prework_open ?? "").split("||").filter(Boolean),
     },
     points_log: pointsLog,
     checkins,

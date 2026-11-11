@@ -1,18 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { markPreworkComplete } from "../../lib/prework-complete.js";
+import { isChallengerExempt } from "../../lib/challenger-exempt.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 // Wheel & Deal valid score range (hidden from campers)
 const WD_MIN = 4;
 const WD_MAX = 15;
-
-// Roles that already completed Challenger elsewhere (matches the Challenger tile)
-const CHALLENGER_EXEMPT_ROLES = ["ae", "account executive", "sdr", "sales development", "psm", "partner", "renewals", "renewal"];
-const isChallengerExempt = (role: string | null | undefined) => {
-  const r = (role ?? "").toLowerCase();
-  return CHALLENGER_EXEMPT_ROLES.some((x) => r.includes(x));
-};
 
 const SUPPORTED_ITEMS = ["wheel_and_deal", "challenger_sales"];
 
@@ -87,7 +81,7 @@ export default api({
       if (data.auto_completed === true) {
         if (!isChallengerExempt(role)) return fail("Please upload both course screenshots.");
         exempt = true;
-        saved = { auto_completed: true, reason: `Role: ${role} (exempt — already completed Challenger)` };
+        saved = { auto_completed: true, reason: `Role: ${role} (completed Challenger in cAMP Ascent)` };
       } else {
         const shots = Array.isArray(data.screenshots) ? data.screenshots : [];
         const valid = shots
@@ -107,7 +101,8 @@ export default api({
       { label: `Save ${item_key} submission` }
     );
 
-    const result = await markPreworkComplete(db, camper_id, item_key, { flagged, awardPoints: !exempt });
+    // Exempt roles earn the same pre-work points: they did Challenger in cAMP Ascent, which didn't carry over.
+    const result = await markPreworkComplete(db, camper_id, item_key, { flagged, awardPoints: true });
 
     return {
       success: true,
