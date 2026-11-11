@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isStandardRole } from "../../lib/roles.js";
+import { tryChallengerAutoComplete } from "../../lib/challenger-exempt.js";
 import { assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
@@ -86,6 +87,8 @@ export default api({
       [email, country, startDate, input.role, managerName, managerEmail],
       { label: `Sync camper details: ${email}` }
     );
+    // Already registered as SDR / AE / Renewals / Partners: check off Challenger.
+    await tryChallengerAutoComplete(db, { email });
 
     return { success: true, message: `Added ${firstName} ${lastName}.`, hire_id: created[0]?.id ?? null };
   },

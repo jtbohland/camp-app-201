@@ -117,6 +117,20 @@ export function getRoleStyle(role: string | null | undefined): RoleStyle {
   return { ...GROUP_STYLES[group], text: group };
 }
 
+/**
+ * Roles that took Challenger in cAMP Ascent onboarding: their Challenger pre-work is checked
+ * off automatically (+5 pts). Keep in sync with server/lib/challenger-exempt.ts.
+ */
+const CHALLENGER_EXEMPT: ReadonlySet<StandardRole> = new Set<StandardRole>([
+  "SDR", "AE – Velocity", "AE – Emerging", "AE – Enterprise", "AE – Strategic", "Renewals", "Partners",
+]);
+
+export function isChallengerExempt(role: string | null | undefined): boolean {
+  if (!role || isCounselorRole(role)) return false;
+  const mapped = mapToStandardRole(role);
+  return (mapped !== null && CHALLENGER_EXEMPT.has(mapped)) || AE.test(role.toLowerCase());
+}
+
 const PLURALIZE: ReadonlySet<RoleGroup> = new Set<RoleGroup>(["SDR", "SE", "CSA", "TSM", "Trainer"]);
 
 /** Label for role counts ("5 SDRs", "2 AE – Enterprise", "1 Leadership"). */

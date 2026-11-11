@@ -22,6 +22,8 @@ createdAt: 2026-09-11T23:47:20.094Z
 - #8 Absences in team check-in — `submit-checkin.ts` excuses approved absences
 - #9 Timer dropdown — session types incl. Back from Break / Lunch
 - Memories is its own sidebar tab (`/memories`, gate `memories`) right above Graduation, lockable (Update 27)
+- Report card pre-work shows X / 7 + list of open items (Update 32)
+- Challenger auto-completes (+5 pts, same as everyone) for SDR, all 4 AE roles, Renewals, Partners — on register, opening Pre-work, or counselor role change. Rule lives in `server/lib/challenger-exempt.ts` + `client/lib/roles.ts` + SQL `camp201_challenger_exempt()` (migration 0026) (Update 32)
 
 ### Known technical debt
 - `execute().rowCount` returns 0 for INSERT…ON CONFLICT. Still used in `server/lib/legacy-wall.ts`, `server/apis/camp/seed-word-bank.ts`, `server/apis/camp/verify-counselor.ts` — check whether those branches misbehave; switch to `RETURNING`.

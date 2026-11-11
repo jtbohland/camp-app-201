@@ -1,4 +1,7 @@
+import { useEffect, useRef } from "react";
 import { useSuperblocksUser } from "@superblocksteam/library";
+import { toast } from "sonner";
+import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +14,8 @@ import PreWork from "@/components/PreWork";
 export default function JourneyPage() {
   const user = useSuperblocksUser();
   const { isAdmin } = useIsAdmin();
+  const showPoints = usePointsBubble();
+  const announced = useRef(false);
 
   const {
     data: camperData,
@@ -29,6 +34,16 @@ export default function JourneyPage() {
   } = useApiData("GetPreworkStatus", {
     user_id: camperId,
   }, { enabled: camperId > 0 });
+
+  // Exempt roles: Challenger was just checked off on this visit, so say so once.
+  const autoPts = preworkData?.autoCompletedPoints ?? 0;
+  useEffect(() => {
+    if (autoPts > 0 && !announced.current) {
+      announced.current = true;
+      toast.success(`Challenger checked off: already completed in cAMP Ascent onboarding. +${autoPts} pts`);
+      showPoints(autoPts);
+    }
+  }, [autoPts, showPoints]);
 
   // Get deadline from config
   const { data: configData } = useApiData("GetCampConfig", {});
