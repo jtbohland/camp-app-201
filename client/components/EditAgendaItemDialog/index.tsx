@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -26,9 +27,11 @@ type Props = {
   allItems: AgendaItem[];
   /** Library default length for this session, if it came from the Session Bank. */
   defaultMinutes: number | null;
+  /** Session Bank titles, so a rename can say whether it creates or reuses a library session. */
+  bankTitles: string[];
   saving: boolean;
   onCancel: () => void;
-  onSave: (item: AgendaItem, startTime: string, endTime: string) => void;
+  onSave: (item: AgendaItem, startTime: string, endTime: string, title: string) => void;
 };
 
 const START_OPTIONS: number[] = [];
@@ -44,17 +47,29 @@ function lengthLabel(min: number) {
   return m ? `${h} hr ${m} min` : `${h} hr`;
 }
 
-/** Changes the timing of one scheduled session. The Session Bank default is not touched. */
-export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, saving, onCancel, onSave }: Props) {
+/**
+ * Changes one scheduled tile's name and timing. The original Session Bank session is not touched;
+ * a new name is added to the Session Bank as its own session.
+ */
+export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, bankTitles, saving, onCancel, onSave }: Props) {
   const [startMin, setStartMin] = useState(GRID_START_MIN);
   const [length, setLength] = useState(30);
+  const [title, setTitle] = useState("");
 
   useEffect(() => {
     if (!item) return;
     const s = timeToMinutes(item.start_time);
     setStartMin(s);
     setLength(timeToMinutes(item.end_time) - s);
+    setTitle(item.title);
   }, [item]);
+
+  const trimmedTitle = title.trim();
+  const renamed = !!item && trimmedTitle !== item.title.trim();
+  const inLibrary = useMemo(
+    () => bankTitles.some((t) => t.trim().toLowerCase() === trimmedTitle.toLowerCase()),
+    [bankTitles, trimmedTitle]
+  );
 
   // Keep odd existing values (e.g. 8:40 start, 52 min) selectable.
   const startOptions = useMemo(
@@ -73,11 +88,27 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, s
     <Dialog open={!!item} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit session timing</DialogTitle>
+          <DialogTitle>Edit session</DialogTitle>
           <DialogDescription>
-            Only changes "{item?.title}" on this day. The Session Bank default stays the same.
+            Only changes this tile on this day. The Session Bank original stays the same.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs">Session name</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} className="text-sm" />
+          {renamed && trimmedTitle && (
+            <p className="flex items-start gap-1 text-xs text-camp-green">
+              <Icon icon="library" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {inLibrary
+                  ? `"${trimmedTitle}" is already in the Session Bank, so this tile will use it.`
+                  : `"${trimmedTitle}" will be added to the Session Bank as a new session.`}{" "}
+                "{item?.title}" stays in the library as is.
+              </span>
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
@@ -107,7 +138,7 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, s
         <div className="flex flex-col gap-1 text-xs">
           <p className="text-muted-foreground">
             Ends at <span className="font-medium text-foreground">{formatTime(minutesToTime(Math.min(endMin, 24 * 60 - 1)))}</span>
-            {defaultMinutes !== null && (
+            {defaultMinutes !== null && !renamed && (
               <>
                 {" · "}Library default: {lengthLabel(defaultMinutes)}
                 {length !== defaultMinutes && (
@@ -133,8 +164,8 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, s
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={saving}>Cancel</Button>
           <Button
-            onClick={() => item && onSave(item, minutesToTime(startMin), minutesToTime(endMin))}
-            disabled={saving || !!conflict}
+            onClick={() => item && onSave(item, minutesToTime(startMin), minutesToTime(endMin), trimmedTitle)}
+            disabled={saving || !!conflict || !trimmedTitle}
             className="bg-camp-green hover:bg-camp-green/90 text-white"
           >
             {saving ? "Saving..." : "Save"}
