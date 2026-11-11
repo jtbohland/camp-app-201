@@ -49,31 +49,37 @@ const NAV_SECTIONS: NavSection[] = [
       { key: "guide", label: "Lay of the Land", icon: "book-open" },
     ],
   },
+  // Ordered like a cohort's life: set up → plan the week → run cAMP → wrap up.
   {
-    heading: "People",
+    heading: "1 · Set Up",
     items: [
+      { key: "cohort", label: "Cohort Management", icon: "archive" },
       { key: "campers", label: "cAMPers", icon: "users" },
+      { key: "settings", label: "Settings", icon: "settings" },
+      { key: "cabin", label: "Counselor Cabin", icon: "tent" },
+    ],
+  },
+  {
+    heading: "2 · Plan the Week",
+    items: [
+      { key: "flights", label: "Travel & Flights", icon: "plane" },
+      { key: "schedule", label: "Agenda", icon: "calendar" },
+      { key: "presentations", label: "Activities", icon: "target" },
       { key: "teams", label: "Teams", icon: "flag" },
+    ],
+  },
+  {
+    heading: "3 · Run cAMP",
+    items: [
+      { key: "gates", label: "Feature Gates", icon: "lock" },
+      { key: "absences", label: "Absences", icon: "calendar-x" },
       { key: "analytics", label: "Analytics & Surveys", icon: "bar-chart-3" },
     ],
   },
   {
-    heading: "Program",
+    heading: "4 · Wrap Up",
     items: [
-      { key: "schedule", label: "Agenda", icon: "calendar" },
-      { key: "presentations", label: "Activities", icon: "target" },
-      { key: "gates", label: "Feature Gates", icon: "lock" },
-    ],
-  },
-  {
-    heading: "Operations",
-    items: [
-      { key: "flights", label: "Travel & Flights", icon: "plane" },
-      { key: "absences", label: "Absences", icon: "calendar-x" },
-      { key: "cabin", label: "Counselor Cabin", icon: "tent" },
-      { key: "close-camp", label: "Close cAMP", icon: "flag" },
-      { key: "cohort", label: "Cohort Management", icon: "archive" },
-      { key: "settings", label: "Settings", icon: "settings" },
+      { key: "close-camp", label: "Close cAMP", icon: "trophy" },
     ],
   },
 ];
