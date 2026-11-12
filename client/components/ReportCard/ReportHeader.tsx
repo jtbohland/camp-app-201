@@ -1,6 +1,7 @@
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import RegionPill from "@/components/RegionPill/index.js";
+import LastSeenPill from "@/components/LastSeenPill/index.js";
 import { getRoleStyle, mapToStandardRole } from "@/lib/roles.js";
 import { getCountryDisplayName, getCountryStyle, formatTenure } from "@/lib/countryUtils.js";
 import type { ReportCardData } from "./types.js";
@@ -59,6 +60,7 @@ export default function ReportHeader({ data }: { data: ReportCardData }) {
                 {tenure}
               </span>
             )}
+            <LastSeenPill lastSeenAt={p.last_seen_at} />
           </div>
         </div>
         <div className="grid shrink-0 grid-cols-3 gap-4 text-center">

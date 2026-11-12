@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
@@ -59,9 +59,12 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
   const canDemo = isAdmin && !isMyTeam;
   const [editor, setEditor] = useState<EditorMode>("none");
 
-  const topScorer = team.members.length > 0
-    ? team.members.reduce((a, b) => a.points > b.points ? a : b)
-    : null;
+  // Pills always run from most points to fewest (ties alphabetical).
+  const rankedMembers = useMemo(
+    () => [...team.members].sort((a, b) => b.points - a.points || a.first_name.localeCompare(b.first_name)),
+    [team.members]
+  );
+  const topScorer = rankedMembers[0] ?? null;
 
   return (
     <div className={`rounded-xl overflow-hidden flex flex-col border-2 ${config.border} ${config.glow} transition-all hover:scale-[1.02]`}>
@@ -102,7 +105,7 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
 
         {/* Members */}
         <div className="flex flex-wrap gap-1 mb-3">
-          {team.members.map((member) => (
+          {rankedMembers.map((member) => (
             <TeamMemberPill
               key={member.id}
               firstName={member.first_name}

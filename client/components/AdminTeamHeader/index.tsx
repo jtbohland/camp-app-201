@@ -1,6 +1,9 @@
+type Company = { name: string; emoji?: string | null; color?: string | null };
+
 type Props = {
   rank: number;
   name: string;
+  company?: Company | null;
   memberCount: number;
   totalPoints: number;
   avgPoints: number;
@@ -10,7 +13,7 @@ type Props = {
 const RANK_COLORS = ["bg-amber-500", "bg-gray-400", "bg-amber-700"];
 
 /** Rank, name, total points and the 3 stat chips at the top of a Hub team table. */
-export default function AdminTeamHeader({ rank, name, memberCount, totalPoints, avgPoints, checkinRate }: Props) {
+export default function AdminTeamHeader({ rank, name, company, memberCount, totalPoints, avgPoints, checkinRate }: Props) {
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -19,7 +22,27 @@ export default function AdminTeamHeader({ rank, name, memberCount, totalPoints, 
             {rank}
           </div>
           <div>
-            <h3 className="font-bold text-foreground">{name}</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-bold text-foreground">{name}</h3>
+              {company?.name ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                  style={{
+                    color: company.color || undefined,
+                    borderColor: company.color ? `${company.color}55` : undefined,
+                    backgroundColor: company.color ? `${company.color}14` : undefined,
+                  }}
+                  title={`Presenting on ${company.name}`}
+                >
+                  {company.emoji && <span>{company.emoji}</span>}
+                  {company.name}
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  No company yet
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">{memberCount} members</p>
           </div>
         </div>

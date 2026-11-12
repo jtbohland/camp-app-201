@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import CohortMemberCard from "@/components/CohortMemberCard/index.js";
 import ConfirmRemoveCamperDialog from "@/components/ConfirmRemoveCamperDialog/index.js";
 import RemovedCampersList from "@/components/RemovedCampersList/index.js";
+import LastSeenPill from "@/components/LastSeenPill/index.js";
 import { errorMessage } from "@/lib/cohortRefresh";
 import { refreshRosterViews } from "@/lib/camperRemoval";
 import { COHORT_SORTS, sortCohortMembers, type CohortMember, type CohortSort } from "@/lib/cohortMember.js";
@@ -158,6 +159,7 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
                     <Icon icon="calendar-x" className="h-3 w-3" />
                     {camper.absences_used}/3 absences
                   </span>
+                  <LastSeenPill lastSeenAt={camper.last_seen_at} />
                   {(() => {
                     const m = messagesByCamper.get(camper.id);
                     if (!m || m.total === 0) return null;

@@ -36,6 +36,7 @@ const CamperMetricSchema = z.object({
   early_count: z.coerce.number(),
   late_count: z.coerce.number(),
   created_at: z.string(),
+  last_seen_at: z.string().nullable(),
 });
 
 export default api({
@@ -79,7 +80,7 @@ export default api({
               COALESCE(cr.checkin_count, 0)::int as checkin_count,
               COALESCE(cr.early_count, 0)::int as early_count,
               COALESCE(cr.late_count, 0)::int as late_count,
-              c.created_at
+              c.created_at, c.last_seen_at::text AS last_seen_at
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON t.id = c.team_id
        LEFT JOIN LATERAL (

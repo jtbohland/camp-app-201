@@ -95,6 +95,7 @@ import RemoveBankSession from './camp/remove-bank-session.js';
 import ClearDaySchedule from './camp/clear-day-schedule.js';
 import MoveAgendaItem from './camp/move-agenda-item.js';
 import EditAgendaItem from './camp/edit-agenda-item.js';
+import UpdateDietary from './camp/update-dietary.js';
 import SeedSessionBank from './camp/seed-session-bank.js';
 import MigrateQAFeed from './camp/migrate-qa-feed.js';
 import GetExecQuestions from './camp/get-exec-questions.js';
@@ -307,6 +308,7 @@ const apis = {
   ClearDaySchedule,
   MoveAgendaItem,
   EditAgendaItem,
+  UpdateDietary,
   SeedSessionBank,
   MigrateQAFeed,
   GetExecQuestions,

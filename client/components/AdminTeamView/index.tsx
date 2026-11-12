@@ -117,6 +117,7 @@ export default function AdminTeamView({ cohortId, canEdit, onCamperClick }: Prop
                 <AdminTeamHeader
                   rank={index + 1}
                   name={team.name}
+                  company={team.assigned_company}
                   memberCount={members.length}
                   totalPoints={team.total_points}
                   avgPoints={team.avg_points}

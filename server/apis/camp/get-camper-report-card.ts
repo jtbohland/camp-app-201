@@ -14,7 +14,7 @@ export default api({
   async run(ctx, { camper_id }) {
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
-    return loadReportCard(db, camper_id, { includePin: true });
+    return loadReportCard(db, camper_id, { includePin: true, includeDietary: true });
   },
 });
 
@@ -28,6 +28,7 @@ export const GetManagerReportCard = api({
   async run(ctx, { camper_id }) {
     const db = ctx.integrations.camp_201_db;
     const viewer = await requireReportAccess(db, ctx.user.email, camper_id);
-    return loadReportCard(db, camper_id, { includePin: viewer === "counselor" });
+    const isCounselor = viewer === "counselor";
+    return loadReportCard(db, camper_id, { includePin: isCounselor, includeDietary: isCounselor });
   },
 });

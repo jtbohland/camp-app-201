@@ -67,7 +67,8 @@ export default api({
         assigned_company: t.assigned_company ?? null,
         members: people
           .filter((p) => p.team_id === t.id)
-          .sort((a, b) => a.first_name.localeCompare(b.first_name))
+          // Most points first; ties alphabetical so the order is stable.
+          .sort((a, b) => b.points - a.points || a.first_name.localeCompare(b.first_name))
           .map((p) => ({
             id: p.id, first_name: p.first_name, last_name: p.last_name,
             email: p.email, points: p.points, photo_url: p.photo_url,
