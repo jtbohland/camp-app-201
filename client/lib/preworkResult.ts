@@ -27,9 +27,3 @@ export function showPreworkResultToast(
     toast.success(`${label} complete! (Pre-work points ended when cAMP started.)`);
   }
 }
-
-export function errorMessage(err: unknown): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : String(err);
-}

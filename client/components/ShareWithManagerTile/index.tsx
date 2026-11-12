@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
+import { submitPreworkWithRecovery, preworkFailureMessage } from "@/lib/preworkSubmit.js";
 
 const APP_URL = "https://app.superblocks.com"; // Will be replaced with real deployed URL
 
@@ -46,12 +47,23 @@ export default function ShareWithManagerTile({ camperId, isCompleted, onComplete
 
   const handleComplete = useCallback(async () => {
     try {
-      const result = await completeItem({
-        user_id: camperId,
-        item: "share_with_manager",
-        content_id: 100,
-        force: false,
+      const outcome = await submitPreworkWithRecovery({
+        camperId,
+        itemKey: "share_with_manager",
+        attempt: () =>
+          completeItem({
+            user_id: camperId,
+            item: "share_with_manager",
+            content_id: 100,
+            force: false,
+          }),
       });
+      if (outcome.kind === "recovered") {
+        toast.success("Shared with your manager — nice work! 🏕️");
+        onComplete();
+        return;
+      }
+      const result = outcome.result;
       if (result?.success) {
         const pts = Number(result.pointsAwarded) || 0;
         if (pts > 0) {
@@ -63,10 +75,7 @@ export default function ShareWithManagerTile({ camperId, isCompleted, onComplete
         onComplete();
       }
     } catch (err) {
-      const msg = err && typeof err === "object" && "message" in err
-        ? String((err as { message: unknown }).message)
-        : String(err);
-      toast.error("Failed: " + msg);
+      toast.error(preworkFailureMessage("Share with Manager", err));
     }
   }, [camperId, completeItem, onComplete, showPoints]);
 
