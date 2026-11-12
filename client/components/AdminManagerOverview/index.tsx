@@ -4,6 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { useApiData } from "@/hooks/useApiData";
 import { Skeleton } from "@/components/ui/skeleton";
+import UnregisteredManagers from "@/components/UnregisteredManagers/index.js";
 
 type ManagerOverview = {
   id: number;
@@ -42,6 +43,8 @@ export default function AdminManagerOverview() {
 
   const managers = useMemo(() => data?.managers ?? [], [data]);
   const comments = useMemo(() => data?.recent_comments ?? [], [data]);
+  const expected = useMemo(() => data?.expected_managers ?? [], [data]);
+  const hiresWithoutManager = useMemo(() => data?.hires_without_manager ?? [], [data]);
 
   if (loading) {
     return (
@@ -71,6 +74,9 @@ export default function AdminManagerOverview() {
           <div className="text-sm text-muted-foreground">Total Comments</div>
         </Card>
       </div>
+
+      {/* Who we're still waiting on */}
+      <UnregisteredManagers expected={expected} hiresWithoutManager={hiresWithoutManager} />
 
       {/* Manager list */}
       <Card className="bg-card border-border">
