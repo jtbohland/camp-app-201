@@ -21,11 +21,13 @@ export default api({
     is_active: z.boolean(),
     email: z.string().trim().toLowerCase().email().max(200),
     slack_name: z.string().trim().min(1).max(100),
+    /** The agenda session this speaker appears in; shows them on that day once it's unlocked. */
+    agenda_item_id: z.number().int().positive().nullable(),
   }),
   output: z.object({
     success: z.boolean(),
   }),
-  async run(ctx, { id, name, title, photo_url, bio, linkedin_url, is_active, email, slack_name }) {
+  async run(ctx, { id, name, title, photo_url, bio, linkedin_url, is_active, email, slack_name, agenda_item_id }) {
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
     // A new email means a new person to share with, so the link shows as not shared yet.
@@ -33,9 +35,10 @@ export default api({
       `UPDATE camp201_executives
        SET name = $1, title = $2, photo_url = $3, bio = $4, linkedin_url = $5, is_active = $6,
            link_copied_at = CASE WHEN lower(btrim(COALESCE(email, ''))) = $8 THEN link_copied_at ELSE NULL END,
-           email = $8, slack_name = $9
+           email = $8, slack_name = $9,
+           agenda_item_id = (SELECT a.id FROM camp201_agenda a WHERE a.id = $10::int)
        WHERE id = $7`,
-      [name, title, photo_url ?? "", bio ?? "", linkedin_url ?? "", is_active, id, email, slack_name.replace(/^@/, "")],
+      [name, title, photo_url ?? "", bio ?? "", linkedin_url ?? "", is_active, id, email, slack_name.replace(/^@/, ""), agenda_item_id],
       { label: "Update executive" }
     );
 

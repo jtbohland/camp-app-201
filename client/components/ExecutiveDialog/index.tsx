@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 import SpeakerShareLink from "@/components/SpeakerShareLink/index.js";
+import SpeakerSessionSelect from "@/components/SpeakerSessionSelect/index.js";
 import type { Executive } from "@/lib/speakers.js";
 
 export type ExecutiveFormData = {
@@ -12,6 +13,7 @@ export type ExecutiveFormData = {
   linkedin_url: string;
   email: string;
   slack_name: string;
+  agenda_item_id: number | null;
 };
 
 type ExecutiveDialogProps = {
@@ -33,6 +35,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [email, setEmail] = useState("");
   const [slackName, setSlackName] = useState("");
+  const [agendaItemId, setAgendaItemId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   /** After adding a new speaker, show their share link instead of closing. */
   const [justAddedId, setJustAddedId] = useState<number | null>(null);
@@ -46,6 +49,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
     setLinkedinUrl(executive?.linkedin_url ?? "");
     setEmail(executive?.email ?? "");
     setSlackName(executive?.slack_name ?? "");
+    setAgendaItemId(executive?.agenda_item_id ?? null);
   }, [executive, open]);
 
   const emailValid = EMAIL_RE.test(email.trim());
@@ -63,6 +67,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
         linkedin_url: linkedinUrl.trim(),
         email: email.trim().toLowerCase(),
         slack_name: slackName.trim().replace(/^@/, ""),
+        agenda_item_id: agendaItemId,
       });
       if (!executive && id) setJustAddedId(id);
       else onClose();
@@ -71,7 +76,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
     } finally {
       setSaving(false);
     }
-  }, [canSave, name, title, photoUrl, bio, linkedinUrl, email, slackName, onSave, onClose, executive]);
+  }, [canSave, name, title, photoUrl, bio, linkedinUrl, email, slackName, agendaItemId, onSave, onClose, executive]);
 
   if (!open) return null;
 
@@ -79,7 +84,10 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
   const linkSpeaker: Executive | null = executive
     ? executive
     : justAddedId
-      ? { id: justAddedId, name, title, photo_url: photoUrl, bio, linkedin_url: linkedinUrl, is_active: true, email, slack_name: slackName, link_copied_at: null }
+      ? {
+          id: justAddedId, name, title, photo_url: photoUrl, bio, linkedin_url: linkedinUrl, is_active: true, email, slack_name: slackName,
+          link_copied_at: null, agenda_item_id: agendaItemId, session_title: null, day_number: null, start_time: null, day_locked: false,
+        }
       : null;
 
   return (
@@ -113,6 +121,13 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
             <div>
               <label className="text-sm font-medium text-foreground mb-1 block">Title / Role *</label>
               <input value={title} onChange={(e) => setTitle(e.target.value)} className={INPUT} placeholder="e.g. VP of Engineering" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Session</label>
+              <SpeakerSessionSelect value={agendaItemId} onChange={setAgendaItemId} className={INPUT} />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                cAMPers see this speaker on the Speakers tab once that day's agenda is unlocked
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

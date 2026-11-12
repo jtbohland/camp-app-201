@@ -64,6 +64,8 @@ export default api({
   output: z.object({
     camper: CamperSchema,
     pointsAwarded: z.number(),
+    /** Profile was completed after the pre-work deadline: saved, for 0 points. */
+    pastDeadline: z.boolean(),
   }),
   async run(ctx, input) {
     // Always save the signed-in cAMPer's own row (never trust the email sent from the browser),
@@ -121,22 +123,30 @@ export default api({
       { label: "Update camper profile" }
     );
 
-    // Award points for profile completion (only once)
+    // Profile completion: +15 once, only before the pre-work deadline (Monday 9:00 AM PT by default).
+    // The point-log entry adds to the total (database trigger). Re-checked against the log so a
+    // profile that was complete before (and edited since) never earns twice.
     let pointsAwarded = 0;
-    if (isComplete && !wasAlreadyCompleted) {
-      pointsAwarded = 15;
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + 15 WHERE id = $1`,
+    let pastDeadline = false;
+    if (isComplete) {
+      const awarded = await ctx.integrations.camp_201_db.query(
+        `WITH due AS (
+           SELECT (camp201_prework_deadline() IS NOT NULL AND NOW() >= camp201_prework_deadline()) AS past,
+                  EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = $1 AND reason = 'Profile completed') AS had
+         ), ins AS (
+           INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
+           SELECT $1, 15, 'Profile completed', 'system', 'profile'
+           FROM due WHERE NOT due.past AND NOT due.had
+           RETURNING points
+         )
+         SELECT (SELECT past FROM due) AS past, (SELECT had FROM due) AS had,
+                COALESCE((SELECT SUM(points) FROM ins), 0)::int AS pts`,
+        z.object({ past: z.boolean(), had: z.boolean(), pts: z.coerce.number() }),
         [camperId],
         { label: "Award profile completion points" }
       );
-      await ctx.integrations.camp_201_db.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
-         SELECT id, 15, 'Profile completed', 'system'
-         FROM camp201_campers WHERE id = $1`,
-        [camperId],
-        { label: "Log profile completion points" }
-      );
+      pointsAwarded = awarded[0]?.pts ?? 0;
+      pastDeadline = !wasAlreadyCompleted && !awarded[0]?.had && awarded[0]?.past === true;
     }
 
     // Fetch and return updated camper
@@ -147,6 +157,6 @@ export default api({
       { label: "Fetch updated camper" }
     );
 
-    return { camper: campers[0], pointsAwarded };
+    return { camper: campers[0], pointsAwarded, pastDeadline };
   },
 });

@@ -66,11 +66,6 @@ export default api({
     if (countOfType === 1) {
       const pts = input.memory_type === "photo" ? 2 : 1;
       await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [pts, input.camper_id],
-        { label: `Award ${pts} pts for first ${input.memory_type} memory` }
-      );
-      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
         [input.camper_id, pts, `First ${input.memory_type} shared to Memories`],
         { label: "Log memory points" }

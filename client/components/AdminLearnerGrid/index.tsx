@@ -39,7 +39,7 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
   );
   const [pendingRemove, setPendingRemove] = useState<{ id: number; name: string } | null>(null);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<CohortSort | "points">("points");
+  const [sort, setSort] = useState<CohortSort | "points" | "last_login">("points");
   const [page, setPage] = useState(0);
 
   const handleConfirmRemove = useCallback(async () => {
@@ -78,6 +78,11 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
         )
       : campers;
     if (sort === "points") return [...list].sort((a, b) => b.points - a.points);
+    if (sort === "last_login") {
+      // Most recent first; cAMPers who have never logged in go last.
+      const seen = (v: string | null) => (v ? new Date(v).getTime() || 0 : 0);
+      return [...list].sort((a, b) => seen(b.last_seen_at) - seen(a.last_seen_at));
+    }
     return sortCohortMembers(list as unknown as CohortMember[], sort) as unknown as typeof list;
   }, [campers, search, sort]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -120,13 +125,14 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
         <select
           value={sort}
           onChange={(e) => {
-            setSort(e.target.value as CohortSort | "points");
+            setSort(e.target.value as CohortSort | "points" | "last_login");
             setPage(0);
           }}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           aria-label="Sort cAMPers"
         >
           <option value="points">Most points</option>
+          <option value="last_login">Last login (most recent)</option>
           {COHORT_SORTS.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}

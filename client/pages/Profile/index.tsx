@@ -203,6 +203,8 @@ export default function ProfilePage() {
     const justCompleted = !data?.camper?.profile_completed && result?.camper?.profile_completed;
     if (result && result.pointsAwarded > 0) {
       toast.success(`Profile saved! 🎉 +${result.pointsAwarded} points earned for completing your profile!`);
+    } else if (result?.pastDeadline) {
+      toast.success("Profile complete! (0 pts: finished after the profile & pre-work deadline.)");
     } else {
       toast.success("Profile saved!");
     }
@@ -232,6 +234,15 @@ export default function ProfilePage() {
   const camper = data?.camper;
   const iceBreakerComplete = ICE_BREAKER_QUESTIONS.every((_, i) => iceBreakerAnswers[`q${i}`]?.trim());
   const isComplete = !!(bio && funFact && goal1 && goal2 && goal3 && iceBreakerComplete);
+  const iceBreakerLeft = ICE_BREAKER_QUESTIONS.filter((_, i) => !iceBreakerAnswers[`q${i}`]?.trim()).length;
+  const missingFields = [
+    !bio.trim() && "Bio",
+    !funFact.trim() && "Fun fact",
+    !goal1.trim() && "Goal 1",
+    !goal2.trim() && "Goal 2",
+    !goal3.trim() && "Goal 3",
+    iceBreakerLeft > 0 && `${iceBreakerLeft} ice breaker question${iceBreakerLeft === 1 ? "" : "s"}`,
+  ].filter(Boolean) as string[];
 
   if (loading) {
     return (
@@ -265,7 +276,7 @@ export default function ProfilePage() {
             My Profile
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Build your cAMPer identity — complete all fields to earn <span className="text-camp-amber font-semibold">+15 points</span>
+            Build your cAMPer identity — complete all fields before the pre-work deadline to earn <span className="text-camp-amber font-semibold">+15 points</span>
           </p>
         </div>
         {camper?.profile_completed && (
@@ -284,6 +295,12 @@ export default function ProfilePage() {
             <p className="text-sm text-muted-foreground mt-0.5">
               Complete your profile to unlock the rest of cAMP 201: bio, fun fact, three goals and all ice breaker questions. Then click <span className="font-medium text-foreground">Save Profile</span>.
             </p>
+            {missingFields.length > 0 && (
+              <p className="text-sm mt-1.5">
+                <span className="font-medium text-foreground">Still missing:</span>{" "}
+                <span className="text-camp-amber font-medium">{missingFields.join(", ")}</span>
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -521,7 +538,7 @@ export default function ProfilePage() {
               <Icon icon="check" className="w-4 h-4" /> All required fields complete
             </span>
           ) : (
-            <span>Fill in all fields marked * to complete your profile</span>
+            <span>Still missing: {missingFields.join(", ")}</span>
           )}
         </div>
         <Button

@@ -185,10 +185,6 @@ if (onTime) {
 // For surveys, award escalating points directly (Day 1=2, Day 2=4, etc.)
 if (pointsAwarded > 0) {
       await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [pointsAwarded, input.camper_id], { label: "Award escalating survey points" }
-      );
-      await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
          VALUES ($1, $2, $3, 'system', $4)`,
         [input.camper_id, pointsAwarded, `Day ${input.day_number} survey completed (on time)`, cohortId],
@@ -198,10 +194,6 @@ if (pointsAwarded > 0) {
 
     // Apply late penalty separately
     if (latePenalty < 0) {
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [latePenalty, input.camper_id], { label: "Apply late penalty" }
-      );
       await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
          VALUES ($1, $2, $3, 'system', $4)`,

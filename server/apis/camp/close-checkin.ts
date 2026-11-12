@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -24,6 +25,7 @@ export default api({
     }),
   }),
   async run(ctx, { session_id }) {
+    await requireCounselor(ctx.integrations.camp_201_db, ctx.user.email);
     // Close the session
     await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_checkin_sessions SET status = 'closed', closed_at = NOW() WHERE id = $1`,

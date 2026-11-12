@@ -29,6 +29,7 @@ import AdminTeamGenerator from "@/components/AdminTeamGenerator/index.js";
 import AdminCounselorRotation from "@/components/AdminCounselorRotation/index.js";
 import AdminPresentations from "@/components/AdminPresentations/index.js";
 import AdminCloseCamp from "@/components/AdminCloseCamp/index.js";
+import AdminPointLog from "@/components/AdminPointLog/index.js";
 
 // New components
 import HubDashboard from "@/components/HubDashboard/index.js";
@@ -73,6 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "gates", label: "Feature Gates", icon: "lock" },
       { key: "absences", label: "Absences", icon: "calendar-x" },
+      { key: "point-log", label: "Point Log", icon: "scroll-text" },
       { key: "analytics", label: "Analytics & Surveys", icon: "bar-chart-3" },
     ],
   },
@@ -303,6 +305,9 @@ export default function AdminPage() {
           )}
           {view === "absences" && (
             <AdminAbsences onCamperClick={handleCamperClick} />
+          )}
+          {view === "point-log" && (
+            <AdminPointLog onCamperClick={handleCamperClick} />
           )}
           {view === "cabin" && (
             <div className="space-y-6">

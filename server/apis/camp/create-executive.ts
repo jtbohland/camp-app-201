@@ -19,20 +19,22 @@ export default api({
     linkedin_url: z.string().max(500).nullable(),
     email: z.string().trim().toLowerCase().email().max(200),
     slack_name: z.string().trim().min(1).max(100),
+    /** The agenda session this speaker appears in; shows them on that day once it's unlocked. */
+    agenda_item_id: z.number().int().positive().nullable(),
   }),
   output: z.object({
     id: z.coerce.number(),
     success: z.boolean(),
   }),
-  async run(ctx, { name, title, photo_url, bio, linkedin_url, email, slack_name }) {
+  async run(ctx, { name, title, photo_url, bio, linkedin_url, email, slack_name, agenda_item_id }) {
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
     const result = await db.query(
-      `INSERT INTO camp201_executives (name, title, photo_url, bio, linkedin_url, email, slack_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO camp201_executives (name, title, photo_url, bio, linkedin_url, email, slack_name, agenda_item_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT id FROM camp201_agenda WHERE id = $8::int))
        RETURNING id`,
       z.object({ id: z.coerce.number() }),
-      [name, title, photo_url ?? "", bio ?? "", linkedin_url ?? "", email, slack_name.replace(/^@/, "")],
+      [name, title, photo_url ?? "", bio ?? "", linkedin_url ?? "", email, slack_name.replace(/^@/, ""), agenda_item_id],
       { label: "Create executive" }
     );
 

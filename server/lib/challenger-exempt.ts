@@ -76,7 +76,7 @@ export async function ensureChallengerAutoComplete(
   );
 
   const result = await markPreworkComplete(db, c.id, CHALLENGER, { flagged: false, awardPoints: true });
-  return { completed: result.newlyCompleted, pointsAwarded: result.pointsAwarded };
+  return { completed: result.newlyCompleted, pointsAwarded: result.pointsAwarded + result.earlyBirdPoints };
 }
 
 /** Same as ensureChallengerAutoComplete but never throws (for use after unrelated saves). */

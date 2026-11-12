@@ -122,18 +122,15 @@ export default api({
          GROUP BY c.id
        ), scored AS (
          SELECT camper_id, std, pen, (GREATEST(0, $2::int - std) - pen)::int AS pts FROM usage
-       ), logged AS (
-         INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
-         SELECT camper_id, pts,
-                CASE WHEN std = 0 AND pen = 0 THEN 'Perfect attendance: no excused absences'
-                     ELSE 'Attendance: ' || std || '/' || $2::int || ' excused absences used'
-                          || CASE WHEN pen > 0 THEN ', ' || pen || ' extra' ELSE '' END END,
-                'attendance', $1
-         FROM scored
-         RETURNING camper_id, points
        )
-       UPDATE camp201_campers c SET points = c.points + l.points
-       FROM logged l WHERE c.id = l.camper_id AND l.points <> 0`,
+       -- The point-log entries add to each total (database trigger).
+       INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
+       SELECT camper_id, pts,
+              CASE WHEN std = 0 AND pen = 0 THEN 'Perfect attendance: no excused absences'
+                   ELSE 'Attendance: ' || std || '/' || $2::int || ' excused absences used'
+                        || CASE WHEN pen > 0 THEN ', ' || pen || ' extra' ELSE '' END END,
+              'attendance', $1
+       FROM scored`,
       [cohortId, ABSENCE_LIMIT],
       { label: "Award attendance points" }
     );
@@ -173,11 +170,6 @@ export default api({
             { label: `Award milestone ${badge.id}` }
           );
           if (badge.points > 0) {
-            await ctx.integrations.camp_201_db.execute(
-              `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-              [badge.points, camper.id],
-              { label: `Add milestone points ${badge.points}` }
-            );
             await ctx.integrations.camp_201_db.execute(
               `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
                VALUES ($1, $2, $3, 'badge', $4)`,
@@ -321,12 +313,7 @@ export default api({
             [vpId, ALPINE_LEGEND_ID, closer_camper_id],
             { label: "Award Alpine Legend" }
           );
-          // +25 points
-          await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_campers SET points = points + 25 WHERE id = $1`,
-            [vpId],
-            { label: "Add Alpine Legend points" }
-          );
+          // +25 points (the point-log entry updates the total)
           await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
              VALUES ($1, 25, 'Alpine Legend — the rarest badge at cAMP!', 'badge', $2)`,

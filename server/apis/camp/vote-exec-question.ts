@@ -69,11 +69,6 @@ export default api({
         [submitted_by, POINTS_PER_VOTE_RECEIVED, `Vote received on Q&A question`, voter_id],
         { label: "Award vote points" }
       );
-      await ctx.integrations.camp_db.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [POINTS_PER_VOTE_RECEIVED, submitted_by],
-        { label: "Update submitter points" }
-      );
     }
 
     return { success: true };

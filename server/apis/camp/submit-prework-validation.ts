@@ -30,11 +30,14 @@ export default api({
     auto_completed: z.boolean(),
     points_awarded: z.number(),
     already_completed: z.boolean(),
+    /** Finished after the pre-work deadline: marked done, for 0 points. */
+    past_deadline: z.boolean(),
   }),
   async run(ctx, { camper_id, item_key, submission_data }) {
     const db = ctx.integrations.camp_201_db;
     const fail = (message: string) => ({
       success: false, flagged: false, message, auto_completed: false, points_awarded: 0, already_completed: false,
+      past_deadline: false,
     });
 
     if (!SUPPORTED_ITEMS.includes(item_key)) return fail("This task can't be submitted here.");
@@ -57,7 +60,7 @@ export default api({
       { label: "Check if already complete" }
     );
     if (existing.length > 0) {
-      return { success: true, flagged: false, message: "Already complete.", auto_completed: false, points_awarded: 0, already_completed: true };
+      return { success: true, flagged: false, message: "Already complete.", auto_completed: false, points_awarded: 0, already_completed: true, past_deadline: false };
     }
 
     let flagged = false;
@@ -109,8 +112,9 @@ export default api({
       flagged,
       message: flagged ? "Submitted — but your scores look off. A counselor will review." : "Complete!",
       auto_completed: exempt,
-      points_awarded: result.pointsAwarded,
+      points_awarded: result.pointsAwarded + result.earlyBirdPoints,
       already_completed: !result.newlyCompleted,
+      past_deadline: result.pastDeadline,
     };
   },
 });

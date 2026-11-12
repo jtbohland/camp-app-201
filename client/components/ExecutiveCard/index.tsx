@@ -1,5 +1,5 @@
 import { Icon } from "@/components/ui/icon";
-import { getSpeakerMissing, type Executive } from "@/lib/speakers.js";
+import { formatSessionTime, getSpeakerMissing, type Executive } from "@/lib/speakers.js";
 
 type ExecutiveCardProps = {
   executive: Executive;
@@ -77,6 +77,13 @@ export default function ExecutiveCard({ executive, isAdmin, onEdit, isMine = fal
           <h3 className="text-base font-semibold text-foreground">{executive.name}</h3>
           <p className="text-sm text-muted-foreground">{executive.title}</p>
         </div>
+
+        {executive.session_title && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+            <Icon icon="calendar" className="h-3 w-3" />
+            {formatSessionTime(executive.start_time)} · {executive.session_title}
+          </span>
+        )}
 
         {executive.bio && <p className="text-sm text-foreground/80 line-clamp-3">{executive.bio}</p>}
 
