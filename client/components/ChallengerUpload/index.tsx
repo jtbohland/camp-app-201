@@ -7,7 +7,8 @@ import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import ImageUpload from "@/components/ImageUpload";
 import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
 import { compressImage } from "@/lib/compressImage.js";
-import { showPreworkResultToast, errorMessage } from "@/lib/preworkResult.js";
+import { showPreworkResultToast } from "@/lib/preworkResult.js";
+import { submitPreworkWithRecovery, preworkFailureMessage } from "@/lib/preworkSubmit.js";
 import { isChallengerExempt } from "@/lib/roles.js";
 
 const COURSES = ["Why Challenger", "Intro to Challenger Skills"];
@@ -73,7 +74,17 @@ export default function ChallengerUpload({ camperId, camperRole, links, isComple
 
   const send = useCallback(async (submission_data: Record<string, any>) => {
     try {
-      const result = await submit({ camper_id: camperId, item_key: "challenger_sales", submission_data });
+      const outcome = await submitPreworkWithRecovery({
+        camperId,
+        itemKey: "challenger_sales",
+        attempt: () => submit({ camper_id: camperId, item_key: "challenger_sales", submission_data }),
+      });
+      if (outcome.kind === "recovered") {
+        toast.success("Challenger saved! 🏕️");
+        onComplete();
+        return;
+      }
+      const result = outcome.result;
       if (!result?.success) {
         toast.error(result?.message || "Couldn't complete Challenger");
         return;
@@ -81,7 +92,7 @@ export default function ChallengerUpload({ camperId, camperRole, links, isComple
       showPreworkResultToast("Challenger", result, showPoints);
       onComplete();
     } catch (err) {
-      toast.error("Failed: " + errorMessage(err));
+      toast.error(preworkFailureMessage("Challenger", err));
     }
   }, [camperId, submit, onComplete, showPoints]);
 

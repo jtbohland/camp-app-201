@@ -6,7 +6,8 @@ import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import PreworkDoneTile from "@/components/PreworkDoneTile/index.js";
-import { showPreworkResultToast, errorMessage } from "@/lib/preworkResult.js";
+import { showPreworkResultToast } from "@/lib/preworkResult.js";
+import { submitPreworkWithRecovery, preworkFailureMessage } from "@/lib/preworkSubmit.js";
 
 const PRODUCTS = [
   "Analytics", "CDP", "Experiment", "Session Replay", "Web Analytics",
@@ -76,16 +77,27 @@ export default function WheelAndDealForm({ camperId, isCompleted, submission, fl
     }
 
     try {
-      const result = await submit({
-        camper_id: camperId,
-        item_key: "wheel_and_deal",
-        submission_data: {
-          product: product.trim(),
-          challenge_type: challengeType,
-          score: scoreNum,
-          ai_coach_score: aiNum,
-        },
+      const outcome = await submitPreworkWithRecovery({
+        camperId,
+        itemKey: "wheel_and_deal",
+        attempt: () =>
+          submit({
+            camper_id: camperId,
+            item_key: "wheel_and_deal",
+            submission_data: {
+              product: product.trim(),
+              challenge_type: challengeType,
+              score: scoreNum,
+              ai_coach_score: aiNum,
+            },
+          }),
       });
+      if (outcome.kind === "recovered") {
+        toast.success("Wheel & Deal saved! 🏕️");
+        onComplete();
+        return;
+      }
+      const result = outcome.result;
       if (!result?.success) {
         toast.error(result?.message || "Couldn't complete Wheel & Deal");
         return;
@@ -93,7 +105,7 @@ export default function WheelAndDealForm({ camperId, isCompleted, submission, fl
       showPreworkResultToast("Wheel & Deal", result, showPoints);
       onComplete();
     } catch (err) {
-      toast.error("Failed: " + errorMessage(err));
+      toast.error(preworkFailureMessage("Wheel & Deal", err));
     }
   }, [allFilled, product, challengeType, score, aiScore, camperId, submit, onComplete, showPoints]);
 

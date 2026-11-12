@@ -13,6 +13,7 @@ import DeadlineCountdown from "@/components/DeadlineCountdown/index.js";
 import WheelAndDealForm from "@/components/WheelAndDealForm";
 import ChallengerUpload from "@/components/ChallengerUpload";
 import ShareWithManagerTile from "@/components/ShareWithManagerTile/index.js";
+import { submitPreworkWithRecovery, preworkFailureMessage } from "@/lib/preworkSubmit.js";
 
 type Link = { label: string; url: string };
 type ContentItem = {
@@ -89,12 +90,26 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
     if (!item.item_key) return;
     setCompletingKey(item.item_key);
     try {
-      const result = await completeItem({
-        user_id: userId,
-        item: item.item_key,
-        content_id: item.id,
-        force,
+      const itemKey = item.item_key;
+      const outcome = await submitPreworkWithRecovery({
+        camperId: userId,
+        itemKey,
+        // "Complete Anyway" can log a skip penalty, so never auto-repeat it.
+        retry: !force,
+        attempt: () =>
+          completeItem({
+            user_id: userId,
+            item: itemKey,
+            content_id: item.id,
+            force,
+          }),
       });
+      if (outcome.kind === "recovered") {
+        toast.success(`${item.title} saved! 🏕️`);
+        onComplete();
+        return;
+      }
+      const result = outcome.result;
 
       if (result?.warning) {
         setWarningItem(item);
@@ -114,15 +129,11 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
         onComplete();
       }
     } catch (err) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : String(err);
-      toast.error("Failed: " + message);
+      toast.error(preworkFailureMessage(item.title, err));
     } finally {
       setCompletingKey(null);
     }
-  }, [userId, completeItem, onComplete]);
+  }, [userId, completeItem, onComplete, showPoints]);
 
   const handleForceComplete = useCallback(() => {
     if (warningItem) {
