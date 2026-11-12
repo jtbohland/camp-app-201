@@ -66,19 +66,35 @@ export default api({
     pointsAwarded: z.number(),
   }),
   async run(ctx, input) {
-    // Check if profile was already completed
-    const existing = await ctx.integrations.camp_201_db.query(
-      `SELECT profile_completed FROM camp201_campers WHERE email = $1 LIMIT 1`,
-      z.object({ profile_completed: z.boolean() }),
-      [input.email],
-      { label: "Check existing profile status" }
-    );
+    // Always save the signed-in cAMPer's own row (never trust the email sent from the browser),
+    // matched case-insensitively so "Hayley.A@" and "hayley.a@" are the same person.
+    const signedIn = (ctx.user.email ?? "").trim().toLowerCase();
+    if (!signedIn) throw new Error("You're signed out. Refresh the page and sign in again.");
+    if (input.email && input.email.trim().toLowerCase() !== signedIn) {
+      throw new Error("You can only edit your own profile.");
+    }
 
-    const wasAlreadyCompleted = existing.length > 0 && existing[0].profile_completed;
+    const existing = await ctx.integrations.camp_201_db.query(
+      `SELECT id, profile_completed FROM camp201_campers
+       WHERE lower(email) = $1 AND removed_at IS NULL
+       ORDER BY id DESC LIMIT 1`,
+      z.object({ id: z.coerce.number(), profile_completed: z.boolean() }),
+      [signedIn],
+      { label: "Find signed-in cAMPer" }
+    );
+    if (!existing[0]) throw new Error("We couldn't find your cAMPer profile. Refresh the page and try again.");
+    const camperId = existing[0].id;
+    const wasAlreadyCompleted = existing[0].profile_completed;
 
     // Determine if profile is now complete
-    const iceBreakerAnswers = input.ice_breaker_answers ? JSON.parse(input.ice_breaker_answers) : {};
-    const iceBreakerKeys = Object.keys(iceBreakerAnswers).filter(k => iceBreakerAnswers[k]?.trim());
+    let iceBreakerAnswers: Record<string, string> = {};
+    try {
+      const parsed = input.ice_breaker_answers ? JSON.parse(input.ice_breaker_answers) : {};
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) iceBreakerAnswers = parsed;
+    } catch {
+      iceBreakerAnswers = {};
+    }
+    const iceBreakerKeys = Object.keys(iceBreakerAnswers).filter((k) => typeof iceBreakerAnswers[k] === "string" && iceBreakerAnswers[k].trim());
     const iceBreakerComplete = iceBreakerKeys.length >= 16;
     const isComplete = !!(input.bio && input.fun_fact && input.goal_1 && input.goal_2 && input.goal_3 && iceBreakerComplete);
 
@@ -100,8 +116,8 @@ export default api({
         ice_breaker_answers = $14::jsonb,
         manager_email = NULLIF($15, ''),
         updated_at = NOW()
-      WHERE email = $1`,
-      [input.email, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete, input.ice_breaker_answers ?? '{}', input.manager_email ?? ""],
+      WHERE id = $1`,
+      [camperId, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete, JSON.stringify(iceBreakerAnswers), input.manager_email ?? ""],
       { label: "Update camper profile" }
     );
 
@@ -110,24 +126,24 @@ export default api({
     if (isComplete && !wasAlreadyCompleted) {
       pointsAwarded = 15;
       await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + 15 WHERE email = $1`,
-        [input.email],
+        `UPDATE camp201_campers SET points = points + 15 WHERE id = $1`,
+        [camperId],
         { label: "Award profile completion points" }
       );
       await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
          SELECT id, 15, 'Profile completed', 'system'
-         FROM camp201_campers WHERE email = $1`,
-        [input.email],
+         FROM camp201_campers WHERE id = $1`,
+        [camperId],
         { label: "Log profile completion points" }
       );
     }
 
     // Fetch and return updated camper
     const campers = await ctx.integrations.camp_201_db.query(
-      `SELECT * FROM camp201_campers WHERE email = $1 LIMIT 1`,
+      `SELECT * FROM camp201_campers WHERE id = $1 LIMIT 1`,
       CamperSchema,
-      [input.email],
+      [camperId],
       { label: "Fetch updated camper" }
     );
 

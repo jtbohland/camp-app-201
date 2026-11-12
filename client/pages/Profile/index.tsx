@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,18 @@ import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 import FromYourManagerCard from "@/components/FromYourManagerCard/index.js";
 import DietaryCard from "@/components/DietaryCard/index.js";
 import { formatLastSeenFull } from "@/lib/lastSeen.js";
+import { executeApi } from "@/lib/executeApi.js";
+import { READ_ONLY_MESSAGE } from "@/lib/readOnlyGuard";
+import { clearProfileDraft, loadProfileDraft, saveProfileDraft, sameDraft, type ProfileDraft } from "@/lib/profileDraft.js";
+
+function errorText(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object") {
+    const e = err as { message?: unknown; name?: unknown; code?: unknown };
+    return String(e.message ?? e.name ?? e.code ?? "Request failed");
+  }
+  return "Request failed";
+}
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -46,69 +58,161 @@ export default function ProfilePage() {
   const [goal2, setGoal2] = useState("");
   const [goal3, setGoal3] = useState("");
   const [iceBreakerAnswers, setIceBreakerAnswers] = useState<Record<string, string>>({});
+  const [restoredDraft, setRestoredDraft] = useState(false);
 
-  // Populate form when data loads
+  const email = (user?.email ?? "").trim().toLowerCase();
+  const draft: ProfileDraft = useMemo(
+    () => ({ bio, photoUrl, linkedinOption, linkedinUrl, managerEmail, funFact, goal1, goal2, goal3, iceBreakerAnswers }),
+    [bio, photoUrl, linkedinOption, linkedinUrl, managerEmail, funFact, goal1, goal2, goal3, iceBreakerAnswers]
+  );
+  // What's saved on the server (for the "unsaved changes" check).
+  const [saved, setSaved] = useState<ProfileDraft | null>(null);
+  const hydratedFor = useRef<number | null>(null);
+
+  const applyDraft = useCallback((d: ProfileDraft) => {
+    setBio(d.bio);
+    setPhotoUrl(d.photoUrl);
+    setLinkedinOption(d.linkedinOption);
+    setLinkedinUrl(d.linkedinUrl);
+    setManagerEmail(d.managerEmail);
+    setFunFact(d.funFact);
+    setGoal1(d.goal1);
+    setGoal2(d.goal2);
+    setGoal3(d.goal3);
+    setIceBreakerAnswers(d.iceBreakerAnswers);
+  }, []);
+
+  // Fill the form from the server ONCE per cAMPer. Later refetches (after Dietary, Flight Info or a
+  // goal check-off saves) must never overwrite what the cAMPer is still typing.
+  // If this browser has unsaved edits from before (failed save, refresh), bring them back.
   useEffect(() => {
-    if (data?.camper) {
-      const c = data.camper;
-      setBio(c.bio ?? "");
-      setPhotoUrl(c.photo_url ?? "");
-      setLinkedinOption(c.linkedin_option ?? "none");
-      setLinkedinUrl(c.linkedin_url ?? "");
-      setManagerEmail(c.manager_email ?? "");
-      setFunFact(c.fun_fact ?? "");
-      setGoal1(c.goal_1 ?? "");
-      setGoal2(c.goal_2 ?? "");
-      setGoal3(c.goal_3 ?? "");
-      // Load ice breaker answers from JSONB or legacy columns
-      const savedAnswers = (c.ice_breaker_answers && typeof c.ice_breaker_answers === 'object' && Object.keys(c.ice_breaker_answers).length > 0)
-        ? c.ice_breaker_answers as Record<string, string>
+    const c = data?.camper;
+    if (!c || hydratedFor.current === c.id) return;
+    hydratedFor.current = c.id;
+
+    // Ice breaker answers from JSONB, or the legacy q1/q2/q3 columns if JSONB is empty.
+    const savedAnswers: Record<string, string> =
+      c.ice_breaker_answers && typeof c.ice_breaker_answers === "object" && Object.keys(c.ice_breaker_answers).length > 0
+        ? { ...(c.ice_breaker_answers as Record<string, string>) }
         : {};
-      // Migrate legacy q1/q2/q3 if JSONB is empty
-      if (Object.keys(savedAnswers).length === 0 && (c.ice_breaker_q1 || c.ice_breaker_q2 || c.ice_breaker_q3)) {
-        if (c.ice_breaker_q1) savedAnswers.q0 = c.ice_breaker_q1;
-        if (c.ice_breaker_q2) savedAnswers.q1 = c.ice_breaker_q2;
-        if (c.ice_breaker_q3) savedAnswers.q2 = c.ice_breaker_q3;
-      }
-      setIceBreakerAnswers(savedAnswers);
+    if (Object.keys(savedAnswers).length === 0 && (c.ice_breaker_q1 || c.ice_breaker_q2 || c.ice_breaker_q3)) {
+      if (c.ice_breaker_q1) savedAnswers.q0 = c.ice_breaker_q1;
+      if (c.ice_breaker_q2) savedAnswers.q1 = c.ice_breaker_q2;
+      if (c.ice_breaker_q3) savedAnswers.q2 = c.ice_breaker_q3;
     }
-  }, [data]);
+    const server: ProfileDraft = {
+      bio: c.bio ?? "",
+      photoUrl: c.photo_url ?? "",
+      linkedinOption: c.linkedin_option ?? "none",
+      linkedinUrl: c.linkedin_url ?? "",
+      managerEmail: c.manager_email ?? "",
+      funFact: c.fun_fact ?? "",
+      goal1: c.goal_1 ?? "",
+      goal2: c.goal_2 ?? "",
+      goal3: c.goal_3 ?? "",
+      iceBreakerAnswers: savedAnswers,
+    };
+    setSaved(server);
+
+    const local = loadProfileDraft(email);
+    if (local && !sameDraft(local, server)) {
+      // Keep anything saved on the server that the local copy left blank.
+      const merged: ProfileDraft = {
+        ...local,
+        photoUrl: local.photoUrl || server.photoUrl,
+        iceBreakerAnswers: { ...server.iceBreakerAnswers, ...Object.fromEntries(Object.entries(local.iceBreakerAnswers).filter(([, v]) => (v ?? "").trim())) },
+      };
+      applyDraft(merged);
+      setRestoredDraft(true);
+    } else {
+      applyDraft(server);
+      clearProfileDraft(email);
+    }
+  }, [data, email, applyDraft]);
+
+  const dirty = saved !== null && !sameDraft(draft, saved);
+
+  // Keep unsaved edits in this browser (debounced) so a failed save or refresh never loses them.
+  useEffect(() => {
+    if (!saved || !email) return;
+    const t = setTimeout(() => {
+      if (dirty) saveProfileDraft(email, draft);
+      else clearProfileDraft(email);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [draft, dirty, saved, email]);
+
+  // Warn before leaving with unsaved edits.
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   const handleSave = useCallback(async () => {
-    try {
-      const result = await updateProfile({
-        email: user?.email ?? "",
-        photo_url: photoUrl || null,
-        bio: bio || null,
-        linkedin_option: linkedinOption,
-        linkedin_url: linkedinUrl || null,
-        fun_fact: funFact || null,
-        goal_1: goal1 || null,
-        goal_2: goal2 || null,
-        goal_3: goal3 || null,
-        ice_breaker_q1: iceBreakerAnswers.q0 || null,
-        ice_breaker_q2: iceBreakerAnswers.q1 || null,
-        ice_breaker_q3: iceBreakerAnswers.q2 || null,
-        ice_breaker_answers: JSON.stringify(iceBreakerAnswers),
-        manager_email: managerEmail.trim().toLowerCase(),
-      });
+    const payload = {
+      email: user?.email ?? "",
+      photo_url: photoUrl || null,
+      bio: bio || null,
+      linkedin_option: linkedinOption,
+      linkedin_url: linkedinUrl || null,
+      fun_fact: funFact || null,
+      goal_1: goal1 || null,
+      goal_2: goal2 || null,
+      goal_3: goal3 || null,
+      ice_breaker_q1: iceBreakerAnswers.q0 || null,
+      ice_breaker_q2: iceBreakerAnswers.q1 || null,
+      ice_breaker_q3: iceBreakerAnswers.q2 || null,
+      ice_breaker_answers: JSON.stringify(iceBreakerAnswers),
+      manager_email: managerEmail.trim().toLowerCase(),
+    };
+    // Saved copy first: whatever happens next, the cAMPer's typing survives a refresh.
+    saveProfileDraft(email, draft);
 
-      const justCompleted = !data?.camper?.profile_completed && result?.camper?.profile_completed;
-      if (result && result.pointsAwarded > 0) {
-        toast.success(`Profile saved! 🎉 +${result.pointsAwarded} points earned for completing your profile!`);
-      } else {
-        toast.success("Profile updated successfully!");
+    let result: Awaited<ReturnType<typeof updateProfile>> | undefined;
+    try {
+      result = await updateProfile(payload);
+    } catch (firstErr) {
+      if (errorText(firstErr) === READ_ONLY_MESSAGE) return;
+      console.error("[profile] save failed (attempt 1)", firstErr);
+      // One automatic retry covers a brief network or platform blip.
+      await new Promise((r) => setTimeout(r, 800));
+      try {
+        result = await executeApi("UpdateCamperProfile", payload);
+      } catch (secondErr) {
+        console.error("[profile] save failed (attempt 2)", secondErr);
+        const detail = errorText(secondErr);
+        toast.error(
+          /not\s?found/i.test(detail)
+            ? `Couldn't save your profile. The app was just updated: refresh the page and click Save Profile again. Your answers will still be here. (${detail})`
+            : `Couldn't save your profile. Your answers are kept on this device, so try Save Profile again in a moment. (${detail})`,
+          { duration: 12000 }
+        );
+        return;
       }
-      await refetch();
-      if (justCompleted) navigate("/");
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String((error as { message: unknown }).message)
-          : String(error);
-      toast.error("Failed to save profile: " + message);
     }
-  }, [user?.email, bio, photoUrl, linkedinOption, linkedinUrl, managerEmail, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch, data?.camper?.profile_completed, navigate]);
+
+    // Saved: this is now the server copy, and nothing is left to restore.
+    clearProfileDraft(email);
+    setSaved(draft);
+    setRestoredDraft(false);
+    const justCompleted = !data?.camper?.profile_completed && result?.camper?.profile_completed;
+    if (result && result.pointsAwarded > 0) {
+      toast.success(`Profile saved! 🎉 +${result.pointsAwarded} points earned for completing your profile!`);
+    } else {
+      toast.success("Profile saved!");
+    }
+    try {
+      await refetch();
+    } catch {
+      /* the save already landed; a failed refresh isn't worth an error */
+    }
+    if (justCompleted) navigate("/");
+  }, [user?.email, email, draft, bio, photoUrl, linkedinOption, linkedinUrl, managerEmail, funFact, goal1, goal2, goal3, iceBreakerAnswers, updateProfile, refetch, data?.camper?.profile_completed, navigate]);
 
   const handleToggleGoal = useCallback(async (goalNumber: number, achieved: boolean) => {
     if (!data?.camper?.id) return;
@@ -181,6 +285,15 @@ export default function ProfilePage() {
               Complete your profile to unlock the rest of cAMP 201: bio, fun fact, three goals and all ice breaker questions. Then click <span className="font-medium text-foreground">Save Profile</span>.
             </p>
           </div>
+        </div>
+      )}
+
+      {restoredDraft && dirty && (
+        <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3">
+          <Icon icon="history" className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" />
+          <p className="text-sm text-sky-900">
+            We brought back edits you hadn't saved yet. Review them, then click <span className="font-semibold">Save Profile</span>.
+          </p>
         </div>
       )}
 
@@ -399,7 +512,11 @@ export default function ProfilePage() {
       {/* Save Button */}
       <div className="flex items-center justify-between py-4 sticky bottom-0 bg-background border-t border-border -mx-8 px-8">
         <div className="text-sm text-muted-foreground">
-          {isComplete ? (
+          {dirty ? (
+            <span className="flex items-center gap-1 font-medium text-amber-700">
+              <Icon icon="circle-alert" className="w-4 h-4" /> Unsaved changes. Click Save Profile.
+            </span>
+          ) : isComplete ? (
             <span className="text-camp-green flex items-center gap-1">
               <Icon icon="check" className="w-4 h-4" /> All required fields complete
             </span>

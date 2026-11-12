@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
+import { denseRanks } from "@/lib/rank.js";
 
 type Leader = {
   camper_id: number;
@@ -31,6 +32,8 @@ export default function WheelLeaderboard() {
   }
 
   const topPitcher = leaders[0];
+  // Tied scores share a place (8, 8, 9).
+  const places = denseRanks(leaders.map((l) => l.total_points));
 
   return (
     <div className="border-2 border-blue-200 rounded-xl overflow-hidden bg-gradient-to-b from-blue-50/50 to-background">
@@ -67,7 +70,7 @@ export default function WheelLeaderboard() {
           </thead>
           <tbody className="divide-y divide-border/50">
             {leaders.map((l, idx) => {
-              const rank = idx + 1;
+              const rank = places[idx];
               const isFirst = rank === 1 && l.total_points > 0;
               const isSecond = rank === 2 && l.total_points > 0;
               const isThird = rank === 3 && l.total_points > 0;

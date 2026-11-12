@@ -8,6 +8,7 @@ import LogoVoting from "@/components/LogoVoting/index.js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
+import { denseRanks } from "@/lib/rank.js";
 
 export default function TeamsTab() {
   const user = useSuperblocksUser();
@@ -24,6 +25,9 @@ export default function TeamsTab() {
     teams.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
     return teams;
   }, [teamsData?.teams]);
+
+  // Tied teams share a place (1, 1, 2).
+  const teamPlaces = useMemo(() => denseRanks(rankedTeams.map((t) => t.total_points ?? 0)), [rankedTeams]);
 
   // Collect used colors from existing teams for color lockout
   const usedColors = useMemo(() =>
@@ -80,7 +84,7 @@ export default function TeamsTab() {
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-md rounded-xl">
                   <div className="text-center p-4">
                     <div className="text-3xl mb-1">🏆</div>
-                    <p className="font-semibold text-sm">#{idx + 1} — Awaiting Reveal</p>
+                    <p className="font-semibold text-sm">#{teamPlaces[idx]} — Awaiting Reveal</p>
                     <p className="text-xs text-muted-foreground">Stay tuned for the podium ceremony!</p>
                   </div>
                 </div>
@@ -89,7 +93,7 @@ export default function TeamsTab() {
                 team={team}
                 isAdmin={isAdmin}
                 currentCamperId={camperData?.camper?.id}
-                rank={idx + 1}
+                rank={teamPlaces[idx]}
                 totalTeams={rankedTeams.length}
                 usedColors={usedColors}
                 onRefresh={refetchTeams}

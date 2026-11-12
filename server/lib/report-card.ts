@@ -138,13 +138,13 @@ export async function loadReportCard(
     db.query(
       `WITH me AS (SELECT $1::int AS id, $2::int AS cohort, $3::int AS team)
        SELECT
-         (SELECT COUNT(*) + 1 FROM camp201_campers x, me
+         (SELECT COUNT(DISTINCT COALESCE(x.points,0)) + 1 FROM camp201_campers x, me
             WHERE x.cohort_id = me.cohort AND x.role NOT IN ('counselor','admin')
               AND COALESCE(x.points,0) > $4) AS rank,
          (SELECT COUNT(*) FROM camp201_campers x, me
             WHERE x.cohort_id = me.cohort AND x.role NOT IN ('counselor','admin')) AS total_campers,
          (SELECT r FROM (
-            SELECT t.id, RANK() OVER (ORDER BY COALESCE(t.team_points,0) + COALESCE(SUM(x.points),0) DESC) AS r
+            SELECT t.id, DENSE_RANK() OVER (ORDER BY COALESCE(t.team_points,0) + COALESCE(SUM(x.points),0) DESC) AS r
             FROM camp201_teams t
             LEFT JOIN camp201_campers x ON x.team_id = t.id AND x.role NOT IN ('counselor','admin')
             WHERE t.cohort_id = (SELECT cohort FROM me)

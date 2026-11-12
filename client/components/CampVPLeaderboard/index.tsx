@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
+import { denseRanks } from "@/lib/rank.js";
 
 type TeamMember = {
   id: number;
@@ -79,6 +80,9 @@ export default function CampVPLeaderboard({ teams }: Props) {
     return all;
   }, [teams]);
 
+  // Ties share a place and the next group is the next number (8, 8, 8, 9).
+  const places = useMemo(() => denseRanks(rankedCampers.map((c) => c.points)), [rankedCampers]);
+
   if (rankedCampers.length === 0) return null;
 
   const topCamper = rankedCampers[0];
@@ -131,7 +135,7 @@ export default function CampVPLeaderboard({ teams }: Props) {
           </thead>
           <tbody className="divide-y divide-border/50">
             {rankedCampers.map((camper, idx) => {
-              const rank = idx + 1;
+              const rank = places[idx];
               const isFirst = rank === 1 && camper.points > 0;
               const isSecond = rank === 2 && camper.points > 0;
               const isThird = rank === 3 && camper.points > 0;
