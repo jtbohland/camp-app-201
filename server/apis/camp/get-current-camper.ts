@@ -41,6 +41,9 @@ const CamperSchema = z.object({
   updated_at: z.string(),
   removed_at: z.string().nullable().optional(),
   rejoin_requested_at: z.string().nullable().optional(),
+  last_seen_at: z.string().nullable().optional(),
+  dietary_options: z.array(z.string()).nullable().optional(),
+  dietary_notes: z.string().nullable().optional(),
 });
 
 export default api({
@@ -81,6 +84,23 @@ export default api({
     const camper = campers[0];
     if (camper.removed_at) {
       return { camper: null, isRegistered: false, isRemoved: true, rejoinPending: !!camper.rejoin_requested_at, needsRegistration: false };
+    }
+
+    // Last login: only when the signed-in person opens their own record, at most every 5 minutes.
+    const isSelf = (ctx.user.email ?? "").trim().toLowerCase() === (camper.email ?? "").trim().toLowerCase();
+    if (isSelf) {
+      const bumped = await ctx.integrations.camp_201_db.query(
+        `WITH u AS (
+           UPDATE camp201_campers SET last_seen_at = NOW()
+           WHERE id = $1 AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL '5 minutes')
+           RETURNING last_seen_at::text AS last_seen_at
+         )
+         SELECT last_seen_at FROM u LIMIT 1`,
+        z.object({ last_seen_at: z.string() }),
+        [camper.id],
+        { label: "Record last login" }
+      );
+      if (bumped[0]) camper.last_seen_at = bumped[0].last_seen_at;
     }
 
     // Every registration field is required. Counselors never register this way.

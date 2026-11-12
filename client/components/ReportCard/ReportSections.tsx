@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import { APPROVAL_LABELS, formatDuration } from "@/lib/absences.js";
+import { formatLastSeen, formatLastSeenFull } from "@/lib/lastSeen.js";
+import { dietaryLabel, isAllergy } from "@/lib/dietary.js";
 import { EmptyLine, ReportSection, ReportStat, fmtDate } from "./ReportSection.js";
 import type { ReportCardData } from "./types.js";
 import type { IconName } from "lucide-react/dynamic";
@@ -306,9 +308,11 @@ export function ProfileSection({ data, showPin = true }: Props & { showPin?: boo
     : p.flight_departure_date
       ? `${p.flight_departure_date}${p.flight_departure_time ? ` at ${p.flight_departure_time}` : ""}`
       : "Not provided";
-  const rows: { label: string; value: string }[] = [
+  const diet = p.dietary_options ?? [];
+  const rows: { label: string; value: string; title?: string }[] = [
     { label: "Profile", value: p.profile_completed ? "Complete" : "Incomplete" },
     { label: "Registered", value: fmtDate(p.created_at) },
+    { label: "Last login", value: formatLastSeen(p.last_seen_at), title: formatLastSeenFull(p.last_seen_at) },
     { label: "Start date", value: p.start_date ? fmtDate(p.start_date) : "—" },
     { label: "City", value: p.city || "—" },
     { label: "Departure flight", value: flight },
@@ -320,10 +324,45 @@ export function ProfileSection({ data, showPin = true }: Props & { showPin?: boo
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between gap-3 border-b border-border py-1.5 last:border-0">
             <span className="text-xs text-muted-foreground">{r.label}</span>
-            <span className={`text-xs font-medium ${r.value === "Incomplete" ? "text-amber-700" : "text-foreground"}`}>{r.value}</span>
+            <span
+              title={r.title}
+              className={`text-xs font-medium ${r.value === "Incomplete" || r.value === "Never" ? "text-amber-700" : "text-foreground"}`}
+            >
+              {r.value}
+            </span>
           </div>
         ))}
       </div>
+      {p.dietary_options !== null && (
+      <div className="mt-3 rounded-lg bg-muted/40 px-3 py-2">
+        <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <Icon icon="utensils" className="h-3 w-3" /> Dietary considerations
+        </p>
+        {diet.length === 0 && !p.dietary_notes?.trim() ? (
+          <p className="text-xs text-muted-foreground">None shared</p>
+        ) : (
+          <>
+            {diet.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {diet.map((d) => (
+                  <span
+                    key={d}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      isAllergy(d) ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-800"
+                    }`}
+                  >
+                    {dietaryLabel(d)}
+                  </span>
+                ))}
+              </div>
+            )}
+            {p.dietary_notes?.trim() && (
+              <p className="mt-1.5 whitespace-pre-line text-xs text-foreground/80">{p.dietary_notes}</p>
+            )}
+          </>
+        )}
+      </div>
+      )}
       {p.fun_fact && (
         <p className="mt-3 text-xs italic text-foreground/70">
           <span className="font-semibold not-italic text-muted-foreground">Fun fact: </span>"{p.fun_fact}"

@@ -11,6 +11,11 @@ const TeamMetricSchema = z.object({
   member_count: z.coerce.number(),
   avg_points: z.coerce.number(),
   checkin_rate: z.coerce.number(),
+  /** Company this team presents on (Zillow, Coursera…), set in Team Generator → Company assignment. */
+  assigned_company: z
+    .object({ name: z.string(), emoji: z.string().nullable().optional(), color: z.string().nullable().optional() })
+    .passthrough()
+    .nullable(),
 });
 
 export default api({
@@ -37,7 +42,7 @@ export default api({
     const params = effectiveCohortId ? [effectiveCohortId] : undefined;
 
     const teams = await ctx.integrations.camp_201_db.query(
-      `SELECT t.id, t.name,
+      `SELECT t.id, t.name, t.assigned_company,
               COALESCE(SUM(c.points), 0)::int + COALESCE(t.team_points, 0) as total_points,
               COUNT(c.id)::int as member_count,
               COALESCE(AVG(c.points), 0)::int as avg_points,
@@ -56,7 +61,7 @@ export default api({
        FROM camp201_teams t
        LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
        WHERE 1=1 ${cohortFilter}
-       GROUP BY t.id, t.team_points, t.cohort_id
+       GROUP BY t.id, t.team_points, t.cohort_id, t.assigned_company
        ORDER BY total_points DESC
        LIMIT 50`,
       TeamMetricSchema,

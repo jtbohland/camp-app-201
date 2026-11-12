@@ -21,6 +21,8 @@ import FlightDepartureSection from "@/components/FlightDepartureSection/index.js
 import AbsenceRequestCard from "@/components/AbsenceRequestCard/index.js";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
 import FromYourManagerCard from "@/components/FromYourManagerCard/index.js";
+import DietaryCard from "@/components/DietaryCard/index.js";
+import { formatLastSeenFull } from "@/lib/lastSeen.js";
 
 export default function ProfilePage() {
   const user = useSuperblocksUser();
@@ -184,6 +186,13 @@ export default function ProfilePage() {
 
       {/* XP / current place / team banner */}
       <ProfileStandingBanner camperId={camper?.id ?? 0} />
+
+      {/* Transparency: counselors + managers see when they last opened the app */}
+      <p className="-mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon icon="log-in" className="h-3.5 w-3.5" />
+        Last login: <span className="font-medium text-foreground">{formatLastSeenFull(camper?.last_seen_at)}</span>
+        <span>· Your counselors and manager can see this.</span>
+      </p>
 
       {/* Notes shared by their manager (reply / acknowledge only) */}
       <FromYourManagerCard />
@@ -358,8 +367,14 @@ export default function ProfilePage() {
       {/* Ice Breaker Questions */}
       <IceBreakerSection answers={iceBreakerAnswers} onChange={setIceBreakerAnswers} />
 
-      {/* Logistics: PIN, flight, absences */}
+      {/* Logistics: PIN, dietary, flight, absences */}
       <CheckInPinCard pin={camper?.pin} />
+
+      <DietaryCard
+        savedOptions={camper?.dietary_options}
+        savedNotes={camper?.dietary_notes}
+        onSaved={refetch}
+      />
 
       <FlightDepartureSection
         camperId={camper?.id ?? 0}

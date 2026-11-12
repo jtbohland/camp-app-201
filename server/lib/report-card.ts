@@ -39,6 +39,9 @@ const ProfileRow = z.object({
   flight_departure_date: z.string().nullable(),
   flight_departure_time: z.string().nullable(),
   created_at: z.string(),
+  last_seen_at: z.string().nullable(),
+  dietary_options: z.array(z.string()).nullable(),
+  dietary_notes: z.string().nullable(),
 });
 
 const CountsRow = z.object({
@@ -97,8 +100,15 @@ export const ReportCardSchema = z.object({
 });
 export type ReportCard = z.infer<typeof ReportCardSchema>;
 
-/** Everything one cAMPer has done, earned and lost. `includePin` is for counselors only. */
-export async function loadReportCard(db: any, camperId: number, opts: { includePin: boolean }): Promise<ReportCard> {
+/**
+ * Everything one cAMPer has done, earned and lost.
+ * `includePin` and `includeDietary` are for counselors only (managers never get them).
+ */
+export async function loadReportCard(
+  db: any,
+  camperId: number,
+  opts: { includePin: boolean; includeDietary?: boolean }
+): Promise<ReportCard> {
   const empty: ReportCard = { found: false, profile: null, stats: null, points_log: [], checkins: [], badges: [], absences: [], absences_used: 0, absence_limit: ABSENCE_LIMIT, rubric_scores: [], teammates: [] };
 
   const profiles = await db.query(
@@ -108,7 +118,8 @@ export async function loadReportCard(db: any, camperId: number, opts: { includeP
             COALESCE(c.points, 0) AS points, c.profile_completed,
             c.goal_1, c.goal_2, c.goal_3, c.goal_1_achieved, c.goal_2_achieved, c.goal_3_achieved,
             c.pin, c.cohort_id, c.team_id, t.name AS team_name, t.color AS team_color, t.logo_url AS team_logo_url,
-            c.flight_is_local, c.flight_departure_date, c.flight_departure_time, c.created_at::text AS created_at
+            c.flight_is_local, c.flight_departure_date, c.flight_departure_time, c.created_at::text AS created_at,
+            c.last_seen_at::text AS last_seen_at, c.dietary_options, c.dietary_notes
      FROM camp201_campers c
      LEFT JOIN camp201_teams t ON t.id = c.team_id
      LEFT JOIN LATERAL (
@@ -234,7 +245,13 @@ export async function loadReportCard(db: any, camperId: number, opts: { includeP
 
   return {
     found: true,
-    profile: { ...p, pin: opts.includePin ? p.pin : null, manager_display: managerDisplay },
+    profile: {
+      ...p,
+      pin: opts.includePin ? p.pin : null,
+      dietary_options: opts.includeDietary ? p.dietary_options ?? [] : null,
+      dietary_notes: opts.includeDietary ? p.dietary_notes : null,
+      manager_display: managerDisplay,
+    },
     stats: {
       ...rest,
       survey_days: (surveys_days ?? "").split(",").filter(Boolean).map(Number).sort((a, b) => a - b),
