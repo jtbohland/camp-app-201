@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { ABSENCE_LIMIT, counselorPasswordMatches, getAbsenceCounts } from "../../lib/absences.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
+import { BlackoutSessionSchema, loadBlackoutWindows, overlappingBlackouts } from "../../lib/blackouts.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -29,10 +30,15 @@ export default api({
   output: z.object({
     success: z.boolean(),
     id: z.number().nullable(),
-    /** limit_reached: show the "you've used all 3" modal. bad_password: wrong counselor password. */
-    error: z.enum(["limit_reached", "bad_password", "camp_closed"]).nullable(),
+    /**
+     * limit_reached: show the "you've used all 3" modal. bad_password: wrong counselor password.
+     * blackout: overlaps a required session for this cAMPer's role (never saved, even with a counselor password).
+     */
+    error: z.enum(["limit_reached", "bad_password", "camp_closed", "blackout"]).nullable(),
     standard_used: z.number(),
     limit: z.number(),
+    /** The required sessions it overlaps, when error = "blackout". */
+    blackout_sessions: z.array(BlackoutSessionSchema),
   }),
   async run(ctx, input) {
     const db = ctx.integrations.camp_201_db;
@@ -44,27 +50,41 @@ export default api({
 
     // Only the signed-in cAMPer can request their own absence.
     const owner = await db.query(
-      `SELECT id, cohort_id FROM camp201_campers WHERE id = $1 AND lower(email) = lower($2) AND removed_at IS NULL LIMIT 1`,
-      z.object({ id: z.coerce.number(), cohort_id: z.coerce.number().nullable() }),
+      `SELECT id, cohort_id, role FROM camp201_campers WHERE id = $1 AND lower(email) = lower($2) AND removed_at IS NULL LIMIT 1`,
+      z.object({ id: z.coerce.number(), cohort_id: z.coerce.number().nullable(), role: z.string().nullable() }),
       [input.camper_id, ctx.user.email ?? ""],
       { label: "Verify camper" }
     );
     if (!owner[0]) throw new Error("You can only request your own absences.");
 
     if (await isCampClosed(db)) {
-      return { success: false, id: null, error: "camp_closed" as const, standard_used: 0, limit: ABSENCE_LIMIT };
+      return { success: false, id: null, error: "camp_closed" as const, standard_used: 0, limit: ABSENCE_LIMIT, blackout_sessions: [] };
     }
 
     const counts = await getAbsenceCounts(db, input.camper_id);
+
+    // Required sessions can't be missed, so this is checked before the 3-absence limit.
+    const { windows } = await loadBlackoutWindows(db);
+    const hits = overlappingBlackouts(windows, owner[0].role, start, end);
+    if (hits.length > 0) {
+      return {
+        success: false,
+        id: null,
+        error: "blackout" as const,
+        standard_used: counts.standard_used,
+        limit: ABSENCE_LIMIT,
+        blackout_sessions: hits,
+      };
+    }
     let approvalType = "standard";
     let approvedBy: string | null = null;
 
     if (counts.standard_used >= ABSENCE_LIMIT) {
       if (!input.counselor_approval) {
-        return { success: false, id: null, error: "limit_reached" as const, standard_used: counts.standard_used, limit: ABSENCE_LIMIT };
+        return { success: false, id: null, error: "limit_reached" as const, standard_used: counts.standard_used, limit: ABSENCE_LIMIT, blackout_sessions: [] };
       }
       if (!(await counselorPasswordMatches(db, input.counselor_approval.password))) {
-        return { success: false, id: null, error: "bad_password" as const, standard_used: counts.standard_used, limit: ABSENCE_LIMIT };
+        return { success: false, id: null, error: "bad_password" as const, standard_used: counts.standard_used, limit: ABSENCE_LIMIT, blackout_sessions: [] };
       }
       approvalType = input.counselor_approval.type === "emergency" ? "counselor_emergency" : "counselor_penalty";
       approvedBy = "counselor (password)";
@@ -84,6 +104,7 @@ export default api({
       error: null,
       standard_used: counts.standard_used + (approvalType === "standard" ? 1 : 0),
       limit: ABSENCE_LIMIT,
+      blackout_sessions: [],
     };
   },
 });

@@ -12,6 +12,7 @@ import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import ExecutivesTab from "@/components/ExecutivesTab/index.js";
 import AgendaResources from "@/components/AgendaResources/index.js";
+import { getRoleGroup } from "@/lib/roles.js";
 
 const DAY_LABELS: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
 
@@ -59,6 +60,7 @@ export default function AgendaPage() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
+  const myRole = getRoleGroup(camperData?.camper?.role);
 
   const { isAdmin } = useIsAdmin();
 
@@ -131,7 +133,7 @@ export default function AgendaPage() {
         .sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
       // Add lunch if not present
       if (!items.some((item: any) => item.session_type === "lunch" || (item.title === "Lunch" && item.session_type === "break"))) {
-        items.push({ id: -dayNum, title: "Lunch", session_type: "lunch", start_time: "12:00", end_time: "13:00", day_number: dayNum, session_bank_id: null });
+        items.push({ id: -dayNum, title: "Lunch", session_type: "lunch", start_time: "12:00", end_time: "13:00", day_number: dayNum, session_bank_id: null, is_blackout: false, blackout_roles: [] });
         items.sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
       }
       return { dayNumber: dayNum, label: DAY_LABELS[dayNum], items };
@@ -217,6 +219,9 @@ export default function AgendaPage() {
                           const colors = TYPE_COLORS[item.session_type] ?? TYPE_COLORS.session;
                           const isExec = item.session_type === "executive";
                           const isLunch = item.session_type === "lunch" || (item.title?.toLowerCase().includes("lunch"));
+                          const roles: string[] = item.blackout_roles ?? [];
+                          // Counselors see every required session; cAMPers see the ones for their role.
+                          const isRequired = !!item.is_blackout && (isAdmin || roles.length === 0 || (myRole !== null && roles.includes(myRole)));
                           return (
                             <div key={item.id} className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${colors.bg} ${colors.border}`}>
                               <div className="w-24 shrink-0 text-xs text-muted-foreground font-mono">
@@ -226,7 +231,17 @@ export default function AgendaPage() {
                                 <span className={`text-sm font-medium ${colors.text}`}>
                                   {isExec && "⭐ "}{item.title}
                                 </span>
-                                {isExec && <span className="text-[10px] text-yellow-600 ml-2 italic">Mandatory</span>}
+                                {isRequired ? (
+                                  <span
+                                    className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700"
+                                    title="Blackout period: absences can't be requested during this session"
+                                  >
+                                    <Icon icon="shield-alert" className="h-3 w-3" />
+                                    Required{isAdmin && roles.length > 0 ? ` · ${roles.length} role${roles.length === 1 ? "" : "s"}` : ""}
+                                  </span>
+                                ) : (
+                                  isExec && <span className="text-[10px] text-yellow-600 ml-2 italic">Mandatory</span>
+                                )}
                                 {isLunch && (
                                   <a
                                     href={LUNCH_MENU_URL}

@@ -34,6 +34,8 @@ import AgendaResources from "@/components/AgendaResources/index.js";
 import ConfirmRemoveDialog from "@/components/ConfirmRemoveDialog/index.js";
 import EditAgendaItemDialog from "@/components/EditAgendaItemDialog/index.js";
 import { findSlotConflict, eventPoint } from "@/lib/agendaRules";
+import { sameBlackout, type BlackoutValue } from "@/components/BlackoutSettings/index.js";
+import BlackoutConflictsNotice from "@/components/BlackoutConflictsNotice/index.js";
 
 const SNAP_MIN = 15;
 
@@ -84,6 +86,7 @@ export default function AgendaScheduleTab() {
   const { run: clearDay } = useApi("ClearDaySchedule");
   const { run: moveItem } = useApi("MoveAgendaItem");
   const { run: editItem } = useApi("EditAgendaItem");
+  const { run: setBlackout } = useApi("SetBlackout");
 
   const [numDays, setNumDays] = useState<number | null>(null);
   const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
@@ -319,19 +322,36 @@ export default function AgendaScheduleTab() {
 
   // Edit one calendar tile's name + timing. The original Session Bank session is never changed;
   // a new name is added to the Session Bank as its own session.
-  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string, title: string) => {
+  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string, title: string, blackout: BlackoutValue) => {
     setSavingEdit(true);
+    const before: BlackoutValue = { isBlackout: !!item.is_blackout, roles: item.blackout_roles ?? [] };
+    const blackoutChanged = !sameBlackout(before, blackout);
     const prev = patchAgenda((items) =>
-      items.map((i) => (i.id === item.id ? { ...i, start_time: startTime, end_time: endTime, title } : i))
+      items.map((i) =>
+        i.id === item.id
+          ? { ...i, start_time: startTime, end_time: endTime, title, is_blackout: blackout.isBlackout, blackout_roles: blackout.isBlackout ? blackout.roles : [] }
+          : i
+      )
     );
     try {
       const result = await editItem({ id: item.id, start_time: startTime, end_time: endTime, title });
+      let conflicts = 0;
+      if (blackoutChanged) {
+        const r = await setBlackout({ target: "agenda", id: item.id, is_blackout: blackout.isBlackout, roles: blackout.roles });
+        conflicts = r?.open_conflicts ?? 0;
+      }
       if (result?.created_bank_session) {
         toast.success(`Updated tile and added "${title}" to the Session Bank`);
+      } else if (blackoutChanged) {
+        toast.success(blackout.isBlackout ? `"${title}" is now required (blackout)` : `"${title}" is no longer required`);
       } else {
         toast.success(`Updated "${title}" to ${formatTime(startTime)} – ${formatTime(endTime)}`);
       }
+      if (blackoutChanged && blackout.isBlackout && conflicts > 0) {
+        toast.warning(`${conflicts} approved absence${conflicts === 1 ? "" : "s"} now overlap a required session. Those cAMPers will be asked to reschedule.`);
+      }
       if (result?.renamed) refetchBank();
+      void queryClient.invalidateQueries("GetBlackoutConflicts");
       setEditingItem(null);
     } catch (err) {
       if (prev) queryClient.setQueryData(agendaKey, prev);
@@ -339,7 +359,7 @@ export default function AgendaScheduleTab() {
     }
     setSavingEdit(false);
     refetchAgenda();
-  }, [patchAgenda, editItem, agendaKey, refetchAgenda, refetchBank]);
+  }, [patchAgenda, editItem, setBlackout, agendaKey, refetchAgenda, refetchBank]);
 
   const bankTitles = useMemo(
     () => ((bankData?.sessions ?? []) as { title: string }[]).map((s) => s.title),
@@ -434,7 +454,19 @@ export default function AgendaScheduleTab() {
             </Select>
           </div>
         )}
-        <p className="text-[10px] text-muted-foreground italic">All times in Pacific Time (PT)</p>
+        <p className="text-[10px] text-muted-foreground italic">
+          All times in Pacific Time (PT)
+          {isAdmin && (
+            <>
+              {" · "}
+              <span className="not-italic text-red-600">
+                <Icon icon="shield-alert" className="-mt-0.5 inline h-3 w-3" /> Red edge = required (blackout).
+              </span>{" "}
+              Click a tile or a Session Bank session to change it.
+            </>
+          )}
+        </p>
+        {isAdmin && <BlackoutConflictsNotice />}
 
         {/* Main layout */}
         <div className={`flex gap-6 ${agendaFetching && !agendaLoading ? "opacity-70" : ""}`}>
@@ -493,7 +525,11 @@ export default function AgendaScheduleTab() {
               <Card className="p-4 overflow-hidden flex flex-col" style={{ height: "calc(100vh - 240px)", minHeight: "500px" }}>
                 <SessionBankPanel
                   sessions={sessions}
-                  onSessionCreated={refetchBank}
+                  onSessionCreated={() => {
+                    refetchBank();
+                    refetchAgenda();
+                    void queryClient.invalidateQueries("GetBlackoutConflicts");
+                  }}
                   showRemoveTarget={activeDragType === "agenda"}
                 />
               </Card>

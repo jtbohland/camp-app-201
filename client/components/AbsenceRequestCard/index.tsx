@@ -8,7 +8,10 @@ import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
 import AbsenceLimitDialog from "@/components/AbsenceLimitDialog/index.js";
+import BlackoutBlockedDialog from "@/components/BlackoutBlockedDialog/index.js";
+import RequiredSessionsList from "@/components/RequiredSessionsList/index.js";
 import { formatDuration, toLocalInputValue } from "@/lib/absences.js";
+import { overlapping, type BlackoutSession } from "@/lib/blackouts.js";
 
 /** Attendance bonus tiers, with the cAMPer's current tier highlighted. */
 function AttendanceBonus({ used, limit }: { used: number; limit: number }) {
@@ -60,6 +63,9 @@ type Props = {
 export default function AbsenceRequestCard({ camperId, preview = false }: Props) {
   const { data, refetch } = useApiData("GetAbsenceRequests", { camper_id: camperId }, { enabled: camperId > 0 });
   const { run: requestAbsence, loading } = useApi("RequestAbsence");
+  // Counselor preview has no cAMPer of its own, so it shows no required-session list.
+  const { data: blackoutData } = useApiData("GetMyBlackouts", {}, { enabled: camperId > 0 && !preview, staleTime: 30_000 });
+  const [blockedBy, setBlockedBy] = useState<BlackoutSession[]>([]);
 
   const [reason, setReason] = useState("");
   const [start, setStart] = useState(() => toLocalInputValue(new Date()));
@@ -80,6 +86,13 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
 
   const canSubmit = !preview && reason.trim().length >= 3 && minutes > 0 && !loading;
 
+  const requiredSessions = useMemo(
+    () => (blackoutData?.sessions ?? []).filter((s) => s.starts_at && Date.parse(s.ends_at ?? "") > Date.now()),
+    [blackoutData]
+  );
+  const hits = useMemo(() => overlapping(requiredSessions, new Date(start), new Date(end)), [requiredSessions, start, end]);
+  const hitIds = useMemo(() => new Set(hits.map((h) => h.agenda_id)), [hits]);
+
   const submit = useCallback(
     async (approval: { type: "penalty" | "emergency"; password: string } | null) => {
       try {
@@ -90,6 +103,11 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           reason: reason.trim(),
           counselor_approval: approval,
         });
+        if (result?.error === "blackout") {
+          setLimitOpen(false);
+          setBlockedBy(result.blackout_sessions ?? []);
+          return false;
+        }
         if (result?.error === "limit_reached") {
           setLimitOpen(true);
           return false;
@@ -118,12 +136,17 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
 
   const handleSubmit = useCallback(() => {
     if (preview) return;
+    // Required sessions can't be missed, even with counselor approval.
+    if (hits.length > 0) {
+      setBlockedBy(hits);
+      return;
+    }
     if (used >= limit) {
       setLimitOpen(true);
       return;
     }
     void submit(null);
-  }, [preview, used, limit, submit]);
+  }, [preview, hits, used, limit, submit]);
 
   return (
     <Card className={`p-6 ${preview ? "border-dashed" : ""}`}>
@@ -159,6 +182,8 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
 
       <AttendanceBonus used={used} limit={limit} />
 
+      <RequiredSessionsList sessions={requiredSessions} hitIds={hitIds} />
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="md:col-span-2 flex flex-col gap-1.5">
           <Label className="text-xs">Reason *</Label>
@@ -176,7 +201,12 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
 
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          {minutes > 0 ? (
+          {minutes > 0 && hits.length > 0 ? (
+            <span className="flex items-center gap-1 font-medium text-red-600">
+              <Icon icon="shield-alert" className="h-3.5 w-3.5" />
+              Overlaps a required session: {hits.map((h) => h.title).join(", ")}
+            </span>
+          ) : minutes > 0 ? (
             <>
               Total time away: <span className="font-semibold text-foreground">{formatDuration(minutes)}</span>
             </>
@@ -194,11 +224,14 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           <p className="mb-2 text-xs font-semibold text-muted-foreground">Your absences{extras > 0 ? ` (incl. ${extras} counselor-approved extra)` : ""}</p>
           <ul className="space-y-1.5">
             {requests.slice(0, 10).map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
-                <span className="truncate text-foreground">{r.reason ?? "No reason"}</span>
+              <li key={r.id} className={`flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs ${r.status === "withdrawn" ? "opacity-60" : ""}`}>
+                <span className={`truncate text-foreground ${r.status === "withdrawn" ? "line-through" : ""}`}>{r.reason ?? "No reason"}</span>
                 <span className="shrink-0 text-muted-foreground">
                   {new Date(r.start_time).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · {formatDuration(r.minutes)}
-                  {r.approval_type !== "standard" && (
+                  {r.status === "withdrawn" && (
+                    <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Withdrawn</span>
+                  )}
+                  {r.status !== "withdrawn" && r.approval_type !== "standard" && (
                     <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.approval_type === "counselor_emergency" ? "bg-sky-100 text-sky-800" : "bg-red-100 text-red-700"}`}>
                       {r.approval_type === "counselor_emergency" ? "Emergency" : "−1 pt"}
                     </span>
@@ -210,6 +243,7 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
         </div>
       )}
 
+      <BlackoutBlockedDialog sessions={blockedBy} onClose={() => setBlockedBy([])} />
       <AbsenceLimitDialog open={limitOpen} limit={limit} submitting={loading} onClose={() => setLimitOpen(false)} onCounselorApprove={submit} />
     </Card>
   );

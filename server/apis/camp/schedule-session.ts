@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { RawRoles, parseRoles } from "../../lib/blackouts.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -28,10 +29,19 @@ export default api({
     // Use the Session Bank's saved title/type so built-in and custom sessions behave the same.
     let finalTitle = title.trim();
     let finalType = session_type.trim();
+    // Tiles scheduled from a required Session Bank session start out required too.
+    let isBlackout = false;
+    let blackoutRoles = "[]";
     if (session_bank_id !== null) {
       const bank = await db.query(
-        `SELECT title, session_type FROM camp201_session_bank WHERE id = $1 LIMIT 1`,
-        z.object({ title: z.string().nullable(), session_type: z.string().nullable() }),
+        `SELECT title, session_type, is_blackout, COALESCE(blackout_roles, '[]'::jsonb) AS blackout_roles
+         FROM camp201_session_bank WHERE id = $1 LIMIT 1`,
+        z.object({
+          title: z.string().nullable(),
+          session_type: z.string().nullable(),
+          is_blackout: z.boolean().nullable(),
+          blackout_roles: RawRoles,
+        }),
         [session_bank_id],
         { label: "Look up Session Bank entry" }
       );
@@ -40,14 +50,16 @@ export default api({
       }
       finalTitle = (bank[0].title ?? "").trim() || finalTitle;
       finalType = (bank[0].session_type ?? "").trim() || finalType;
+      isBlackout = !!bank[0].is_blackout;
+      blackoutRoles = isBlackout ? JSON.stringify(parseRoles(bank[0].blackout_roles)) : "[]";
     }
 
     const result = await db.query(
-      `INSERT INTO camp201_agenda (session_bank_id, day_number, start_time, end_time, title, session_type)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO camp201_agenda (session_bank_id, day_number, start_time, end_time, title, session_type, is_blackout, blackout_roles)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
        RETURNING id`,
       z.object({ id: z.coerce.number() }),
-      [session_bank_id, day_number, start_time, end_time, finalTitle || "Untitled session", finalType || "session"],
+      [session_bank_id, day_number, start_time, end_time, finalTitle || "Untitled session", finalType || "session", isBlackout, blackoutRoles],
       { label: "Schedule session on agenda" }
     );
 

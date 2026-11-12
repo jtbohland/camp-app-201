@@ -96,6 +96,10 @@ import ClearDaySchedule from './camp/clear-day-schedule.js';
 import MoveAgendaItem from './camp/move-agenda-item.js';
 import EditAgendaItem from './camp/edit-agenda-item.js';
 import UpdateDietary from './camp/update-dietary.js';
+import SetBlackout from './camp/set-blackout.js';
+import GetMyBlackouts from './camp/get-my-blackouts.js';
+import GetBlackoutConflicts from './camp/get-blackout-conflicts.js';
+import RespondToBlackoutConflict from './camp/respond-blackout-conflict.js';
 import SeedSessionBank from './camp/seed-session-bank.js';
 import MigrateQAFeed from './camp/migrate-qa-feed.js';
 import GetExecQuestions from './camp/get-exec-questions.js';
@@ -309,6 +313,10 @@ const apis = {
   MoveAgendaItem,
   EditAgendaItem,
   UpdateDietary,
+  SetBlackout,
+  GetMyBlackouts,
+  GetBlackoutConflicts,
+  RespondToBlackoutConflict,
   SeedSessionBank,
   MigrateQAFeed,
   GetExecQuestions,

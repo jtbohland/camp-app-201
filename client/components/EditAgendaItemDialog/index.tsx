@@ -21,6 +21,7 @@ import {
   formatTime,
 } from "@/components/DaySchedule";
 import { findSlotConflict } from "@/lib/agendaRules";
+import BlackoutSettings, { type BlackoutValue } from "@/components/BlackoutSettings/index.js";
 
 type Props = {
   item: AgendaItem | null;
@@ -31,7 +32,7 @@ type Props = {
   bankTitles: string[];
   saving: boolean;
   onCancel: () => void;
-  onSave: (item: AgendaItem, startTime: string, endTime: string, title: string) => void;
+  onSave: (item: AgendaItem, startTime: string, endTime: string, title: string, blackout: BlackoutValue) => void;
 };
 
 const START_OPTIONS: number[] = [];
@@ -55,6 +56,7 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, b
   const [startMin, setStartMin] = useState(GRID_START_MIN);
   const [length, setLength] = useState(30);
   const [title, setTitle] = useState("");
+  const [blackout, setBlackout] = useState<BlackoutValue>({ isBlackout: false, roles: [] });
 
   useEffect(() => {
     if (!item) return;
@@ -62,6 +64,7 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, b
     setStartMin(s);
     setLength(timeToMinutes(item.end_time) - s);
     setTitle(item.title);
+    setBlackout({ isBlackout: !!item.is_blackout, roles: item.blackout_roles ?? [] });
   }, [item]);
 
   const trimmedTitle = title.trim();
@@ -86,7 +89,7 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, b
 
   return (
     <Dialog open={!!item} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit session</DialogTitle>
           <DialogDescription>
@@ -161,10 +164,16 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, b
           )}
         </div>
 
+        <BlackoutSettings
+          value={blackout}
+          onChange={setBlackout}
+          hint="Only this tile. cAMPers in these roles can't request an absence during it."
+        />
+
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={saving}>Cancel</Button>
           <Button
-            onClick={() => item && onSave(item, minutesToTime(startMin), minutesToTime(endMin), trimmedTitle)}
+            onClick={() => item && onSave(item, minutesToTime(startMin), minutesToTime(endMin), trimmedTitle, blackout)}
             disabled={saving || !!conflict || !trimmedTitle}
             className="bg-camp-green hover:bg-camp-green/90 text-white"
           >

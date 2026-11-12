@@ -18,3 +18,6 @@ export const APPROVAL_LABELS: Record<string, { label: string; className: string 
   counselor_penalty: { label: "Counselor approved (−1 pt)", className: "bg-red-100 text-red-700" },
   counselor_emergency: { label: "Emergency (no penalty)", className: "bg-sky-100 text-sky-800" },
 };
+
+/** An absence withdrawn because it overlapped a required session. Doesn't count toward the 3. */
+export const WITHDRAWN_LABEL = { label: "Withdrawn", className: "bg-muted text-muted-foreground line-through" };

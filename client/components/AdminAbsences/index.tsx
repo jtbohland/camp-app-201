@@ -4,7 +4,8 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useApiData } from "@/hooks/useApiData";
-import { APPROVAL_LABELS, formatDuration } from "@/lib/absences.js";
+import { APPROVAL_LABELS, WITHDRAWN_LABEL, formatDuration } from "@/lib/absences.js";
+import BlackoutConflictsNotice from "@/components/BlackoutConflictsNotice/index.js";
 
 const PAGE_SIZE = 20;
 
@@ -45,6 +46,9 @@ export default function AdminAbsences({ onCamperClick }: Props) {
 
   return (
     <div className={`space-y-4 ${fetching ? "opacity-90" : ""}`}>
+      {/* Absences that overlap a required (blackout) session */}
+      <BlackoutConflictsNotice expanded onCamperClick={onCamperClick} />
+
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat icon="sparkles" label="Perfect attendance" value={stats.perfect} tone="emerald" />
@@ -119,7 +123,7 @@ export default function AdminAbsences({ onCamperClick }: Props) {
                 </thead>
                 <tbody>
                   {pageRequests.map((r) => {
-                    const tag = APPROVAL_LABELS[r.approval_type] ?? APPROVAL_LABELS.standard;
+                    const tag = r.status === "withdrawn" ? WITHDRAWN_LABEL : APPROVAL_LABELS[r.approval_type] ?? APPROVAL_LABELS.standard;
                     return (
                       <tr key={r.id} className="border-b border-border/60 text-foreground/80">
                         <td className="px-2 py-2 font-medium">

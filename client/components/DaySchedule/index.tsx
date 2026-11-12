@@ -1,5 +1,6 @@
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { Icon } from "@/components/ui/icon";
+import { blackoutAudienceLabel } from "@/lib/blackouts.js";
 
 export type AgendaItem = {
   id: number;
@@ -9,6 +10,10 @@ export type AgendaItem = {
   end_time: string;
   title: string;
   session_type: string;
+  /** Required session: cAMPers can't request an absence that overlaps it. */
+  is_blackout?: boolean;
+  /** Roles it's required for. Empty = everyone. */
+  blackout_roles?: string[];
 };
 
 type DayScheduleProps = {
@@ -90,13 +95,15 @@ function ScheduledBlock({ item, isAdmin, onRemove, onEdit, isPast, isUpNext }: {
   const colors = getColors(item.session_type);
   const isExec = item.session_type === "executive";
   const isShort = durationMin < 30;
+  const isBlackout = !!item.is_blackout;
+  const audience = blackoutAudienceLabel(item.blackout_roles ?? [], 1);
 
   return (
     <div
       ref={isDraggableItem ? setNodeRef : undefined}
-      title={`${item.title} · ${formatTime(item.start_time)} – ${formatTime(item.end_time)}${isDraggableItem && onEdit ? " · Click to edit timing" : ""}`}
+      title={`${item.title} · ${formatTime(item.start_time)} – ${formatTime(item.end_time)}${isBlackout ? ` · Required (blackout): ${blackoutAudienceLabel(item.blackout_roles ?? [], 20)}` : ""}${isDraggableItem && onEdit ? " · Click to edit" : ""}`}
       onClick={isDraggableItem && onEdit ? onEdit : undefined}
-      className={`absolute left-0 right-0 mx-1 rounded-md border overflow-hidden group ${isShort ? "flex items-center px-1.5" : "px-2 py-1"} ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing touch-none" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"} ${isPast ? "opacity-40" : ""} ${isUpNext ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
+      className={`absolute left-0 right-0 mx-1 rounded-md border overflow-hidden group ${isShort ? "flex items-center px-1.5" : "px-2 py-1"} ${colors.bg} ${colors.border} ${isDraggableItem ? "cursor-grab active:cursor-grabbing touch-none" : ""} ${isDragging ? "opacity-30 z-0" : "z-10"} ${isPast ? "opacity-40" : ""} ${isUpNext ? "ring-2 ring-amber-400 ring-offset-1" : ""} ${isBlackout ? "border-l-[3px] border-l-red-500" : ""}`}
       style={{ top: `${topOffset}px`, height: `${height - 2}px` }}
       {...(isDraggableItem ? attributes : {})}
       {...(isDraggableItem ? listeners : {})}
@@ -104,6 +111,7 @@ function ScheduledBlock({ item, isAdmin, onRemove, onEdit, isPast, isUpNext }: {
       <div className={`flex w-full justify-between gap-1 ${isShort ? "items-center" : "items-start"}`}>
         <div className="min-w-0 flex-1">
           <p className={`font-medium ${colors.text} ${isShort ? "text-[10px] leading-none truncate" : "text-xs leading-tight truncate"}`}>
+            {isBlackout && <Icon icon="shield-alert" className={`inline -mt-0.5 mr-0.5 text-red-600 ${isShort ? "h-2.5 w-2.5" : "h-3 w-3"}`} />}
             {isExec && "⭐ "}{isUpNext && "▶ "}{item.title}
             {/* Short blocks are one line tall, so the time sits next to the title */}
             {isShort && (
@@ -116,7 +124,10 @@ function ScheduledBlock({ item, isAdmin, onRemove, onEdit, isPast, isUpNext }: {
               {formatTime(item.start_time)} – {formatTime(item.end_time)}
             </p>
           )}
-          {isExec && durationMin >= 45 && (
+          {isBlackout && !isShort && durationMin >= 45 && (
+            <p className="mt-0.5 truncate text-[9px] font-semibold text-red-600">Required · {audience}</p>
+          )}
+          {isExec && !isBlackout && durationMin >= 45 && (
             <p className="text-[9px] text-yellow-600 italic mt-0.5">Mandatory — all cAMPers expected</p>
           )}
         </div>
