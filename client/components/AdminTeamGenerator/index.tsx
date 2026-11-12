@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { refreshTeamData } from "@/lib/teamMoves.js";
 import CompanyAssignment from "./CompanyAssignment";
 import TeamCountButton from "./TeamCountButton";
 import EligibilitySummary from "./EligibilitySummary";
@@ -37,6 +38,7 @@ export default function AdminTeamGenerator() {
         toast.success(result.message);
         refetchTeams();
         refetchPreview();
+        void refreshTeamData();
       } else {
         toast.error(result?.message ?? "Failed to generate teams");
       }

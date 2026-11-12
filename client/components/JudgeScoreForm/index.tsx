@@ -16,7 +16,6 @@ type Props = {
   criteria: Criterion[];
   maxTotal: number;
   scores: Record<string, number>;
-  onScore: (criterion: string, value: number) => void;
   notes: string;
   onNotesChange: (value: string) => void;
   members: Member[];
@@ -28,49 +27,27 @@ type Props = {
   onSubmit: () => void;
 };
 
-/** One judge scoring one team: tap a score per criterion, take notes, optionally pick an MVP. */
+/**
+ * Bottom of the judge's scoring view for one team: notes, optional MVP, and the total.
+ * Scores themselves are picked by tapping the rubric tiles above.
+ */
 export default function JudgeScoreForm(props: Props) {
-  const { teamName, criteria, maxTotal, scores, onScore, notes, onNotesChange, members, mvpCamperId, onMvpChange, isRescore, saving, onSubmit } = props;
+  const { teamName, criteria, maxTotal, scores, notes, onNotesChange, members, mvpCamperId, onMvpChange, isRescore, saving, onSubmit } = props;
   const currentTotal = Object.values(scores).reduce((sum, v) => sum + v, 0);
-  const complete = Object.keys(scores).length >= criteria.length;
+  const scoredCount = criteria.filter((c) => scores[c.name] !== undefined).length;
+  const complete = scoredCount >= criteria.length;
 
   return (
     <Card className="p-4 border-violet-200 bg-violet-50/30 dark:bg-violet-950/10">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">Your score: {teamName}</h4>
         {isRescore && (
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Editing your score</span>
         )}
       </div>
 
-      <div className="space-y-3">
-        {criteria.map((c) => (
-          <div key={c.name} className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium text-foreground flex-1">{c.name}</span>
-            <div className="flex gap-1.5">
-              {c.levels.map((l) => {
-                const sel = scores[c.name] === l.score;
-                return (
-                  <button
-                    key={l.score}
-                    type="button"
-                    title={`${l.label}: ${l.desc}`}
-                    onClick={() => onScore(c.name, l.score)}
-                    className={`w-9 h-9 rounded-lg font-bold text-sm transition-all ${
-                      sel ? "bg-primary text-white shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {l.score}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Judge's notes, saved with the score for looking back later */}
-      <div className="mt-4 pt-3 border-t border-violet-200">
+      <div className="mt-3">
         <label htmlFor="judge-notes" className="flex items-center gap-2 mb-1.5 text-xs font-bold uppercase tracking-wide text-foreground">
           <Icon icon="notebook-pen" className="w-4 h-4 text-violet-500" /> Judge's notes
         </label>
@@ -112,9 +89,16 @@ export default function JudgeScoreForm(props: Props) {
       )}
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-violet-200">
-        <span className="text-sm font-bold">
-          Total: <span className="text-xl text-primary">{currentTotal}</span>/{maxTotal}
-        </span>
+        <div>
+          <span className="text-sm font-bold">
+            Team total: <span className="text-xl text-primary">{currentTotal}</span>/{maxTotal}
+          </span>
+          {!complete && (
+            <p className="text-[11px] text-muted-foreground">
+              {scoredCount} of {criteria.length} criteria scored. Tap a tile above for each one.
+            </p>
+          )}
+        </div>
         <Button onClick={onSubmit} disabled={saving || !complete} size="sm">
           {saving ? "Saving…" : isRescore ? "Update My Score" : "Submit Score"}
         </Button>

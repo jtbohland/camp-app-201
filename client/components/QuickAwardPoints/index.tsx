@@ -135,7 +135,7 @@ export default function QuickAwardPoints({ camperId }: Props) {
                       </div>
                       <div>
                         <div className="font-medium text-sm">{selectedCamper.first_name} {selectedCamper.last_name}</div>
-                        <div className="text-xs text-muted-foreground">{selectedCamper.team_name || "No team"}</div>
+                        <div className="text-xs text-muted-foreground">{selectedCamper.team_name || "No team yet"}</div>
                       </div>
                     </div>
                     <button onClick={() => { setSelectedCamper(null); setSearch(""); }} className="text-xs text-muted-foreground hover:text-foreground">
