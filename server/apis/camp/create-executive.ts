@@ -12,7 +12,9 @@ export default api({
   input: z.object({
     name: z.string().trim().min(1).max(200),
     title: z.string().max(200),
-    photo_url: z.string().max(2000).nullable(),
+    // Uploaded photos are stored as image data URLs (often 50–150 KB after resizing),
+    // so the limit must allow far more than a plain web link. ~3M chars ≈ a 2 MB file.
+    photo_url: z.string().max(3_000_000, "That photo is too large. Try a smaller image.").nullable(),
     bio: z.string().max(5000).nullable(),
     linkedin_url: z.string().max(500).nullable(),
     email: z.string().trim().toLowerCase().email().max(200),

@@ -138,7 +138,7 @@ export default function ExecutiveDialog({ open, onClose, onSave, executive }: Ex
                 <ProfilePhotoUpload currentPhotoUrl={photoUrl || null} email="" name={name || "Speaker"} onChange={setPhotoUrl} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground">
-                    Click the photo or drag & drop an image to upload (PNG, JPG, GIF, or WebP, under 2MB).
+                    Click the photo or drag & drop an image to upload (PNG, JPG, or WebP; large photos are shrunk automatically. GIFs under 2MB).
                   </p>
                   {photoUrl && (
                     <button type="button" onClick={() => setPhotoUrl("")} className="mt-1 text-xs font-medium text-destructive hover:underline">
