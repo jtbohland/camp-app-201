@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { tryChallengerAutoComplete } from "../../lib/challenger-exempt.js";
+import { applyDeadlinePenalty, getPreworkDeadline } from "../../lib/prework-complete.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -29,12 +30,22 @@ export default api({
     totalItems: z.number(),
     /** Points just awarded because Challenger was auto-completed on this visit (0 otherwise). */
     autoCompletedPoints: z.number(),
+    /** When pre-work points end (ISO), or null when no deadline / start date is set. */
+    deadline: z.string().nullable(),
   }),
   async run(ctx, { user_id }) {
     const db = ctx.integrations.camp_201_db;
     // Exempt roles (SDR, AE, Renewals, Partners): Challenger is checked off on their first visit,
     // including after a counselor changes their role.
     const auto = await tryChallengerAutoComplete(db, { camperId: user_id });
+    // Once the deadline passes, the first visit applies the one-time missed-deadline penalty.
+    // Safe to repeat: each cAMPer is only ever charged once.
+    try {
+      await applyDeadlinePenalty(db);
+    } catch {
+      // Never block the page on the penalty check.
+    }
+    const deadline = await getPreworkDeadline(db);
 
     const [completedItems, submissions, totals] = await Promise.all([
       // Only count completions for tasks that are actually on the pre-work list
@@ -66,6 +77,6 @@ export default api({
       ),
     ]);
 
-    return { completedItems, submissions, totalItems: totals[0]?.total ?? 0, autoCompletedPoints: auto.completed ? auto.pointsAwarded : 0 };
+    return { completedItems, submissions, totalItems: totals[0]?.total ?? 0, autoCompletedPoints: auto.completed ? auto.pointsAwarded : 0, deadline };
   },
 });

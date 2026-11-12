@@ -108,19 +108,16 @@ export default api({
     if (mvp_camper_id) {
       const MVP_POINTS = 10;
       const reason = `MVP — Most Valuable Presenter (${rubricName})`;
+      // The point-log entry adds to the MVP's total (database trigger).
       await db.execute(
-        `WITH ins AS (
-           INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
-           SELECT c.id, $2, $3, 'presentation', $4
-           FROM camp201_campers c
-           WHERE c.id = $1 AND c.team_id = $5
-             AND NOT EXISTS (
-               SELECT 1 FROM camp201_points_log pl
-               JOIN camp201_campers m ON m.id = pl.camper_id
-               WHERE m.team_id = $5 AND pl.reason = $3)
-           RETURNING camper_id
-         )
-         UPDATE camp201_campers SET points = points + $2 WHERE id IN (SELECT camper_id FROM ins)`,
+        `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
+         SELECT c.id, $2, $3, 'presentation', $4
+         FROM camp201_campers c
+         WHERE c.id = $1 AND c.team_id = $5
+           AND NOT EXISTS (
+             SELECT 1 FROM camp201_points_log pl
+             JOIN camp201_campers m ON m.id = pl.camper_id
+             WHERE m.team_id = $5 AND pl.reason = $3)`,
         [mvp_camper_id, MVP_POINTS, reason, cohortId, team_id],
         { label: "Award MVP points (once per team)" }
       );

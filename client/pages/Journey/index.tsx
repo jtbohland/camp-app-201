@@ -45,9 +45,8 @@ export default function JourneyPage() {
     }
   }, [autoPts, showPoints]);
 
-  // Get deadline from config
-  const { data: configData } = useApiData("GetCampConfig", {});
-  const deadline = (configData?.config as any[])?.find((c: any) => c.key === "prework_deadline")?.value ?? "";
+  // When pre-work points end (Settings deadline in PT, or cAMP start date at 9:00 AM PT).
+  const deadline = preworkData?.deadline ?? "";
 
   const loading = camperLoading || preworkLoading;
 

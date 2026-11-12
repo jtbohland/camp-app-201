@@ -162,12 +162,7 @@ export default api({
       points = LATE_POINTS;
     }
 
-    // ─── Award/deduct individual points ───
-    await ctx.integrations.camp_201_db.execute(
-      `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-      [points, camper_id],
-      { label: `Award check-in points (${timing}: ${points})` }
-    );
+    // ─── Award/deduct individual points (the point-log entry updates the total) ───
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
       [camper_id, points, `Check-in: ${timing} (session ${session_id})`],
@@ -361,11 +356,6 @@ export default api({
               `INSERT INTO camp201_camper_badges (camper_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
               [camper_id, IRON_CAMPER_BADGE_ID],
               { label: "Award Iron Camper" }
-            );
-            await ctx.integrations.camp_201_db.execute(
-              `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-              [IRON_CAMPER_POINTS, camper_id],
-              { label: "Award Iron Camper points" }
             );
             await ctx.integrations.camp_201_db.execute(
               `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,

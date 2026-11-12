@@ -38,7 +38,9 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
 
   const questions = (data?.questions ?? []) as any[];
   const canAnswer = mode !== "camper";
-  const canAsk = mode === "camper" && !isLocked;
+  // Counselors can ask too (for moderating / seeding questions). Speakers only answer.
+  const canAsk = mode !== "speaker" && camperId > 0 && !isLocked;
+  const showLockedNotice = isLocked && mode !== "speaker" && camperId > 0;
 
   const handleSubmit = useCallback(async () => {
     if (!newQuestion.trim() || newQuestion.length < 5) {
@@ -114,7 +116,7 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
         {isLocked && (
           <Badge variant="secondary" className="bg-red-100 text-red-700">
             <Icon icon="lock" className="w-3 h-3 mr-1" />
-            {mode === "speaker" ? "Closed for cAMPers, you can still reply" : "Session ended"}
+            {mode === "speaker" ? "Closed for cAMPers, you can still reply" : "Q&A locked"}
           </Badge>
         )}
       </div>
@@ -138,12 +140,27 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
         </Card>
       )}
 
+      {showLockedNotice && (
+        <Card className="p-4 border-dashed bg-muted/40 flex items-start gap-3">
+          <Icon icon="lock" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            {mode === "counselor"
+              ? "Q&A is locked, so nobody can ask questions yet. Click \"Q&A Locked\" above to open it."
+              : "Q&A isn't open right now. Your counselor will open it for this session, and then you can ask and vote here."}
+          </p>
+        </Card>
+      )}
+
       {fetching && !loading && <p className="text-xs text-muted-foreground">Updating...</p>}
 
       <div className="space-y-2">
         {questions.length === 0 && !loading && (
           <p className="text-sm text-muted-foreground text-center py-8">
-            {mode === "speaker" ? "No questions yet. They'll show up here as cAMPers ask them." : "No questions yet. Be the first!"}
+            {mode === "speaker"
+              ? "No questions yet. They'll show up here as cAMPers ask them."
+              : canAsk
+                ? "No questions yet. Be the first!"
+                : "No questions yet."}
           </p>
         )}
         {questions.map((q: any, idx: number) => {

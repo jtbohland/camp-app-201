@@ -100,11 +100,12 @@ export default api({
       { label: "Close wheel round" }
     );
 
-    // 5. Award points to the pitcher
-    if (pitcherId > 0) {
+    // 5. Award points to the pitcher (the point-log entry updates the total)
+    if (pitcherId > 0 && points !== 0) {
       await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [points, pitcherId],
+        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
+         VALUES ($1, $2, $3, 'system', 'wheel')`,
+        [pitcherId, points, `Wheel & Deal pitch (round ${round_id})`],
         { label: "Award wheel points to pitcher" }
       );
     }

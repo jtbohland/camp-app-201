@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -6,11 +6,11 @@ import { useApi } from "@/hooks/useApi.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 import { Icon } from "@/components/ui/icon";
-import ExecutiveCard from "@/components/ExecutiveCard/index.js";
+import SpeakerDaySection from "@/components/SpeakerDaySection/index.js";
 import ExecutiveDialog, { type ExecutiveFormData } from "@/components/ExecutiveDialog/index.js";
 import ExecQAFeed from "@/components/ExecQAFeed/index.js";
 import { Button } from "@/components/ui/button";
-import { isSpeakerIncomplete, type Executive } from "@/lib/speakers.js";
+import { groupSpeakersByDay, isSpeakerIncomplete, type Executive } from "@/lib/speakers.js";
 
 export default function ExecutivesTab() {
   const user = useSuperblocksUser();
@@ -27,6 +27,7 @@ export default function ExecutivesTab() {
   const { data: execData, loading: execLoading, fetching, refetch } = useApiData("GetExecutives", { active_only: !isAdmin });
   const loading = camperLoading || execLoading;
   const executives = (execData?.executives ?? []) as Executive[];
+  const dayGroups = useMemo(() => groupSpeakersByDay(executives), [executives]);
 
   // Feature gate for Q&A
   const { data: gatesData, refetch: refetchGates } = useApiData("GetFeatureGates", {}, { staleTime: 15000 });
@@ -93,6 +94,7 @@ export default function ExecutivesTab() {
         linkedin_url: data.linkedin_url || null,
         email: data.email,
         slack_name: data.slack_name,
+        agenda_item_id: data.agenda_item_id,
       };
       try {
         if (editingExec) {
@@ -164,7 +166,7 @@ export default function ExecutivesTab() {
             speaker={selectedExecForQA}
             camperId={camperData?.camper?.id ?? 0}
             camperTeamId={camperData?.camper?.team_id ?? null}
-            isLocked={qaLocked && !isAdmin}
+            isLocked={qaLocked}
             onBack={closeQA}
             mode={mode}
           />
@@ -185,7 +187,9 @@ export default function ExecutivesTab() {
       {/* Header row */}
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Leadership speakers and mentors you'll connect with during cAMP
+          {isAdmin
+            ? "Map each speaker to their agenda session. cAMPers see a speaker once that day's agenda is unlocked."
+            : "Leadership speakers and mentors you'll connect with during cAMP. More appear as each day unlocks."}
           {incompleteCount > 0 && (
             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
               {incompleteCount} need setup
@@ -208,15 +212,20 @@ export default function ExecutivesTab() {
       {executives.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Icon icon="users" className="w-12 h-12 opacity-30 mb-3" />
-          <p className="text-sm">No speakers added yet</p>
+          <p className="text-sm">{isAdmin ? "No speakers added yet" : "Speakers will appear here as each day's agenda unlocks"}</p>
           {isAdmin && <p className="text-xs mt-1">Click "Add Speaker" to build your speaker library</p>}
         </div>
       ) : (
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 ${fetching ? "opacity-70" : ""}`}>
-          {executives.map((exec) => (
-            <div key={exec.id} className="cursor-pointer" onClick={() => setSelectedExecForQA(exec)}>
-              <ExecutiveCard executive={exec} isAdmin={isAdmin} onEdit={handleEdit} isMine={isSpeaker && exec.id === speakerExecutiveId} />
-            </div>
+        <div className={`flex flex-col gap-8 ${fetching ? "opacity-70" : ""}`}>
+          {dayGroups.map((group) => (
+            <SpeakerDaySection
+              key={group.dayNumber ?? "none"}
+              group={group}
+              isAdmin={isAdmin}
+              mySpeakerId={isSpeaker ? speakerExecutiveId ?? null : null}
+              onOpen={setSelectedExecForQA}
+              onEdit={handleEdit}
+            />
           ))}
         </div>
       )}

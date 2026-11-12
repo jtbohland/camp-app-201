@@ -42,15 +42,6 @@ export default api({
       { label: "Award feedback points" }
     );
 
-    // Update total points
-    await ctx.integrations.camp_db.execute(
-      `UPDATE camp201_campers SET points = (
-         SELECT COALESCE(SUM(points), 0) FROM camp201_points_log WHERE camper_id = $1
-       ) WHERE id = $1`,
-      [input.submitted_by],
-      { label: "Sync camper points" }
-    );
-
     return { success: true };
   },
 });

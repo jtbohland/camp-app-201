@@ -1,10 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { getCounselorAccess } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "GetActiveCheckIn",
-  description: "Gets the active check-in session with current word and team progress",
+  description: "Gets the active check-in and team progress; only counselors get the word",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
@@ -67,7 +68,11 @@ export default api({
     let currentWord: string | null = null;
     let previousWord: string | null = null;
 
-    if (checkinOpen) {
+    // The trail marker word is shown only on the counselor's big screen. cAMPers must be in the
+    // room to read it, so it is never sent to their browsers.
+    const { isAdmin } = await getCounselorAccess(ctx.integrations.camp_201_db, ctx.user.email);
+
+    if (checkinOpen && isAdmin) {
       // Calculate which time slot we're in (15-second slots)
       const elapsedSinceOpen = Math.floor((now.getTime() - checkinOpensAt.getTime()) / 1000);
       const currentSlot = Math.floor(elapsedSinceOpen / 15);

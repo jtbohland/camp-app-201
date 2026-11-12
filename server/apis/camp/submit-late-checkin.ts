@@ -73,12 +73,7 @@ export default api({
       return { success: false, points: 0, error: "Already checked in" };
     }
 
-    // Deduct points
-    await ctx.integrations.camp_201_db.execute(
-      `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-      [LATE_POINTS, camper_id],
-      { label: "Deduct late check-in points" }
-    );
+    // Deduct points (the point-log entry updates the total)
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
       [camper_id, LATE_POINTS, `Check-in: late (session ${session_id})`],

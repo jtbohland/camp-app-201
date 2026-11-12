@@ -51,12 +51,7 @@ export async function awardRepeatableBadge(
   const points = calculateAcceleratedPoints(badgeId, currentCount);
 
   if (points > 0) {
-    // Award points to individual
-    await db.execute(
-      `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-      [points, camperId],
-      { label: `Award ${points} accelerated pts` }
-    );
+    // The point-log entry adds to the cAMPer's total (database trigger).
     await db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason, cohort_id)
        VALUES ($1, $2, $3, $4)`,

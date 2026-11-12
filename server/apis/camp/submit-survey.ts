@@ -57,12 +57,7 @@ export default api({
       { label: "Insert survey response" }
     );
 
-    // Award individual completion points
-    await ctx.integrations.camp_201_db.execute(
-      `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-      [points_per_completion, camper_id],
-      { label: "Award survey completion points" }
-    );
+    // Award individual completion points (the point-log entry updates the total)
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
        VALUES ($1, $2, 'End of day survey completed', 'system', $3)`,
@@ -106,11 +101,6 @@ export default api({
         );
 
         for (const member of members) {
-          await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-            [team_bonus_points, member.id],
-            { label: `Award team survey bonus to ${member.id}` }
-          );
           await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
              VALUES ($1, $2, 'Team survey completion bonus', 'system', $3)`,

@@ -23,24 +23,16 @@ export default api({
     missing_links: z.array(z.object({ label: z.string(), url: z.string() })),
     missing_profile_fields: z.array(z.string()),
     penalty_applied: z.boolean(),
+    /** Finished after the pre-work deadline: marked done, for 0 points. */
+    past_deadline: z.boolean(),
+    /** Early-bird bonus earned by finishing the last pre-work task (0 if none). */
+    early_bird_points: z.number(),
   }),
   async run(ctx, { user_id, item, content_id, force }) {
     let missing_links: { label: string; url: string }[] = [];
     let missing_profile_fields: string[] = [];
 
-    // Check if camp has started — prework earns 0 pts after camp_start_date
-    let campStarted = false;
-    const startDateResult = await ctx.integrations.camp_201_db.query(
-      `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
-      z.object({ value: z.string() }), undefined,
-      { label: "Check camp_start_date" }
-    );
-    if (startDateResult.length > 0 && startDateResult[0].value) {
-      const startDate = new Date(startDateResult[0].value);
-      if (!isNaN(startDate.getTime()) && new Date() >= startDate) {
-        campStarted = true;
-      }
-    }
+    // Pre-work finished after the deadline still counts as done, for 0 points (checked in markPreworkComplete).
 
     // === SPECIAL CASE: Registration/Profile completion ===
     if (item === "complete_registration") {
@@ -76,7 +68,7 @@ export default api({
       }
 
       if (missing_profile_fields.length > 0 && !force) {
-        return { success: false, pointsAwarded: 0, warning: true, missing_links: [], missing_profile_fields, penalty_applied: false };
+        return { success: false, pointsAwarded: 0, warning: true, missing_links: [], missing_profile_fields, penalty_applied: false, past_deadline: false, early_bird_points: 0 };
       }
 
       // If forcing with missing fields, check for prior attempts (penalty logic)
@@ -97,11 +89,6 @@ export default api({
         );
 
         if (attempts[0].cnt >= 1) {
-          await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-            [PENALTY_POINTS, user_id],
-            { label: "Apply profile skip penalty" }
-          );
           await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
              VALUES ($1, $2, $3, 'system')`,
@@ -126,7 +113,7 @@ export default api({
         return {
           success: false, pointsAwarded: 0, warning: true,
           missing_links: [], missing_profile_fields: [item === "wheel_and_deal" ? "Submit your Wheel & Deal results first" : "Upload your Challenger course screenshots first"],
-          penalty_applied: false,
+          penalty_applied: false, past_deadline: false, early_bird_points: 0,
         };
       }
       submissionFlagged = submissions[0].flagged;
@@ -169,6 +156,8 @@ export default api({
         missing_links,
         missing_profile_fields: [],
         penalty_applied: false,
+        past_deadline: false,
+        early_bird_points: 0,
       };
     }
 
@@ -196,11 +185,6 @@ export default api({
       if (attempts[0].cnt >= 1) {
         penalty_applied = true;
         await ctx.integrations.camp_201_db.execute(
-          `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-          [PENALTY_POINTS, user_id],
-          { label: "Apply skip penalty" }
-        );
-        await ctx.integrations.camp_201_db.execute(
           `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
            VALUES ($1, $2, $3, 'system')`,
           [user_id, PENALTY_POINTS, `Marked "${item}" complete without finishing required links`],
@@ -214,10 +198,10 @@ export default api({
     const skipPenalty = penalty_applied;
     const completion = await markPreworkComplete(ctx.integrations.camp_201_db, user_id, item, {
       flagged: submissionFlagged,
-      awardPoints: !campStarted,
+      awardPoints: true,
     });
     penalty_applied = skipPenalty || completion.penaltyApplied;
-    const netPoints = completion.pointsAwarded + (skipPenalty ? PENALTY_POINTS : 0);
+    const netPoints = completion.pointsAwarded + completion.earlyBirdPoints + (skipPenalty ? PENALTY_POINTS : 0);
 
     return {
       success: true,
@@ -226,6 +210,8 @@ export default api({
       missing_links: [],
       missing_profile_fields: [],
       penalty_applied,
+      past_deadline: completion.pastDeadline,
+      early_bird_points: completion.earlyBirdPoints,
     };
   },
 });

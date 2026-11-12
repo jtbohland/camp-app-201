@@ -31,7 +31,9 @@ export default function DeadlineCountdown({ deadline }: Props) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
         <Icon icon="alert-circle" className="w-4 h-4 text-red-500" />
-        <span className="text-xs font-semibold text-red-500">Pre-work deadline has passed!</span>
+        <span className="text-xs font-semibold text-red-500">
+          Pre-work deadline passed ({formatDeadline(deadline)}). Pre-work no longer earns points.
+        </span>
       </div>
     );
   }
@@ -65,11 +67,19 @@ export default function DeadlineCountdown({ deadline }: Props) {
           )}
         </div>
       </div>
-      {remaining.days >= 2 && (
-        <span className="text-[10px] text-camp-green ml-auto">Complete early for bonus points!</span>
-      )}
+      <span className="text-[10px] text-muted-foreground ml-auto">
+        {formatDeadline(deadline)}
+        {remaining.days >= 1 ? " · Finish everything early for an early-bird bonus!" : ""}
+      </span>
     </div>
   );
+}
+
+/** e.g. "Mon, Nov 16, 9:00 AM PT" */
+function formatDeadline(deadline: string): string {
+  const d = new Date(deadline);
+  if (isNaN(d.getTime())) return "";
+  return `${d.toLocaleString("en-US", { timeZone: "America/Los_Angeles", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} PT`;
 }
 
 function TimeUnit({ value, label, urgent, warning }: { value: number; label: string; urgent: boolean; warning: boolean }) {

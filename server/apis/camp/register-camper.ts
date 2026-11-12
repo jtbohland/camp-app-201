@@ -158,6 +158,15 @@ export default api({
         ],
         { label: "Update existing camper info" }
       );
+      // Registration +10, once: counselor-created (Accepted) accounts earn it when they finish the form.
+      const reg = await ctx.integrations.camp_201_db.query(
+        `SELECT camp201_award_registration($1) AS pts`,
+        z.object({ pts: z.coerce.number().nullable() }),
+        [existing[0].id],
+        { label: "Award registration points (first time only)" }
+      );
+      const regPoints = reg[0]?.pts ?? 0;
+
       // SDR / AE / Renewals / Partners: Challenger was done in cAMP Ascent, check it off now.
       await tryChallengerAutoComplete(ctx.integrations.camp_201_db, { email: input.email });
 
@@ -167,7 +176,7 @@ export default api({
         [input.email],
         { label: "Fetch updated camper" }
       );
-      return { camper: campers[0], pointsAwarded: 0, pendingApproval: isRemoved };
+      return { camper: campers[0], pointsAwarded: regPoints, pendingApproval: isRemoved };
     }
 
     const pin = await newPin();
@@ -176,7 +185,7 @@ export default api({
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_campers (email, first_name, last_name, role, manager, region, country, city, start_date, points, pin, cohort_id, manager_email, csv_role)
        VALUES ($1, $2, $3, $4, $5, COALESCE(camp201_map_region($6, $7), ''), COALESCE(camp201_map_country($7), ''),
-               $8, $9::date, 10, $10, $11, $12, $13)`,
+               $8, $9::date, 0, $10, $11, $12, $13)`,
       [
         input.email,
         input.first_name,
@@ -205,21 +214,25 @@ export default api({
 
     const camper = campers[0];
 
-    // Log the registration points (only once — new registrations only)
-    await ctx.integrations.camp_201_db.execute(
-      `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
-       VALUES ($1, 10, 'Registration completed', 'system', $2)
-       ON CONFLICT DO NOTHING`,
-      [camper.id, cohortId],
+    // Registration +10, once (the point-log entry adds to the total).
+    const reg = await ctx.integrations.camp_201_db.query(
+      `SELECT camp201_award_registration($1) AS pts`,
+      z.object({ pts: z.coerce.number().nullable() }),
+      [camper.id],
       { label: "Award registration points" }
     );
+    const regPoints = reg[0]?.pts ?? 0;
 
     // SDR / AE / Renewals / Partners: Challenger was done in cAMP Ascent, check it off now (+5).
-    const auto = await tryChallengerAutoComplete(ctx.integrations.camp_201_db, { camperId: camper.id });
-    if (auto.completed && auto.pointsAwarded > 0) {
-      camper.points += auto.pointsAwarded;
-    }
+    await tryChallengerAutoComplete(ctx.integrations.camp_201_db, { camperId: camper.id });
 
-    return { camper, pointsAwarded: 10, pendingApproval: false };
+    const fresh = await ctx.integrations.camp_201_db.query(
+      `SELECT * FROM camp201_campers WHERE id = $1 LIMIT 1`,
+      CamperSchema,
+      [camper.id],
+      { label: "Fetch camper with points" }
+    );
+
+    return { camper: fresh[0] ?? camper, pointsAwarded: regPoints, pendingApproval: false };
   },
 });

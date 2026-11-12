@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -21,6 +22,7 @@ export default api({
   }),
   async run(ctx, input) {
     const { label, duration_minutes, counselor_id } = input;
+    await requireCounselor(ctx.integrations.camp_201_db, ctx.user.email);
 
     // Get active cohort
     const CohortIdSchema = z.object({ id: z.coerce.number() });

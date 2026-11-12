@@ -51,12 +51,8 @@ export default api({
     );
 
     // Grant bonus points
+    // The point-log entry adds to the cAMPer's total (database trigger).
     if (points_reward > 0) {
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + $1 WHERE id = $2`,
-        [points_reward, camper_id],
-        { label: "Award badge points" }
-      );
       await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by)
          VALUES ($1, $2, $3, 'system')`,

@@ -122,8 +122,14 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
       if (result?.success) {
         if (result.penalty_applied) {
           toast.error(`Completed with penalty: ${result.pointsAwarded} pts. Next time, finish the links first!`);
+        } else if (result.past_deadline) {
+          toast.success(`${item.title} complete: 0 pts (finished after the pre-work deadline).`);
         } else if (result.pointsAwarded > 0) {
-          toast.success(`+${result.pointsAwarded} points earned! 🏕️`);
+          toast.success(
+            result.early_bird_points > 0
+              ? `+${result.pointsAwarded} points, including a +${result.early_bird_points} early-bird bonus for finishing all pre-work early! 🏕️`
+              : `+${result.pointsAwarded} points earned! 🏕️`
+          );
           showPoints(result.pointsAwarded as number);
         }
         onComplete();
@@ -164,6 +170,7 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
   const completedCount = taskItems.filter((i) => completedKeys.includes(i.item_key as string)).length;
   const totalCount = taskItems.length;
   const allDone = totalCount > 0 && completedCount === totalCount;
+  const pastDeadline = !!deadline && new Date(deadline).getTime() <= Date.now();
 
   return (
     <>
@@ -191,6 +198,11 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
           <div className="mb-4">
             <DeadlineCountdown deadline={deadline} />
           </div>
+        )}
+        {pastDeadline && !allDone && (
+          <p className="mb-4 -mt-2 text-xs text-muted-foreground">
+            Pre-work is still required, so please finish it. Tasks finished now count as done but earn 0 points.
+          </p>
         )}
 
         {allDone && (
@@ -267,7 +279,7 @@ export default function PreWork({ userId, camperEmail, camperRole, completedKeys
                     <h3 className={`text-sm font-semibold ${isCompleted ? "text-camp-green" : "text-foreground"}`}>
                       {item.title}
                     </h3>
-                    {isCompleted && <span className="text-xs text-camp-green font-medium">+5 pts</span>}
+
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.content}</p>
                   {item.tip && (

@@ -106,8 +106,9 @@ export default api({
           );
           const placeLabel = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : '4th';
           await ctx.integrations.camp_201_db.execute(
-            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id)
-             SELECT c.id, $2, $3, 'system', $4
+            // Shown on each member's history; counts once, on the team total.
+            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id, category)
+             SELECT c.id, $2, $3, 'system', $4, 'team_award'
              FROM camp201_campers c WHERE c.team_id = $1 LIMIT 10`,
             [ranked[i].team_id, pts, `Logo vote - ${placeLabel} place`, cohortId],
             { label: `Log points for rank ${i + 1}` }

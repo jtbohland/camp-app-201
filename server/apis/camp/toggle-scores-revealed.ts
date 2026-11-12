@@ -50,7 +50,7 @@ export default api({
         for (const member of members) {
           await ctx.integrations.camp_201_db.execute(
             `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-             VALUES ($1, $2, $3, 'system', 'presentation')`,
+             VALUES ($1, $2, $3, 'system', 'team_award')`,
             [member.id, score.total_score, `EBR score (${score.total_score}pts)`],
             { label: "Award EBR points" }
           );

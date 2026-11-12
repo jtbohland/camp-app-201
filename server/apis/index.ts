@@ -210,6 +210,8 @@ import ToggleSurveyDayLock from './camp/toggle-survey-day-lock.js';
 import GetMyAccess from './camp/get-my-access.js';
 import VerifyCounselor from './camp/verify-counselor.js';
 import GetCounselorRotation from './camp/get-counselor-rotation.js';
+import GetPointLog from './camp/get-point-log.js';
+import { GetSharedTimer, UpdateSharedTimer } from './camp/shared-timer.js';
 import {
   GetMyManagerThreads,
   GetCamperManagerThreads,
@@ -444,6 +446,9 @@ const apis = {
   SendManagerBroadcast,
   MarkSpeakerLinkCopied,
   AnswerExecQuestion,
+  GetPointLog,
+  GetSharedTimer,
+  UpdateSharedTimer,
 } as const;
 
 export default apis;

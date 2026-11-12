@@ -188,11 +188,7 @@ export default api({
         [camper_id, pointsDelta, reason],
         { label: "Award bingo points" }
       );
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_campers SET points = points + $2 WHERE id = $1`,
-        [camper_id, pointsDelta],
-        { label: "Update camper total points" }
-      );
+
     }
 
     const bingoMsg = newBingos.length > 0 ? ` 🎉 BINGO! +${BINGO_BONUSES[0]} bonus!` : "";

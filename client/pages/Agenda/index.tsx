@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useApi } from "@/hooks/useApi";
-import { useSuperblocksUser } from "@superblocksteam/library";
+import { useSuperblocksUser, queryClient } from "@superblocksteam/library";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import ExecutivesTab from "@/components/ExecutivesTab/index.js";
@@ -83,6 +83,8 @@ export default function AgendaPage() {
     try {
       await toggleLock({ day_number: dayNum, locked: !currentlyLocked });
       refetchConfig();
+      // Speakers show up on the Speakers tab when their day unlocks.
+      queryClient.invalidateQueries("GetExecutives");
       toast.success(`Day ${dayNum} ${!currentlyLocked ? "locked" : "unlocked"}`);
     } catch {
       toast.error("Failed to toggle lock");

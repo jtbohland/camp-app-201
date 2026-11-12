@@ -1,5 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { getCounselorAccess } from "../../lib/cohort.js";
+import { getCounselorAccess, getSpeakerAccess } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -17,11 +17,18 @@ const ExecutiveSchema = z.object({
   slack_name: z.string().nullable(),
   /** Counselors only: when the share link was first copied. */
   link_copied_at: z.string().nullable(),
+  /** The agenda session the speaker appears in, and that session's day + start time. */
+  agenda_item_id: z.coerce.number().nullable(),
+  session_title: z.string().nullable(),
+  day_number: z.coerce.number().nullable(),
+  start_time: z.string().nullable(),
+  /** Counselors only: true when the speaker's day is still locked for cAMPers. */
+  day_locked: z.boolean(),
 });
 
 export default api({
   name: "GetExecutives",
-  description: "Fetches guest speakers, with share-link status for counselors",
+  description: "Fetches guest speakers with their session day; cAMPers only see unlocked days",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
@@ -33,24 +40,33 @@ export default api({
   }),
   async run(ctx, { active_only }) {
     const db = ctx.integrations.camp_201_db;
-    const whereClause = active_only ? "WHERE is_active = true" : "";
+    const whereClause = active_only ? "WHERE e.is_active = true" : "";
     const executives = await db.query(
-      `SELECT id, name, title, photo_url, bio, linkedin_url, is_active,
-              NULLIF(btrim(email), '') AS email, NULLIF(btrim(slack_name), '') AS slack_name,
-              link_copied_at::text AS link_copied_at
-       FROM camp201_executives ${whereClause}
-       ORDER BY name
-       LIMIT 50`,
+      `SELECT e.id, e.name, e.title, e.photo_url, e.bio, e.linkedin_url, e.is_active,
+              NULLIF(btrim(e.email), '') AS email, NULLIF(btrim(e.slack_name), '') AS slack_name,
+              e.link_copied_at::text AS link_copied_at,
+              a.id AS agenda_item_id, a.title AS session_title, a.day_number, a.start_time::text AS start_time,
+              COALESCE(cfg.value = 'true', false) AS day_locked
+       FROM camp201_executives e
+       LEFT JOIN camp201_agenda a ON a.id = e.agenda_item_id
+       LEFT JOIN camp201_config cfg ON cfg.key = 'agenda_day_' || a.day_number || '_locked'
+       ${whereClause}
+       ORDER BY a.day_number NULLS LAST, a.start_time NULLS LAST, e.name
+       LIMIT 100`,
       ExecutiveSchema,
       undefined,
-      { label: "Fetch executives" }
+      { label: "Fetch executives with session day" }
     );
 
-    // Share-link status is for counselors only.
     const access = await getCounselorAccess(db, ctx.user.email);
-    if (!access.isAdmin) {
-      return { executives: executives.map((e) => ({ ...e, link_copied_at: null })) };
-    }
-    return { executives };
+    if (access.isAdmin) return { executives };
+
+    // cAMPers (and speakers) see a speaker only once their session's day is unlocked.
+    // A speaker always sees their own tile.
+    const speaker = await getSpeakerAccess(db, ctx.user.email);
+    const visible = executives.filter(
+      (e) => (e.day_number !== null && !e.day_locked) || (speaker && speaker.executiveId === e.id)
+    );
+    return { executives: visible.map((e) => ({ ...e, link_copied_at: null, day_locked: false })) };
   },
 });
