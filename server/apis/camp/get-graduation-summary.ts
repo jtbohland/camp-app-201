@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
 import { getStandings } from "../../lib/cohort-snapshot.js";
+import { denseRank } from "../../lib/rank.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -54,10 +55,10 @@ export default api({
       return { camper_name: "", team_name: null, team_logo: null, team_color: null, team_rank: null, total_teams: 0, team_members: [], total_points: 0, rank: 0, total_campers: 0, badges_earned: 0, badge_list: [], checkins_count: 0, surveys_completed: 0, prework_completed: 0, points_log_highlights: [] };
     }
 
-    // Get rank
+    // Rank: ties share a place and the next group is the next number (8, 8, 8, 9).
     const CountSchema = z.object({ count: z.coerce.number() });
     const rankResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers
+      `SELECT COUNT(DISTINCT points)::int as count FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
          AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)
          AND points > (SELECT points FROM camp201_campers WHERE id = $1)`,
@@ -165,8 +166,8 @@ export default api({
         { label: "Get team rankings" }
       );
       totalTeams = teamRanks.length;
-      const idx = teamRanks.findIndex((r) => r.team_id === team.id);
-      teamRank = idx >= 0 ? idx + 1 : null;
+      const mine = teamRanks.find((r) => r.team_id === team.id);
+      teamRank = mine ? denseRank(teamRanks.map((r) => r.total), mine.total) : null;
     }
 
     // Counselor viewing a past cohort: points, ranks, and team placement as of close.
@@ -177,20 +178,20 @@ export default api({
         const me = standings.campers.find((c) => c.id === camper_id);
         if (me) {
           const ranked = standings.teams.filter((t) => t.name !== "TEST");
-          const teamIdx = me.team_id !== null ? ranked.findIndex((t) => t.id === me.team_id) : -1;
+          const myTeam = me.team_id !== null ? ranked.find((t) => t.id === me.team_id) : undefined;
           return {
             camper_name: `${me.first_name} ${me.last_name}`.trim(),
             team_name: teamName,
             team_logo: teamLogo,
             team_color: teamColor,
-            team_rank: teamIdx >= 0 ? teamIdx + 1 : null,
+            team_rank: myTeam ? denseRank(ranked.map((t) => t.total_points), myTeam.total_points) : null,
             total_teams: ranked.length,
             team_members: standings.campers
               .filter((c) => me.team_id !== null && c.team_id === me.team_id)
               .slice(0, 10)
               .map((c) => ({ name: `${c.first_name} ${c.last_name}`.trim(), points: c.points })),
             total_points: me.points,
-            rank: standings.campers.filter((c) => c.points > me.points).length + 1,
+            rank: denseRank(standings.campers.map((c) => c.points), me.points),
             total_campers: standings.campers.length,
             badges_earned: badgesResult[0].count,
             badge_list: badgeList,

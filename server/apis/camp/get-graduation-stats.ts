@@ -50,9 +50,9 @@ export default api({
     const { first_name, last_name, points, team_name } = camper[0];
     const CountSchema = z.object({ count: z.coerce.number() });
 
-    // Rank
+    // Rank: ties share a place and the next group is the next number (8, 8, 8, 9).
     const rankResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_campers
+      `SELECT COUNT(DISTINCT points)::int as count FROM camp201_campers
        WHERE role NOT IN ('counselor', 'admin')
          AND cohort_id = (SELECT cohort_id FROM camp201_campers WHERE id = $1)
          AND points > (SELECT points FROM camp201_campers WHERE id = $1)`,

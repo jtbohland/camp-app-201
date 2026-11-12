@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,19 +10,15 @@ import { getRoleGroup, mapToStandardRole } from "@/lib/roles.js";
 const getRoleShort = (role: string | null) => mapToStandardRole(role) ?? getRoleGroup(role) ?? role ?? "";
 import type { IconName } from "lucide-react/dynamic";
 
-const PAGE_SIZE = 20;
-
 /**
  * What counselors see instead of their own graduation card: everyone ranked, with
  * badges and teams. Counselors aren't ranked and don't earn badges themselves.
  */
 export default function CounselorCampSnapshot() {
   const { data, loading, fetching, isError, error, refetch } = useApiData("GetCampSnapshot", {}, { staleTime: 15_000 });
-  const [page, setPage] = useState(0);
+  // Every cAMPer on one page (a cohort is a few dozen people at most).
   const campers = data?.campers ?? [];
   const teams = data?.teams ?? [];
-  const totalPages = Math.max(1, Math.ceil(campers.length / PAGE_SIZE));
-  const pageRows = useMemo(() => campers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [campers, page]);
   const camperById = useMemo(() => new Map(campers.map((c) => [c.id, c])), [campers]);
 
   if (loading) {
@@ -72,7 +68,7 @@ export default function CounselorCampSnapshot() {
           <p className="p-8 text-center text-sm text-muted-foreground">No cAMPers in this cohort yet.</p>
         ) : (
           <div className="divide-y divide-border">
-            {pageRows.map((c) => (
+            {campers.map((c) => (
               <div key={c.id} className="flex items-center gap-3 px-5 py-3">
                 <span className={`w-8 text-center text-sm font-extrabold ${c.rank <= 3 ? "text-amber-600" : "text-muted-foreground"}`}>
                   {c.rank === 1 ? "👑" : `#${c.rank}`}
@@ -105,13 +101,9 @@ export default function CounselorCampSnapshot() {
             ))}
           </div>
         )}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-border px-5 py-2 text-xs text-muted-foreground">
-            <span>Page {page + 1} of {totalPages} ({campers.length} cAMPers)</span>
-            <div className="flex gap-2">
-              <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="rounded border border-border px-2 py-1 disabled:opacity-40">Previous</button>
-              <button disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} className="rounded border border-border px-2 py-1 disabled:opacity-40">Next</button>
-            </div>
+        {campers.length > 0 && (
+          <div className="border-t border-border px-5 py-2 text-xs text-muted-foreground">
+            {campers.length} cAMPers · tied scores share a place
           </div>
         )}
       </Card>

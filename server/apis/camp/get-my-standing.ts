@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
 import { getStandings } from "../../lib/cohort-snapshot.js";
+import { denseRank } from "../../lib/rank.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -40,13 +41,11 @@ export default api({
     };
     if (!me) return empty;
 
-    // Ties share a place (e.g. two cAMPers on 40 pts are both #3).
-    const rankIdx = campers.findIndex((c) => c.points === me.points);
-    const rank = me.is_counselor || rankIdx < 0 ? null : rankIdx + 1;
+    // Ties share a place and the next group is the next number (8, 8, 8, 9).
+    const rank = me.is_counselor ? null : denseRank(campers.map((c) => c.points), me.points);
 
-    const teamIdx = me.team_id !== null ? teams.findIndex((t) => t.id === me.team_id) : -1;
-    const myTeam = teamIdx >= 0 ? teams[teamIdx] : null;
-    const teamRankIdx = myTeam ? teams.findIndex((t) => t.total_points === myTeam.total_points) : -1;
+    const myTeam = me.team_id !== null ? teams.find((t) => t.id === me.team_id) ?? null : null;
+    const teamPlace = myTeam ? denseRank(teams.map((t) => t.total_points), myTeam.total_points) : 0;
 
     return {
       found: true,
@@ -57,7 +56,7 @@ export default api({
       team: myTeam
         ? {
             id: myTeam.id, name: myTeam.name, logo_url: myTeam.logo_url, color: myTeam.color,
-            rank: teamRankIdx + 1, total_points: myTeam.total_points,
+            rank: teamPlace, total_points: myTeam.total_points,
           }
         : null,
       total_teams: teams.length,

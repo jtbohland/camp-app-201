@@ -147,7 +147,7 @@ export default api({
 
     // Get leaderboard ranks
     const ranks = await ctx.integrations.camp_201_db.query(
-      `SELECT id as camper_id, RANK() OVER (ORDER BY points DESC)::integer as rank
+      `SELECT id as camper_id, DENSE_RANK() OVER (ORDER BY points DESC)::integer as rank
        FROM camp201_campers
        WHERE cohort_id = ${VIEW}
          AND role NOT IN ('counselor', 'admin')

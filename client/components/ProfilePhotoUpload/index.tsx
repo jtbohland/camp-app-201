@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import { resizeImageToDataUrl } from "@/lib/resizeImage.js";
 
 type ProfilePhotoUploadProps = {
   currentPhotoUrl: string | null;
@@ -27,14 +28,14 @@ export default function ProfilePhotoUpload({
         setError("Use PNG, JPG, GIF, or WebP");
         return;
       }
-      if (file.size > 2 * 1024 * 1024) {
-        setError("Image must be under 2MB");
+      // GIFs aren't resized, so they keep the size limit. Other photos are shrunk to ~512px.
+      if (file.size > (file.type === "image/gif" ? 2 : 15) * 1024 * 1024) {
+        setError(file.type === "image/gif" ? "GIFs must be under 2MB" : "Image must be under 15MB");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => onChange(reader.result as string);
-      reader.onerror = () => setError("Failed to read file");
-      reader.readAsDataURL(file);
+      resizeImageToDataUrl(file)
+        .then(onChange)
+        .catch(() => setError("Failed to read file"));
     },
     [onChange]
   );

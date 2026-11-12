@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { requireCounselor, resolveViewCohort } from "../../lib/cohort.js";
 import { getStandings } from "../../lib/cohort-snapshot.js";
+import { denseRanks } from "../../lib/rank.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -95,18 +96,14 @@ export default api({
     const extraBy = new Map(extras.map((e) => [e.id, e]));
     const teamBy = new Map(teams.map((t) => [t.id, t]));
 
-    // Ties share a rank (1, 2, 2, 4).
-    let lastPoints: number | null = null;
-    let lastRank = 0;
+    // Ties share a place and the next group is the next number (8, 8, 8, 9).
+    const camperPlaces = denseRanks(campers.map((c) => c.points));
+    const teamPlaces = denseRanks(teams.map((t) => t.total_points));
     const ranked = campers.map((c, i) => {
-      if (c.points !== lastPoints) {
-        lastRank = i + 1;
-        lastPoints = c.points;
-      }
       const team = c.team_id !== null ? teamBy.get(c.team_id) : undefined;
       return {
         id: c.id,
-        rank: lastRank,
+        rank: camperPlaces[i],
         name: `${c.first_name} ${c.last_name}`.trim(),
         photo_url: c.photo_url,
         role: extraBy.get(c.id)?.role ?? null,
@@ -123,7 +120,7 @@ export default api({
       campers: ranked,
       teams: teams.map((t, i) => ({
         id: t.id,
-        rank: i + 1,
+        rank: teamPlaces[i],
         name: t.name,
         logo_url: t.logo_url,
         color: t.color,
