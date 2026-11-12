@@ -164,7 +164,7 @@ export default function ExecutivesTab() {
             speaker={selectedExecForQA}
             camperId={camperData?.camper?.id ?? 0}
             camperTeamId={camperData?.camper?.team_id ?? null}
-            isLocked={qaLocked && !isAdmin}
+            isLocked={qaLocked}
             onBack={closeQA}
             mode={mode}
           />
