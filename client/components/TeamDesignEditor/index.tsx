@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi.js";
 import { toast } from "sonner";
 import TeamLogoStep from "@/components/TeamLogoStep/index.js";
+import { refreshTeamData } from "@/lib/teamMoves.js";
 
 // 24 nature palette
 const NATURE_PALETTE = [
@@ -52,6 +53,8 @@ export default function TeamDesignEditor({
       const result = await updateDesign({ team_id: teamId, camper_id: camperId, name: name.trim(), logo_url: logo, color });
       if (result?.success) {
         toast.success("Team design saved! 🎨");
+        // The new name shows everywhere (Quick cAMP Points, leaderboard, team hub).
+        void refreshTeamData();
         onDone();
       } else {
         toast.error(result?.message ?? "Failed to save design");

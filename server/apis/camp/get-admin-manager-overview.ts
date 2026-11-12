@@ -31,6 +31,8 @@ const ManagerCommentDetailSchema = z.object({
 
 const ExpectedManagerSchema = z.object({
   email: z.string(),
+  /** Every email we have on file for this manager (one person can appear under two). */
+  emails: z.array(z.string()),
   name: z.string().nullable(),
   hires: z.array(z.string()),
   registered: z.boolean(),
@@ -96,28 +98,67 @@ export default api({
     const COHORT = cohortIdSql(view.cohortId);
     const HIRES_SQL = `
       SELECT btrim(COALESCE(nh.first_name, '') || ' ' || COALESCE(nh.last_name, '')) AS hire_name,
+             COALESCE(nh.camper_id, c.id) AS camper_id,
              lower(btrim(COALESCE(NULLIF(btrim(c.manager_email), ''), NULLIF(btrim(nh.manager_email), '')))) AS mgr_email,
              COALESCE(NULLIF(btrim(nh.manager_name), ''), NULLIF(btrim(c.manager), '')) AS mgr_name
       FROM camp201_new_hires nh
       LEFT JOIN LATERAL (
-        SELECT x.manager_email, x.manager FROM camp201_campers x
+        SELECT x.id, x.manager_email, x.manager FROM camp201_campers x
         WHERE x.removed_at IS NULL AND (x.id = nh.camper_id OR lower(x.email) = lower(nh.email))
         ORDER BY (x.id = nh.camper_id) DESC, x.id DESC LIMIT 1
       ) c ON true
       WHERE nh.cohort_id = ${COHORT} AND nh.status = 'accepted'`;
 
+    // One row per manager (not per email):
+    //  1. Clean each email (spaces, "mailto:") and name (case, extra spaces).
+    //  2. Match each email to a registered manager by email, else by a hire they've already
+    //     linked when registering, else by name. Managers often
+    //     register with a different alias than the one on the hire list (halle@ vs halle.morris@).
+    //  3. Group by the registered manager, else by name, else by email, so a manager listed
+    //     under two emails shows once with all their hires.
+    // Registered = matched a registered manager, or every one of their hires is already linked
+    // through manager registration.
     const expectedRows = await ctx.integrations.camp_201_db.query(
-      `WITH hires AS (${HIRES_SQL})
-       SELECT h.mgr_email AS email,
-              max(h.mgr_name) AS name,
-              string_agg(NULLIF(h.hire_name, ''), '${SEP}' ORDER BY h.hire_name) AS hires,
-              EXISTS (SELECT 1 FROM camp201_managers m WHERE lower(btrim(m.email)) = h.mgr_email) AS registered
-       FROM hires h
-       WHERE h.mgr_email IS NOT NULL AND h.mgr_email <> ''
-       GROUP BY h.mgr_email
-       ORDER BY registered, max(h.mgr_name) NULLS LAST, h.mgr_email
+      `WITH hires AS (${HIRES_SQL}),
+       norm AS (
+         SELECT h.hire_name, h.mgr_name, h.camper_id,
+                regexp_replace(regexp_replace(h.mgr_email, '^mailto:', ''), '[[:space:]]', '', 'g') AS mgr_email,
+                NULLIF(lower(regexp_replace(btrim(COALESCE(h.mgr_name, '')), '[[:space:]]+', ' ', 'g')), '') AS name_key,
+                EXISTS (SELECT 1 FROM camp201_manager_hires mh WHERE mh.camper_id = h.camper_id) AS linked
+         FROM hires h
+         WHERE COALESCE(h.mgr_email, '') <> ''
+       ),
+       by_email AS (
+         SELECT mgr_email, max(mgr_name) AS mgr_name, max(name_key) AS name_key FROM norm GROUP BY mgr_email
+       ),
+       mgrs AS (
+         SELECT m.id, lower(btrim(m.email)) AS email,
+                lower(regexp_replace(btrim(COALESCE(m.first_name, '') || ' ' || COALESCE(m.last_name, '')), '[[:space:]]+', ' ', 'g')) AS name_key
+         FROM camp201_managers m
+       ),
+       keyed AS (
+         SELECT e.*,
+                COALESCE(
+                  (SELECT m.id FROM mgrs m WHERE m.email = e.mgr_email ORDER BY m.id LIMIT 1),
+                  (SELECT mh.manager_id FROM norm n2 JOIN camp201_manager_hires mh ON mh.camper_id = n2.camper_id
+                   WHERE n2.mgr_email = e.mgr_email ORDER BY mh.manager_id LIMIT 1),
+                  (SELECT m.id FROM mgrs m WHERE e.name_key IS NOT NULL AND m.name_key = e.name_key ORDER BY m.id LIMIT 1)
+                ) AS manager_id
+         FROM by_email e
+       ),
+       grouped AS (
+         SELECT k.*, COALESCE('m' || k.manager_id, 'n' || k.name_key, 'e' || k.mgr_email) AS gkey FROM keyed k
+       )
+       SELECT string_agg(DISTINCT g.mgr_email, '${SEP}' ORDER BY g.mgr_email) AS emails,
+              max(g.mgr_name) AS name,
+              string_agg(DISTINCT NULLIF(n.hire_name, ''), '${SEP}' ORDER BY NULLIF(n.hire_name, '')) AS hires,
+              (bool_or(g.manager_id IS NOT NULL) OR bool_and(n.linked)) AS registered
+       FROM grouped g
+       JOIN norm n ON n.mgr_email = g.mgr_email
+       GROUP BY g.gkey
+       ORDER BY registered, max(g.mgr_name) NULLS LAST, min(g.mgr_email)
        LIMIT 300`,
-      z.object({ email: z.string(), name: z.string().nullable(), hires: z.string().nullable(), registered: z.boolean() }),
+      z.object({ emails: z.string(), name: z.string().nullable(), hires: z.string().nullable(), registered: z.boolean() }),
       undefined,
       { label: "Find expected managers from accepted cAMPers" }
     );
@@ -138,7 +179,8 @@ export default api({
       managers,
       recent_comments: recentComments,
       expected_managers: expectedRows.map((r) => ({
-        email: r.email,
+        email: r.emails.split(SEP)[0] ?? "",
+        emails: r.emails.split(SEP).filter(Boolean),
         name: r.name,
         registered: r.registered,
         hires: (r.hires ?? "").split(SEP).filter(Boolean),

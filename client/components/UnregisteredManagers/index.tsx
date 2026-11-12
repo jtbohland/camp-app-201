@@ -7,6 +7,8 @@ import { Icon } from "@/components/ui/icon";
 
 export type ExpectedManager = {
   email: string;
+  /** Every email on file for this manager. */
+  emails: string[];
   name: string | null;
   hires: string[];
   registered: boolean;
@@ -30,7 +32,7 @@ export default function UnregisteredManagers({ expected, hiresWithoutManager }: 
 
   const copyEmails = async () => {
     try {
-      await navigator.clipboard.writeText(missing.map((m) => m.email).join(", "));
+      await navigator.clipboard.writeText([...new Set(missing.flatMap((m) => (m.emails.length ? m.emails : [m.email])))].join(", "));
       toast.success(`Copied ${missing.length} manager email${missing.length !== 1 ? "s" : ""}`);
     } catch {
       toast.error("Couldn't copy. Select the emails and copy them instead.");
@@ -72,7 +74,11 @@ export default function UnregisteredManagers({ expected, hiresWithoutManager }: 
             <div key={m.email} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium text-foreground">{m.name || m.email}</div>
-                {m.name && <div className="text-xs text-muted-foreground">{m.email}</div>}
+                {m.name ? (
+                  <div className="text-xs text-muted-foreground">{m.emails.length ? m.emails.join(", ") : m.email}</div>
+                ) : (
+                  m.emails.length > 1 && <div className="text-xs text-muted-foreground">{m.emails.slice(1).join(", ")}</div>
+                )}
               </div>
               <div className="flex flex-wrap justify-end gap-1">
                 {m.hires.map((h) => (
