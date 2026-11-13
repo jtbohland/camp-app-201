@@ -22,6 +22,7 @@ import {
 } from "@/components/DaySchedule";
 import { findSlotConflict } from "@/lib/agendaRules";
 import BlackoutSettings, { type BlackoutValue } from "@/components/BlackoutSettings/index.js";
+import SessionLinksEditor, { linksInvalid, type SessionLink } from "@/components/SessionLinksEditor/index.js";
 
 type Props = {
   item: AgendaItem | null;
@@ -30,9 +31,11 @@ type Props = {
   defaultMinutes: number | null;
   /** Session Bank titles, so a rename can say whether it creates or reuses a library session. */
   bankTitles: string[];
+  /** Current slide deck / resource links on this tile's Session Bank session. */
+  initialLinks: SessionLink[];
   saving: boolean;
   onCancel: () => void;
-  onSave: (item: AgendaItem, startTime: string, endTime: string, title: string, blackout: BlackoutValue) => void;
+  onSave: (item: AgendaItem, startTime: string, endTime: string, title: string, blackout: BlackoutValue, links: SessionLink[]) => void;
 };
 
 const START_OPTIONS: number[] = [];
@@ -52,19 +55,22 @@ function lengthLabel(min: number) {
  * Changes one scheduled tile's name and timing. The original Session Bank session is not touched;
  * a new name is added to the Session Bank as its own session.
  */
-export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, bankTitles, saving, onCancel, onSave }: Props) {
+export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, bankTitles, initialLinks, saving, onCancel, onSave }: Props) {
   const [startMin, setStartMin] = useState(GRID_START_MIN);
   const [length, setLength] = useState(30);
   const [title, setTitle] = useState("");
   const [blackout, setBlackout] = useState<BlackoutValue>({ isBlackout: false, roles: [] });
+  const [links, setLinks] = useState<SessionLink[]>([]);
 
   useEffect(() => {
     if (!item) return;
+    setLinks(initialLinks);
     const s = timeToMinutes(item.start_time);
     setStartMin(s);
     setLength(timeToMinutes(item.end_time) - s);
     setTitle(item.title);
     setBlackout({ isBlackout: !!item.is_blackout, roles: item.blackout_roles ?? [] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
 
   const trimmedTitle = title.trim();
@@ -170,11 +176,21 @@ export default function EditAgendaItemDialog({ item, allItems, defaultMinutes, b
           hint="Only this tile. cAMPers in these roles can't request an absence during it."
         />
 
+        <SessionLinksEditor
+          links={links}
+          onChange={setLinks}
+          hint={
+            renamed
+              ? "Saved to the renamed session. cAMPers see a Resources pill on this tile once its day is unlocked."
+              : "Saved to this session, so every tile of it shows them. cAMPers see a Resources pill once the day is unlocked."
+          }
+        />
+
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={saving}>Cancel</Button>
           <Button
-            onClick={() => item && onSave(item, minutesToTime(startMin), minutesToTime(endMin), trimmedTitle, blackout)}
-            disabled={saving || !!conflict || !trimmedTitle}
+            onClick={() => item && onSave(item, minutesToTime(startMin), minutesToTime(endMin), trimmedTitle, blackout, links)}
+            disabled={saving || !!conflict || !trimmedTitle || linksInvalid(links)}
             className="bg-camp-green hover:bg-camp-green/90 text-white"
           >
             {saving ? "Saving..." : "Save"}

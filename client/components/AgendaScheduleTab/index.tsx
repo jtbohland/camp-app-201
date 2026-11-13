@@ -36,6 +36,7 @@ import EditAgendaItemDialog from "@/components/EditAgendaItemDialog/index.js";
 import { findSlotConflict, eventPoint } from "@/lib/agendaRules";
 import { sameBlackout, type BlackoutValue } from "@/components/BlackoutSettings/index.js";
 import BlackoutConflictsNotice from "@/components/BlackoutConflictsNotice/index.js";
+import { cleanLinks, sameLinks, type SessionLink } from "@/components/SessionLinksEditor/index.js";
 
 const SNAP_MIN = 15;
 
@@ -87,6 +88,7 @@ export default function AgendaScheduleTab() {
   const { run: moveItem } = useApi("MoveAgendaItem");
   const { run: editItem } = useApi("EditAgendaItem");
   const { run: setBlackout } = useApi("SetBlackout");
+  const { run: saveLinks } = useApi("SaveSessionLinks");
 
   const [numDays, setNumDays] = useState<number | null>(null);
   const [activeDrag, setActiveDrag] = useState<BankSession | AgendaItem | null>(null);
@@ -122,7 +124,6 @@ export default function AgendaScheduleTab() {
   }, [agendaKey]);
 
   const { isAdmin } = useIsAdmin();
-  const camperId = camperData?.camper?.id ?? 0;
 
   // Compute current cAMP day + time
   const campStartDate = useMemo(() => {
@@ -320,9 +321,19 @@ export default function AgendaScheduleTab() {
     refetchAgenda();
   }, [agendaData, scheduleSession, moveItem, refetchAgenda, patchAgenda, agendaKey, computeTarget, stopTrackingPointer]);
 
+  const linksForBank = useCallback(
+    (bankId: number | null): SessionLink[] => {
+      if (!bankId) return [];
+      const s = (bankData?.sessions ?? []).find((b: { id: number }) => b.id === bankId) as { links?: SessionLink[] } | undefined;
+      return s?.links ?? [];
+    },
+    [bankData]
+  );
+  const editingLinks = useMemo(() => linksForBank(editingItem?.session_bank_id ?? null), [linksForBank, editingItem]);
+
   // Edit one calendar tile's name + timing. The original Session Bank session is never changed;
   // a new name is added to the Session Bank as its own session.
-  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string, title: string, blackout: BlackoutValue) => {
+  const handleSaveEdit = useCallback(async (item: AgendaItem, startTime: string, endTime: string, title: string, blackout: BlackoutValue, links: SessionLink[]) => {
     setSavingEdit(true);
     const before: BlackoutValue = { isBlackout: !!item.is_blackout, roles: item.blackout_roles ?? [] };
     const blackoutChanged = !sameBlackout(before, blackout);
@@ -340,10 +351,22 @@ export default function AgendaScheduleTab() {
         const r = await setBlackout({ target: "agenda", id: item.id, is_blackout: blackout.isBlackout, roles: blackout.roles });
         conflicts = r?.open_conflicts ?? 0;
       }
+      // Links live on the tile's Session Bank session (the new one if it was renamed).
+      const bankId = result?.session_bank_id ?? item.session_bank_id;
+      const prevLinks = linksForBank(item.session_bank_id);
+      const linksChanged = !sameLinks(prevLinks, links) || (!!result?.created_bank_session && cleanLinks(links).length > 0);
+      if (linksChanged && bankId) {
+        await saveLinks({ session_bank_id: bankId, links: cleanLinks(links) });
+        void queryClient.invalidateQueries("GetAgendaResources");
+        refetchBank();
+      }
       if (result?.created_bank_session) {
         toast.success(`Updated tile and added "${title}" to the Session Bank`);
       } else if (blackoutChanged) {
         toast.success(blackout.isBlackout ? `"${title}" is now required (blackout)` : `"${title}" is no longer required`);
+      } else if (linksChanged) {
+        const n = cleanLinks(links).length;
+        toast.success(`Updated "${title}" · ${n} resource link${n === 1 ? "" : "s"}`);
       } else {
         toast.success(`Updated "${title}" to ${formatTime(startTime)} – ${formatTime(endTime)}`);
       }
@@ -359,7 +382,7 @@ export default function AgendaScheduleTab() {
     }
     setSavingEdit(false);
     refetchAgenda();
-  }, [patchAgenda, editItem, setBlackout, agendaKey, refetchAgenda, refetchBank]);
+  }, [patchAgenda, editItem, setBlackout, saveLinks, linksForBank, agendaKey, refetchAgenda, refetchBank]);
 
   const bankTitles = useMemo(
     () => ((bankData?.sessions ?? []) as { title: string }[]).map((s) => s.title),
@@ -538,11 +561,7 @@ export default function AgendaScheduleTab() {
         </div>
 
         {/* Resources panel */}
-        <AgendaResources
-          agendaItems={agendaItems}
-          isAdmin={isAdmin}
-          camperId={camperId}
-        />
+        <AgendaResources isAdmin={isAdmin} />
       </div>
 
       <EditAgendaItemDialog
@@ -550,6 +569,7 @@ export default function AgendaScheduleTab() {
         allItems={agendaItems as AgendaItem[]}
         defaultMinutes={editingDefaultMinutes}
         bankTitles={bankTitles}
+        initialLinks={editingLinks}
         saving={savingEdit}
         onCancel={() => setEditingItem(null)}
         onSave={handleSaveEdit}

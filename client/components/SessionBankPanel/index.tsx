@@ -7,9 +7,11 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApi } from "@/hooks/useApi";
+import { queryClient } from "@superblocksteam/library";
 import { toast } from "sonner";
 import BlackoutSettings, { sameBlackout, type BlackoutValue } from "@/components/BlackoutSettings/index.js";
 import { blackoutAudienceLabel } from "@/lib/blackouts.js";
+import SessionLinksEditor, { cleanLinks, linksInvalid, sameLinks, type SessionLink } from "@/components/SessionLinksEditor/index.js";
 
 const BANK_COLORS: Record<string, string> = {
   core: "border-l-emerald-400",
@@ -33,6 +35,7 @@ export type BankSession = {
   created_by: string | null;
   is_blackout?: boolean;
   blackout_roles?: string[];
+  links?: SessionLink[];
 };
 
 type Props = {
@@ -80,7 +83,12 @@ function DraggableBankItem({ session, onEdit, onRemove, recentlyDragged }: { ses
           className={`w-3 h-3 flex-shrink-0 ${session.is_blackout ? "text-red-600" : "text-muted-foreground"}`}
         />
         <div className="min-w-0">
-          <p className="text-xs font-medium leading-tight">{session.title}</p>
+          <p className="text-xs font-medium leading-tight">
+            {session.title}
+            {(session.links?.length ?? 0) > 0 && (
+              <Icon icon="paperclip" className="ml-1 inline h-2.5 w-2.5 text-amber-500" aria-label={`${session.links?.length} resource link(s)`} />
+            )}
+          </p>
           {session.is_blackout && (
             <p className="truncate text-[9px] font-semibold text-red-600">Required · {blackoutAudienceLabel(session.blackout_roles ?? [], 1)}</p>
           )}
@@ -104,12 +112,14 @@ export default function SessionBankPanel({ sessions, onSessionCreated, showRemov
   const [duration, setDuration] = useState("60");
   const [sessionType, setSessionType] = useState("session");
   const [blackout, setBlackout] = useState<BlackoutValue>({ isBlackout: false, roles: [] });
+  const [links, setLinks] = useState<SessionLink[]>([]);
   const [filter, setFilter] = useState("");
 
   const { run: createSession, loading: creating } = useApi("CreateBankSession");
   const { run: updateSession, loading: updating } = useApi("UpdateBankSession");
   const { run: removeSession } = useApi("RemoveBankSession");
   const { run: saveBlackout, loading: savingBlackout } = useApi("SetBlackout");
+  const { run: saveLinks, loading: savingLinks } = useApi("SaveSessionLinks");
 
   // Some browsers fire a click right after a drag ends; don't open the editor for it.
   const lastDragEndRef = useRef(0);
@@ -123,6 +133,7 @@ export default function SessionBankPanel({ sessions, onSessionCreated, showRemov
     setEditSession(null);
     setTitle(""); setDescription(""); setDuration("60"); setSessionType("session");
     setBlackout({ isBlackout: false, roles: [] });
+    setLinks([]);
     setShowForm(true);
   }, []);
 
@@ -133,6 +144,7 @@ export default function SessionBankPanel({ sessions, onSessionCreated, showRemov
     setDuration(String(s.duration_minutes));
     setSessionType(s.session_type);
     setBlackout({ isBlackout: !!s.is_blackout, roles: s.blackout_roles ?? [] });
+    setLinks(s.links ?? []);
     setShowForm(true);
   }, []);
 
@@ -150,6 +162,10 @@ export default function SessionBankPanel({ sessions, onSessionCreated, showRemov
         sessionId = created?.id ?? 0;
         blackoutChanged = blackout.isBlackout;
       }
+      const linksChanged = !sameLinks(editSession?.links ?? [], links);
+      if (linksChanged && sessionId > 0) {
+        await saveLinks({ session_bank_id: sessionId, links: cleanLinks(links) });
+      }
       if (blackoutChanged && sessionId > 0) {
         const r = await saveBlackout({ target: "bank", id: sessionId, is_blackout: blackout.isBlackout, roles: blackout.roles });
         const tiles = r?.tiles_updated ?? 0;
@@ -160,15 +176,21 @@ export default function SessionBankPanel({ sessions, onSessionCreated, showRemov
           toast.warning(`${conflicts} approved absence${conflicts === 1 ? "" : "s"} now overlap a required session. Those cAMPers will be asked to reschedule.`);
         }
       } else {
-        toast.success(editSession ? "Session updated" : "Session added");
+        const n = cleanLinks(links).length;
+        toast.success(
+          linksChanged
+            ? `${editSession ? "Session updated" : "Session added"} · ${n} resource link${n === 1 ? "" : "s"}`
+            : editSession ? "Session updated" : "Session added"
+        );
       }
       setShowForm(false); setEditSession(null);
       onSessionCreated();
+      if (linksChanged) void queryClient.invalidateQueries("GetAgendaResources");
     } catch (err) {
       const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
       toast.error("Failed: " + msg);
     }
-  }, [title, description, duration, sessionType, blackout, editSession, createSession, updateSession, saveBlackout, onSessionCreated]);
+  }, [title, description, duration, sessionType, blackout, links, editSession, createSession, updateSession, saveBlackout, saveLinks, onSessionCreated]);
 
   const handleRemove = useCallback(async (id: number) => {
     try {
@@ -242,8 +264,9 @@ export default function SessionBankPanel({ sessions, onSessionCreated, showRemov
             onChange={setBlackout}
             hint="Applies to this session and every tile scheduled from it."
           />
-          <Button size="sm" onClick={handleSave} disabled={creating || updating || savingBlackout || !title.trim()} className="h-7 text-xs">
-            {editSession ? (updating || savingBlackout ? "Saving..." : "Save Changes") : (creating || savingBlackout ? "Adding..." : "Add to Bank")}
+          <SessionLinksEditor compact links={links} onChange={setLinks} hint="Shows on every tile scheduled from this session." />
+          <Button size="sm" onClick={handleSave} disabled={creating || updating || savingBlackout || savingLinks || !title.trim() || linksInvalid(links)} className="h-7 text-xs">
+            {editSession ? (updating || savingBlackout || savingLinks ? "Saving..." : "Save Changes") : (creating || savingBlackout || savingLinks ? "Adding..." : "Add to Bank")}
           </Button>
         </div>
       )}

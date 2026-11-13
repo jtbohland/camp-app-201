@@ -60,9 +60,7 @@ import CreateSurvey from './camp/create-survey.js';
 import GetActiveSurvey from './camp/get-active-survey.js';
 import SubmitSurvey from './camp/submit-survey.js';
 import GetSurveyResults from './camp/get-survey-results.js';
-import MigrateAgendaResources from './camp/migrate-agenda-resources.js';
-import AddAgendaResource from './camp/add-agenda-resource.js';
-import GetAgendaResources from './camp/get-agenda-resources.js';
+import { GetAgendaResources, SaveSessionLinks } from './camp/session-links.js';
 import MigrateBadges from './camp/migrate-badges.js';
 import GetBadges from './camp/get-badges.js';
 import AwardBadge from './camp/award-badge.js';
@@ -285,9 +283,8 @@ const apis = {
   GetActiveSurvey,
   SubmitSurvey,
   GetSurveyResults,
-  MigrateAgendaResources,
-  AddAgendaResource,
   GetAgendaResources,
+  SaveSessionLinks,
   MigrateBadges,
   GetBadges,
   AwardBadge,
