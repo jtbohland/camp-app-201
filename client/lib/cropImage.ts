@@ -1,41 +1,23 @@
 /**
- * Crops an image to a fixed aspect ratio around an anchor point with optional zoom, and returns a
- * data URL. Keeps transparency for PNG/WebP sources (exported as PNG); photos export as JPEG.
+ * Scales an image down so its longest side is at most `maxSize`, and returns a data URL.
+ * Keeps transparency for PNG/WebP sources (exported as PNG); photos export as JPEG.
  */
-export async function cropToAspect(
-  src: string,
-  opts: { aspect: number; focusX: number; focusY: number; zoom: number; outWidth: number; keepAlpha: boolean }
-): Promise<string> {
+export async function shrinkImage(src: string, opts: { maxSize: number; keepAlpha: boolean }): Promise<string> {
   const img = await loadImage(src);
-  const { aspect, focusX, focusY, zoom, outWidth, keepAlpha } = opts;
-
-  // Largest box of the target aspect that fits, shrunk by zoom.
-  let cropW = img.width;
-  let cropH = cropW / aspect;
-  if (cropH > img.height) {
-    cropH = img.height;
-    cropW = cropH * aspect;
-  }
-  cropW /= zoom;
-  cropH /= zoom;
-
-  // Anchor: 0% = left/top edge, 100% = right/bottom edge (same as CSS object-position).
-  const sx = (img.width - cropW) * (focusX / 100);
-  const sy = (img.height - cropH) * (focusY / 100);
-
-  const outW = Math.min(outWidth, Math.round(cropW));
-  const outH = Math.round(outW / aspect);
+  const scale = Math.min(1, opts.maxSize / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
   const canvas = document.createElement("canvas");
-  canvas.width = outW;
-  canvas.height = outH;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Your browser couldn't process that image");
-  if (!keepAlpha) {
+  if (!opts.keepAlpha) {
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outW, outH);
+    ctx.fillRect(0, 0, w, h);
   }
-  ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, outW, outH);
-  return keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.88);
+  ctx.drawImage(img, 0, 0, w, h);
+  return opts.keepAlpha ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.88);
 }
 
 export function readFileAsDataUrl(file: File): Promise<string> {

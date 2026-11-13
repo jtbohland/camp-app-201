@@ -269,15 +269,17 @@ function HallOfFameCard({
   const isChampion = team.is_winner || team.place === 1;
   const { run: savePhoto, loading: savingTrophy } = useApi("SaveGroupPhoto");
   const handleTrophy = useCallback(
-    async (dataUrl: string) => {
+    async (dataUrl: string, original?: string) => {
       try {
-        // One trophy photo per cohort; uploading replaces it. Keeps any saved position.
+        // One trophy photo per cohort; uploading replaces it. Auto-enhanced, original kept for undo.
         await savePhoto({
           id: null,
           kind: "trophy",
           cohort_number: cohortNumber,
           label: trophy?.label ?? team.team_name,
           photo_data: dataUrl,
+          original_data: original ?? null,
+          enhanced: !!original,
           focus_x: 50,
           focus_y: 40,
         });
@@ -376,7 +378,7 @@ function HallOfFameCard({
               accent={theme.accent}
               canEdit={canEdit}
               saving={savingTrophy}
-              onPhoto={(d) => void handleTrophy(d)}
+              onPhoto={(d, o) => void handleTrophy(d, o)}
               onError={(m) => toast.error(m)}
             />
           </div>

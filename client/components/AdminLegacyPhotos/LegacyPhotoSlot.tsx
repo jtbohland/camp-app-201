@@ -13,6 +13,8 @@ export type LegacyPhoto = {
   photo_data: string;
   focus_x: number;
   focus_y: number;
+  enhanced: boolean;
+  has_original: boolean;
 };
 
 export type SaveLegacyPhotoArgs = {
@@ -21,6 +23,8 @@ export type SaveLegacyPhotoArgs = {
   cohort_number: number;
   label: string;
   photo_data: string | null;
+  original_data: string | null;
+  enhanced: boolean;
   focus_x: number;
   focus_y: number;
 };
@@ -39,6 +43,12 @@ type Props = {
   onPositioningDone?: () => void;
   onSave: (args: SaveLegacyPhotoArgs) => Promise<void>;
   onDelete: (photo: LegacyPhoto) => void;
+  /** Clean up a photo that was uploaded before auto-enhance. */
+  onEnhance: (photo: LegacyPhoto) => void;
+  /** Undo the enhancement (puts the untouched upload back). */
+  onRestore: (photo: LegacyPhoto) => void;
+  /** This slot's photo is being enhanced right now (e.g. by "Enhance all"). */
+  enhancing?: boolean;
 };
 
 /** Where each kind of photo is shown, so the reposition preview crops the same way. */
@@ -47,9 +57,12 @@ const ASPECT = { group: "16 / 9", trophy: "16 / 10" } as const;
 /** One cohort's group or trophy photo: drop to add/replace, drag to reposition, edit label, delete. */
 export default function LegacyPhotoSlot({
   kind, cohortNumber, defaultLabel, caption, photo, busy, startPositioning, onPositioningDone, onSave, onDelete,
+  onEnhance, onRestore, enhancing,
 }: Props) {
   const [label, setLabel] = useState(photo?.label ?? defaultLabel);
   const [error, setError] = useState<string | null>(null);
+  const [working, setWorking] = useState(false);
+  const isWorking = working || !!enhancing;
   const [positioningLocal, setPositioningLocal] = useState(false);
   // Only trophy photos are cropped (the carousel shows group photos in full), so only they reposition.
   const canPosition = kind === "trophy";
@@ -67,15 +80,17 @@ export default function LegacyPhotoSlot({
     cohort_number: cohortNumber,
     label: label.trim() || defaultLabel || `Cohort ${cohortNumber}`,
     photo_data: null,
+    original_data: null,
+    enhanced: photo?.enhanced ?? false,
     focus_x: photo?.focus_x ?? 50,
     focus_y: photo?.focus_y ?? 40,
     ...over,
   });
 
-  const upload = (dataUrl: string) => {
+  const upload = (dataUrl: string, original?: string) => {
     setError(null);
     // A new photo starts centered; the parent opens the positioner once it lands so faces can be framed.
-    void onSave(base({ photo_data: dataUrl, focus_x: 50, focus_y: 40 }));
+    void onSave(base({ photo_data: dataUrl, original_data: original ?? null, enhanced: !!original, focus_x: 50, focus_y: 40 }));
   };
 
   return (
@@ -93,14 +108,24 @@ export default function LegacyPhotoSlot({
           />
         </div>
       ) : (
-        <PhotoDropZone onPhoto={upload} onError={setError} disabled={busy} maxSize={1600}
+        <PhotoDropZone onPhoto={upload} enhance onWorking={setWorking} onError={setError} disabled={busy || isWorking} maxSize={1600}
           className="block cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {({ dragging }) =>
-            photo ? (
+            isWorking ? (
+              <div className="flex flex-col items-center justify-center gap-1.5 bg-muted/40 text-xs text-muted-foreground" style={{ aspectRatio: ASPECT[kind] }}>
+                <Icon icon="sparkles" className="h-5 w-5 animate-pulse text-amber-500" />
+                Enhancing photo…
+              </div>
+            ) : photo ? (
               <div className="group relative bg-black" style={{ aspectRatio: ASPECT[kind] }}>
                 <img src={photo.photo_data} alt={`Cohort ${cohortNumber} ${kind} photo`}
                   className={`h-full w-full ${canPosition ? "object-cover" : "object-contain"}`}
                   style={canPosition ? { objectPosition: `${photo.focus_x}% ${photo.focus_y}%` } : undefined} />
+                {photo.enhanced && (
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+                    <Icon icon="sparkles" className="h-3 w-3 text-amber-300" /> Enhanced
+                  </span>
+                )}
                 <div className={`absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-medium text-white transition-opacity ${dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                   <Icon icon="refresh-cw" className="mr-1.5 h-3.5 w-3.5" /> Drop or click to replace
                 </div>
@@ -136,7 +161,18 @@ export default function LegacyPhotoSlot({
             <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-red-600 hover:text-red-700" onClick={() => onDelete(photo)} disabled={busy}>
               <Icon icon="trash-2" className="h-3.5 w-3.5" /> Delete
             </Button>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
+              {!photo.enhanced && (
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => onEnhance(photo)} disabled={busy || isWorking}>
+                  <Icon icon="sparkles" className="h-3.5 w-3.5 text-amber-500" /> Enhance
+                </Button>
+              )}
+              {photo.enhanced && photo.has_original && (
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onRestore(photo)} disabled={busy || isWorking}
+                  title="Put back the photo exactly as it was uploaded">
+                  <Icon icon="undo-2" className="h-3.5 w-3.5" /> Original
+                </Button>
+              )}
               {canPosition && (
                 <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setPositioning(true)} disabled={busy}>
                   <Icon icon="move" className="h-3.5 w-3.5" /> Reposition

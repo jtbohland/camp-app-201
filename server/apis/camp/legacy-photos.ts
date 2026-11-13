@@ -22,6 +22,9 @@ const LegacyPhotoSchema = z.object({
   /** Where the photo is anchored when cropped (percent). */
   focus_x: z.coerce.number(),
   focus_y: z.coerce.number(),
+  /** True when photo_data is the auto-enhanced version (original kept for undo). */
+  enhanced: z.boolean(),
+  has_original: z.boolean(),
   created_at: z.string(),
 });
 
@@ -34,7 +37,8 @@ export const GetGroupPhotos = api({
   output: z.object({ photos: z.array(LegacyPhotoSchema) }),
   async run(ctx) {
     const photos = await ctx.integrations.camp_201_db.query(
-      `SELECT id, kind, past_cohort_id, cohort_number, label, photo_data, focus_x, focus_y, created_at::text
+      `SELECT id, kind, past_cohort_id, cohort_number, label, photo_data, focus_x, focus_y,
+              enhanced, (original_data IS NOT NULL) AS has_original, created_at::text
        FROM camp201_group_photos
        ORDER BY cohort_number ASC, created_at ASC
        LIMIT 100`,
@@ -62,6 +66,9 @@ export const SaveGroupPhoto = api({
     label: z.string().trim().min(1).max(60),
     /** Null keeps the existing photo when editing. */
     photo_data: PhotoData.nullable(),
+    /** The untouched upload when photo_data is an enhanced version (null = not enhanced). */
+    original_data: PhotoData.nullable(),
+    enhanced: z.boolean(),
     focus_x: Focus,
     focus_y: Focus,
   }),
@@ -79,15 +86,16 @@ export const SaveGroupPhoto = api({
           ? `ON CONFLICT (cohort_number) WHERE kind = 'trophy' DO UPDATE
                SET photo_data = EXCLUDED.photo_data, label = EXCLUDED.label,
                    focus_x = EXCLUDED.focus_x, focus_y = EXCLUDED.focus_y,
+                   original_data = EXCLUDED.original_data, enhanced = EXCLUDED.enhanced,
                    uploaded_by = EXCLUDED.uploaded_by, updated_at = NOW()`
           : "";
       const rows = await db.query(
-        `INSERT INTO camp201_group_photos (past_cohort_id, cohort_number, label, photo_data, uploaded_by, kind, focus_x, focus_y)
-         VALUES (${pastCohort}, $1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO camp201_group_photos (past_cohort_id, cohort_number, label, photo_data, uploaded_by, kind, focus_x, focus_y, original_data, enhanced)
+         VALUES (${pastCohort}, $1, $2, $3, $4, $5, $6, $7, $8, $9)
          ${conflict}
          RETURNING id`,
         z.object({ id: z.coerce.number() }),
-        [input.cohort_number, input.label, input.photo_data, uploader, input.kind, input.focus_x, input.focus_y],
+        [input.cohort_number, input.label, input.photo_data, uploader, input.kind, input.focus_x, input.focus_y, input.original_data, input.enhanced],
         { label: `Add ${input.kind} photo` }
       );
       return { id: rows[0].id };
@@ -96,9 +104,12 @@ export const SaveGroupPhoto = api({
     await db.execute(
       `UPDATE camp201_group_photos
        SET past_cohort_id = ${pastCohort}, cohort_number = $1, label = $2,
-           photo_data = COALESCE($3, photo_data), focus_x = $4, focus_y = $5, updated_at = NOW()
+           photo_data = COALESCE($3, photo_data),
+           original_data = CASE WHEN $3::text IS NULL THEN original_data ELSE $8 END,
+           enhanced = CASE WHEN $3::text IS NULL THEN enhanced ELSE $9 END,
+           focus_x = $4, focus_y = $5, updated_at = NOW()
        WHERE id = $6 AND kind = $7`,
-      [input.cohort_number, input.label, input.photo_data, input.focus_x, input.focus_y, input.id, input.kind],
+      [input.cohort_number, input.label, input.photo_data, input.focus_x, input.focus_y, input.id, input.kind, input.original_data, input.enhanced],
       { label: `Update ${input.kind} photo` }
     );
     return { id: input.id };
@@ -115,6 +126,27 @@ export const DeleteGroupPhoto = api({
     const db = ctx.integrations.camp_201_db;
     await requireCounselor(db, ctx.user.email);
     await db.execute(`DELETE FROM camp201_group_photos WHERE id = $1`, [id], { label: "Delete legacy photo" });
+    return { success: true };
+  },
+});
+
+/** Undoes the auto-enhancement: puts the untouched upload back. Counselors only. */
+export const RestoreGroupPhotoOriginal = api({
+  name: "RestoreGroupPhotoOriginal",
+  description: "Restores a legacy photo's original (un-enhanced) upload",
+  integrations: { camp_201_db: postgres(APPS_DB) },
+  input: z.object({ id: z.number() }),
+  output: z.object({ success: z.boolean() }),
+  async run(ctx, { id }) {
+    const db = ctx.integrations.camp_201_db;
+    await requireCounselor(db, ctx.user.email);
+    await db.execute(
+      `UPDATE camp201_group_photos
+       SET photo_data = original_data, original_data = NULL, enhanced = FALSE, updated_at = NOW()
+       WHERE id = $1 AND original_data IS NOT NULL`,
+      [id],
+      { label: "Restore original photo" }
+    );
     return { success: true };
   },
 });
