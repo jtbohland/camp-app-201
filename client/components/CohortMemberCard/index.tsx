@@ -44,14 +44,14 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
       }
       className={`group relative flex flex-col border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all text-left ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""} ${clickable ? "cursor-pointer hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
     >
-      {/* Counselor LEGO Me: a LEGO-brick display frame in the top-right, pops on hover */}
+      {/* Counselor LEGO Me: stands in the top-right corner, glows and hops on hover */}
       {lego && (
-        <div className="pointer-events-none absolute right-3 top-3 z-10" title={`${member.first_name}'s LEGO Me`}>
+        <div className="pointer-events-none absolute right-4 top-3 z-10" title={`${member.first_name}'s LEGO Me`}>
           <LegoFigure src={lego} alt={`${member.first_name}'s LEGO minifig`} size="md" hop />
         </div>
       )}
-      {/* Photo + Name header (leaves room for the LEGO frame) */}
-      <div className={`flex items-center gap-3 p-4 ${lego ? "pr-36" : ""}`}>
+      {/* Photo + Name header (leaves room for the LEGO figure) */}
+      <div className={`flex items-center gap-3 p-4 ${lego ? "pr-32" : ""}`}>
         <CamperAvatar
           email={member.email}
           photoUrl={member.photo_url}
@@ -86,7 +86,7 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
       </div>
 
       {/* Pills */}
-      <div className={`flex flex-wrap gap-1.5 px-4 pb-3 ${lego ? "pr-36" : ""}`}>
+      <div className={`flex flex-wrap gap-1.5 px-4 pb-3 ${lego ? "pr-32" : ""}`}>
         {member.role && !isCounselor && (
           <span
             className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${roleStyle.pill}`}
@@ -129,7 +129,7 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
 
       {/* Bio: counselors only (cAMPer bios stay in their profile) */}
       {isCounselor && bio && (
-        <div className={`px-4 pb-3 ${lego ? "pt-6" : ""}`}>
+        <div className={`px-4 pb-3 ${lego ? "pt-2" : ""}`}>
           <p className={`whitespace-pre-line text-xs leading-relaxed text-foreground/80 ${bioExpanded ? "" : "line-clamp-4"}`}>
             {bio}
           </p>
