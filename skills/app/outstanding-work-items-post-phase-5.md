@@ -25,6 +25,8 @@ createdAt: 2026-09-11T23:47:20.094Z
 - Report card pre-work shows X / 7 + list of open items (Update 32)
 - Challenger auto-completes (+5 pts, same as everyone) for SDR, all 4 AE roles, Renewals, Partners — on register, opening Pre-work, or counselor role change. Rule lives in `server/lib/challenger-exempt.ts` + `client/lib/roles.ts` + SQL `camp201_challenger_exempt()` (migration 0026) (Update 32)
 
+- Team Hub rebuild (Update 46): Home (roster, standing, customer, presenting slot, team sessions + prep status, shared to-dos, pinned, recent) · Team Board (general posts, catches orphaned/legacy sections) · one tab per scheduled presentation with Brief / team tool (workspace, showcase, bingo, EBR role play) / Team board / Feedback (peer feedback + judges' score once revealed). Posts: note, idea, to-do (owner + done), link, deck; pin, edit, delete (confirm). Migration 0034. All hub APIs use `ctx.user.email` via `server/lib/team-hub.ts`; only the team + counselors can view/post.
+
 ### Known technical debt
 - `execute().rowCount` returns 0 for INSERT…ON CONFLICT. Still used in `server/lib/legacy-wall.ts`, `server/apis/camp/seed-word-bank.ts`, `server/apis/camp/verify-counselor.ts` — check whether those branches misbehave; switch to `RETURNING`.
 

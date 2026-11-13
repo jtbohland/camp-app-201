@@ -23,6 +23,7 @@ import AssignTeamMembers from './camp/assign-team-members.js';
 import GetTeamHub from './camp/get-team-hub.js';
 import AddHubItem from './camp/add-hub-item.js';
 import UpdateHubItem from './camp/update-hub-item.js';
+import DeleteHubItem from './camp/delete-hub-item.js';
 import GetLeaderboard from './camp/get-leaderboard.js';
 import GetHubActivity from './camp/get-hub-activity.js';
 import GetRegisteredCampers from './camp/get-registered-campers.js';
@@ -244,6 +245,7 @@ const apis = {
   GetTeamHub,
   AddHubItem,
   UpdateHubItem,
+  DeleteHubItem,
   GetLeaderboard,
   GetHubActivity,
   GetRegisteredCampers,
