@@ -111,7 +111,7 @@ export default function ScheduleCard({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onMoveTo("bank")} className="text-red-600 focus:text-red-700">
-                <Icon icon="eye-off" className="mr-2 h-3.5 w-3.5" /> Remove from app
+                <Icon icon="archive" className="mr-2 h-3.5 w-3.5" /> Move to bank (hide)
               </DropdownMenuItem>
             </>
           )}

@@ -20,6 +20,7 @@ import { errorMessage } from "@/lib/cohortRefresh";
 import ScheduleCard from "@/components/ScheduleCard/index.js";
 import ScheduleColumn from "@/components/ScheduleColumn/index.js";
 import PresentationEditorSheet from "@/components/PresentationEditorSheet/index.js";
+import BankDropZone from "@/components/BankDropZone/index.js";
 import {
   DAY_NAMES,
   itemsIn,
@@ -96,7 +97,7 @@ export default function AdminPresentations() {
 
   const handleMoveTo = useCallback(
     (item: ScheduleItem, slot: Slot) => {
-      const msg = slot === "bank" ? `"${item.title}" removed from the app` : `"${item.title}" moved to ${DAY_NAMES[slot]}`;
+      const msg = slot === "bank" ? `"${item.title}" moved to the bank (hidden from cAMPers)` : `"${item.title}" moved to ${DAY_NAMES[slot]}`;
       applyLayout(moveItem(items, item.id, slot), msg);
     },
     [items, applyLayout],
@@ -166,7 +167,13 @@ export default function AdminPresentations() {
       const overSlot = over.data.current?.slot as Slot | undefined;
       // Dropped on a column body → end of that column. Dropped on a card → that card's position.
       if (overSlot !== undefined) {
-        applyLayout(moveItem(items, id, overSlot));
+        const moved = items.find((i) => i.id === id);
+        applyLayout(
+          moveItem(items, id, overSlot),
+          overSlot === "bank" && moved && moved.day_number !== null
+            ? `"${moved.title}" moved to the bank (hidden from cAMPers)`
+            : undefined,
+        );
         return;
       }
       const overItem = items.find((i) => i.id === Number(over.id));
@@ -245,6 +252,7 @@ export default function AdminPresentations() {
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setDragId(null)}>
+        {dragging && dragging.day_number !== null && <BankDropZone />}
         <div className={`grid grid-cols-1 gap-3 md:grid-cols-2 ${XL_COLS[numDays] ?? "xl:grid-cols-3"} ${fetching ? "opacity-90" : ""}`}>
           {days.map((d) => (
             <ScheduleColumn
