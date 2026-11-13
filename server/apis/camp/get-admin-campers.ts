@@ -93,12 +93,17 @@ export default api({
                 COUNT(*) FILTER (WHERE timing = 'late') as late_count
          FROM camp201_checkin_responses WHERE camper_id = c.id
        ) cr ON true
+       -- Same checklist as the Journey page and report card: every pre-work item on the Journey,
+       -- so every cAMPer is measured against the same total.
        LEFT JOIN LATERAL (
-         SELECT COUNT(*) FILTER (WHERE p.completed = true) AS done,
-                COUNT(*) AS total
+         SELECT COUNT(DISTINCT p.item) AS done,
+                (SELECT COUNT(DISTINCT jc.item_key) FROM camp201_journey_content jc
+                  WHERE jc.section = 'prework' AND jc.item_key IS NOT NULL) AS total
          FROM camp201_prework p
          WHERE p.user_id = c.id
-           AND (p.cohort_id IS NULL OR p.cohort_id = c.cohort_id)
+           AND p.completed = true
+           AND EXISTS (SELECT 1 FROM camp201_journey_content jc
+                        WHERE jc.section = 'prework' AND jc.item_key = p.item)
        ) pw ON true
        WHERE c.role != 'counselor' AND c.removed_at IS NULL ${cohortFilter}
        ORDER BY c.points DESC, c.last_name ASC
