@@ -66,7 +66,13 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
     return m;
   }, [presentations, feedbackByPres, hub.scores, viewer.is_counselor]);
 
-  const activePres = presentations.find((p) => presKey(p.id) === active) ?? null;
+  // cAMPers can't open a locked session (if it gets locked while open, they drop back to Home).
+  const canOpen = (key: string) => {
+    const p = presentations.find((x) => presKey(x.id) === key);
+    return !p || !p.is_locked || viewer.is_counselor;
+  };
+  const openTab = (key: string) => setActive(canOpen(key) ? key : HOME_TAB);
+  const activePres = presentations.find((p) => presKey(p.id) === active && canOpen(active)) ?? null;
   const tasks = useMemo(() => hub.items.filter((i) => i.item_type === "task"), [hub.items]);
   const pinned = useMemo(() => hub.items.filter((i) => i.is_pinned), [hub.items]);
 
@@ -85,7 +91,8 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
         presentations={presentations}
         postCounts={postCounts}
         boardCount={postCounts.get(BOARD_SECTION) ?? 0}
-        onSelect={setActive}
+        isCounselor={viewer.is_counselor}
+        onSelect={openTab}
       />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-auto">
@@ -128,7 +135,8 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
                 presentations={presentations}
                 postCounts={postCounts}
                 feedbackCounts={feedbackCounts}
-                onOpen={setActive}
+                isCounselor={viewer.is_counselor}
+                onOpen={openTab}
               />
               <HubHomeTodos tasks={tasks} boardLabel={boardLabel} {...common} />
             </div>
@@ -136,7 +144,7 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
               pinned={pinned}
               recent={hub.items}
               boardLabel={boardLabel}
-              onOpenBoard={(i) => setActive(boardFor(i.section, scheduledKeys))}
+              onOpenBoard={(i) => openTab(boardFor(i.section, scheduledKeys))}
             />
           </div>
         )}

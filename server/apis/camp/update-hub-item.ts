@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
-import { assertAssigneeOnTeam, assertCanContribute, cleanLink, resolveHubViewer } from "../../lib/team-hub.js";
+import { assertAssigneeOnTeam, assertCanContribute, assertPresentationUnlocked, cleanLink, resolveHubViewer } from "../../lib/team-hub.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -8,6 +8,7 @@ const ItemRow = z.object({
   team_id: z.coerce.number(),
   author_id: z.coerce.number(),
   item_type: z.string(),
+  section: z.string(),
 });
 
 /**
@@ -38,7 +39,7 @@ export default api({
     if (await isCampClosed(db)) throw new Error("cAMP is closed — the hub is read-only now.");
 
     const rows = await db.query(
-      `SELECT team_id, author_id, item_type FROM camp201_hub_items WHERE id = $1 LIMIT 1`,
+      `SELECT team_id, author_id, item_type, section FROM camp201_hub_items WHERE id = $1 LIMIT 1`,
       ItemRow,
       [input.id],
       { label: "Load hub post" }
@@ -48,6 +49,7 @@ export default api({
 
     const viewer = await resolveHubViewer(db, ctx.user.email, item.team_id);
     const me = assertCanContribute(viewer);
+    await assertPresentationUnlocked(db, { section: item.section }, viewer.isCounselor);
 
     const editsContent = input.title !== null || input.content !== null || input.link_url !== null;
     if (editsContent && item.author_id !== me && !viewer.isCounselor) {

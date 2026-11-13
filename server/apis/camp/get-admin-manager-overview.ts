@@ -14,6 +14,15 @@ const ManagerOverviewSchema = z.object({
   comment_count: z.coerce.number(),
   last_viewed_at: z.string().nullable(),
   created_at: z.string(),
+  /** Names of the cAMPers this manager has claimed (separator-joined in SQL, split below). */
+  hire_names: z.string().nullable(),
+});
+
+const PoolRowSchema = z.object({
+  name: z.string(),
+  camper_id: z.coerce.number().nullable(),
+  expected_manager: z.string().nullable(),
+  claimed_by: z.string().nullable(),
 });
 
 const ManagerCommentDetailSchema = z.object({
@@ -54,7 +63,9 @@ export default api({
   },
   input: z.object({}),
   output: z.object({
-    managers: z.array(ManagerOverviewSchema),
+    managers: z.array(ManagerOverviewSchema.omit({ hire_names: true }).extend({ hires: z.array(z.string()) })),
+    /** Every Accepted cAMPer in the cohort and who (if anyone) has claimed them. */
+    camper_pool: z.array(PoolRowSchema),
     recent_comments: z.array(ManagerCommentDetailSchema),
     /** Managers of cAMPers marked Accepted in Cohort Management, and whether they've registered. */
     expected_managers: z.array(ExpectedManagerSchema),
@@ -63,13 +74,18 @@ export default api({
   }),
   async run(ctx) {
     await requireCounselor(ctx.integrations.camp_201_db, ctx.user.email);
+    // Counselor/admin manager accounts are test logins: never listed, counted, or treated as a claim.
     const managers = await ctx.integrations.camp_201_db.query(
       `SELECT m.id, m.email, m.first_name, m.last_name, m.title, m.region,
               (SELECT COUNT(*) FROM camp201_manager_hires mh WHERE mh.manager_id = m.id)::integer as hire_count,
               (SELECT COUNT(*) FROM camp201_manager_comments mc WHERE mc.manager_id = m.id)::integer as comment_count,
               m.last_viewed_at::text,
-              m.created_at::text
+              m.created_at::text,
+              (SELECT string_agg(btrim(c.first_name || ' ' || c.last_name), '${SEP}' ORDER BY c.first_name, c.last_name)
+               FROM camp201_manager_hires mh JOIN camp201_campers c ON c.id = mh.camper_id
+               WHERE mh.manager_id = m.id) AS hire_names
        FROM camp201_managers m
+       WHERE NOT camp201_is_admin_email(m.email)
        ORDER BY m.created_at DESC
        LIMIT 100`,
       ManagerOverviewSchema,
@@ -85,6 +101,7 @@ export default api({
        FROM camp201_manager_comments mc
        JOIN camp201_managers m ON m.id = mc.manager_id
        JOIN camp201_campers c ON c.id = mc.camper_id
+       WHERE NOT camp201_is_admin_email(m.email)
        ORDER BY mc.created_at DESC
        LIMIT 50`,
       ManagerCommentDetailSchema,
@@ -124,7 +141,8 @@ export default api({
          SELECT h.hire_name, h.mgr_name, h.camper_id,
                 regexp_replace(regexp_replace(h.mgr_email, '^mailto:', ''), '[[:space:]]', '', 'g') AS mgr_email,
                 NULLIF(lower(regexp_replace(btrim(COALESCE(h.mgr_name, '')), '[[:space:]]+', ' ', 'g')), '') AS name_key,
-                EXISTS (SELECT 1 FROM camp201_manager_hires mh WHERE mh.camper_id = h.camper_id) AS linked
+                EXISTS (SELECT 1 FROM camp201_manager_hires mh JOIN camp201_managers rm ON rm.id = mh.manager_id
+                        WHERE mh.camper_id = h.camper_id AND NOT camp201_is_admin_email(rm.email)) AS linked
          FROM hires h
          WHERE COALESCE(h.mgr_email, '') <> ''
        ),
@@ -135,12 +153,14 @@ export default api({
          SELECT m.id, lower(btrim(m.email)) AS email,
                 lower(regexp_replace(btrim(COALESCE(m.first_name, '') || ' ' || COALESCE(m.last_name, '')), '[[:space:]]+', ' ', 'g')) AS name_key
          FROM camp201_managers m
+         WHERE NOT camp201_is_admin_email(m.email)
        ),
        keyed AS (
          SELECT e.*,
                 COALESCE(
                   (SELECT m.id FROM mgrs m WHERE m.email = e.mgr_email ORDER BY m.id LIMIT 1),
                   (SELECT mh.manager_id FROM norm n2 JOIN camp201_manager_hires mh ON mh.camper_id = n2.camper_id
+                   JOIN mgrs rm ON rm.id = mh.manager_id
                    WHERE n2.mgr_email = e.mgr_email ORDER BY mh.manager_id LIMIT 1),
                   (SELECT m.id FROM mgrs m WHERE e.name_key IS NOT NULL AND m.name_key = e.name_key ORDER BY m.id LIMIT 1)
                 ) AS manager_id
@@ -175,8 +195,28 @@ export default api({
       { label: "Find accepted cAMPers with no manager email" }
     );
 
+    // The pool: every Accepted cAMPer, with the (non-test) manager who claimed them, if any.
+    const pool = await ctx.integrations.camp_201_db.query(
+      `WITH hires AS (${HIRES_SQL})
+       SELECT h.hire_name AS name, h.camper_id, h.mgr_name AS expected_manager,
+              (SELECT string_agg(btrim(m.first_name || ' ' || m.last_name), ', ' ORDER BY m.id)
+               FROM camp201_manager_hires mh JOIN camp201_managers m ON m.id = mh.manager_id
+               WHERE mh.camper_id = h.camper_id AND NOT camp201_is_admin_email(m.email)) AS claimed_by
+       FROM hires h
+       WHERE h.hire_name <> ''
+       ORDER BY h.hire_name
+       LIMIT 300`,
+      PoolRowSchema,
+      undefined,
+      { label: "Accepted cAMPers and who claimed them" }
+    );
+
     return {
-      managers,
+      managers: managers.map(({ hire_names, ...m }) => ({
+        ...m,
+        hires: (hire_names ?? "").split(SEP).filter(Boolean),
+      })),
+      camper_pool: pool,
       recent_comments: recentComments,
       expected_managers: expectedRows.map((r) => ({
         email: r.emails.split(SEP)[0] ?? "",

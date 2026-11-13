@@ -1,10 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertPresentationUnlocked } from "../../lib/team-hub.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SaveTeamWorkspace",
-  description: "Saves the shared team workspace (any team member can edit)",
+  description: "Saves the shared team workspace (team members, once unlocked)",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
@@ -25,6 +26,8 @@ export default api({
     if (camper.length === 0) return { success: false };
     const isAdmin = camper[0].role === "counselor" || camper[0].role === "admin";
     if (!isAdmin && camper[0].team_id !== team_id) return { success: false };
+    // No working ahead: cAMPers can only save once counselors unlock the presentation.
+    await assertPresentationUnlocked(ctx.integrations.camp_201_db, { presentationId: presentation_id }, isAdmin);
 
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_team_workspace (presentation_id, team_id, responses, last_edited_by, updated_at)

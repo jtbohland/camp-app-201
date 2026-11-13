@@ -50,6 +50,34 @@ export function assertCanContribute(viewer: HubViewer): number {
   return viewer.camperId;
 }
 
+/**
+ * Throws if a cAMPer tries to work on a presentation counselors haven't unlocked yet.
+ * Counselors always pass. Pass a hub section ("pres_12"), a presentation id, or the Team Board.
+ */
+export async function assertPresentationUnlocked(
+  db: any,
+  target: { section: string } | { presentationId: number },
+  isCounselor: boolean
+): Promise<void> {
+  if (isCounselor) return;
+  let id: number | null = null;
+  if ("presentationId" in target) id = target.presentationId;
+  else {
+    const m = /^pres_(\d+)$/.exec(target.section);
+    id = m ? Number(m[1]) : null;
+  }
+  if (id === null) return; // Team Board is always open
+  const rows = await db.query(
+    `SELECT COALESCE(is_locked, true) AS locked FROM camp201_presentations WHERE id = $1 LIMIT 1`,
+    z.object({ locked: z.boolean() }),
+    [id],
+    { label: "Check presentation is unlocked" }
+  );
+  if (rows[0]?.locked !== false) {
+    throw new Error("This presentation is still locked. Counselors will unlock it when it's time.");
+  }
+}
+
 /** Valid section keys: the Team Board or a presentation tab. */
 export function isValidSection(section: string): boolean {
   return section === BOARD_SECTION || /^pres_\d+$/.test(section);

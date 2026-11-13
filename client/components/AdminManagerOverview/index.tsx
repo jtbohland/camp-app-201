@@ -5,19 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { useApiData } from "@/hooks/useApiData";
 import { Skeleton } from "@/components/ui/skeleton";
 import UnregisteredManagers from "@/components/UnregisteredManagers/index.js";
-
-type ManagerOverview = {
-  id: number;
-  email: string;
-  first_name: string;
-  last_name: string;
-  title: string;
-  region: string;
-  hire_count: number;
-  comment_count: number;
-  last_viewed_at: string | null;
-  created_at: string;
-};
+import CamperClaimPool from "@/components/CamperClaimPool/index.js";
+import RegisteredManagersTable from "@/components/RegisteredManagersTable/index.js";
 
 type ManagerComment = {
   id: number;
@@ -45,6 +34,8 @@ export default function AdminManagerOverview() {
   const comments = useMemo(() => data?.recent_comments ?? [], [data]);
   const expected = useMemo(() => data?.expected_managers ?? [], [data]);
   const hiresWithoutManager = useMemo(() => data?.hires_without_manager ?? [], [data]);
+  const pool = useMemo(() => data?.camper_pool ?? [], [data]);
+  const claimedCount = useMemo(() => pool.filter((p) => !!p.claimed_by).length, [pool]);
 
   if (loading) {
     return (
@@ -65,9 +56,10 @@ export default function AdminManagerOverview() {
         </Card>
         <Card className="p-4 bg-card border-border">
           <div className="text-3xl font-bold text-foreground">
-            {managers.reduce((sum: number, m: ManagerOverview) => sum + m.hire_count, 0)}
+            {claimedCount}
+            {pool.length > 0 && <span className="text-lg font-semibold text-muted-foreground"> / {pool.length}</span>}
           </div>
-          <div className="text-sm text-muted-foreground">Hires Claimed</div>
+          <div className="text-sm text-muted-foreground">cAMPers Claimed</div>
         </Card>
         <Card className="p-4 bg-card border-border">
           <div className="text-3xl font-bold text-foreground">{comments.length}</div>
@@ -75,57 +67,14 @@ export default function AdminManagerOverview() {
         </Card>
       </div>
 
+      {/* Every Accepted cAMPer: unclaimed ones in the pool, claimed ones matched to their manager */}
+      <CamperClaimPool pool={pool} />
+
       {/* Who we're still waiting on */}
       <UnregisteredManagers expected={expected} hiresWithoutManager={hiresWithoutManager} />
 
-      {/* Manager list */}
-      <Card className="bg-card border-border">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-foreground font-semibold flex items-center gap-2">
-            <Icon icon="binoculars" className="w-4 h-4" />
-            Registered Managers
-          </h3>
-        </div>
-        {managers.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No managers have registered yet</div>
-        ) : (
-          <div className="divide-y divide-border">
-            {managers.map((m: ManagerOverview) => (
-              <div key={m.id} className="px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
-                    {m.first_name[0]}{m.last_name[0]}
-                  </div>
-                  <div>
-                    <div className="text-foreground font-medium text-sm">
-                      {m.first_name} {m.last_name}
-                    </div>
-                    <div className="text-muted-foreground text-xs">{m.title} · {m.region || "No region"}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-muted text-foreground/80 border-border text-xs">
-                    {m.hire_count} hire{m.hire_count !== 1 ? "s" : ""}
-                  </Badge>
-                  {m.comment_count > 0 && (
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
-                      {m.comment_count} comment{m.comment_count !== 1 ? "s" : ""}
-                    </Badge>
-                  )}
-                  {m.last_viewed_at ? (
-                    <span className="text-[10px] text-green-400 flex items-center gap-1">
-                      <Icon icon="eye" className="w-3 h-3" />
-                      Viewed {new Date(m.last_viewed_at).toLocaleDateString()}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground/70">Never viewed</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      {/* Registered managers table */}
+      <RegisteredManagersTable managers={managers} />
 
       {/* Recent comments feed */}
       <Card className="bg-card border-border">
