@@ -45,7 +45,7 @@ export default function CohortMemberDialog({ member, onClose }: Props) {
           {isCounselor && member.lego_url ? (
             <div className="group flex items-end gap-4">
               <CamperAvatar email={member.email} photoUrl={member.photo_url} name={name} size="xl" className="ring-4 ring-background shadow-md" />
-              <LegoFigure src={member.lego_url} alt={`${member.first_name}'s LEGO minifig`} className="h-32" hop />
+              <LegoFigure src={member.lego_url} alt={`${member.first_name}'s LEGO minifig`} size="lg" hop />
             </div>
           ) : (
             <CamperAvatar email={member.email} photoUrl={member.photo_url} name={name} size="xl" className="ring-4 ring-background shadow-md" />

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
+import { queryClient } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi.js";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -153,9 +154,15 @@ interface Team {
   presentation_company: string | null;
   /** Won the cohort's logo vote (set when voting closes, carried onto the Legacy Wall). */
   best_logo: boolean;
-  /** Trophy photo of the winning team (shown on the champion tile). */
-  trophy_photo_url: string | null;
   members: Array<{ id: number; full_name: string; role: string | null; region: string | null }>;
+}
+
+/** A cohort's trophy photo (from GetGroupPhotos, kind "trophy"). */
+interface TrophyPhoto {
+  label: string;
+  photo_data: string;
+  focus_x: number;
+  focus_y: number;
 }
 
 interface Cohort {
@@ -245,7 +252,7 @@ function HallOfFameCard({
   index,
   cohortNumber,
   canEdit,
-  onTrophySaved,
+  trophy,
 }: {
   team: Team;
   hasLogos: boolean;
@@ -253,25 +260,35 @@ function HallOfFameCard({
   index: number;
   cohortNumber: number;
   canEdit: boolean;
-  onTrophySaved: () => void;
+  /** This cohort's trophy photo (shown on the champion tile). */
+  trophy: TrophyPhoto | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const theme = getTheme(team.team_name, index);
   const placeInfo = team.place ? PLACE_CONFIG[team.place] : null;
   const isChampion = team.is_winner || team.place === 1;
-  const { run: saveTrophy, loading: savingTrophy } = useApi("SaveTrophyPhoto");
+  const { run: savePhoto, loading: savingTrophy } = useApi("SaveGroupPhoto");
   const handleTrophy = useCallback(
     async (dataUrl: string) => {
       try {
-        await saveTrophy({ team_id: team.id, photo_data: dataUrl });
+        // One trophy photo per cohort; uploading replaces it. Keeps any saved position.
+        await savePhoto({
+          id: null,
+          kind: "trophy",
+          cohort_number: cohortNumber,
+          label: trophy?.label ?? team.team_name,
+          photo_data: dataUrl,
+          focus_x: 50,
+          focus_y: 40,
+        });
         toast.success(`Trophy photo added for ${team.team_name}`);
-        onTrophySaved();
+        await queryClient.invalidateQueries("GetGroupPhotos");
       } catch (error) {
         const message = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : String(error);
         toast.error("Couldn't save: " + message);
       }
     },
-    [saveTrophy, team.id, team.team_name, onTrophySaved]
+    [savePhoto, cohortNumber, trophy?.label, team.team_name]
   );
 
   return (
@@ -353,7 +370,9 @@ function HallOfFameCard({
           <div onClick={(e) => e.stopPropagation()}>
             <TrophyPhotoStrip
               teamName={team.team_name}
-              photoUrl={team.trophy_photo_url}
+              photoUrl={trophy?.photo_data ?? null}
+              focusX={trophy?.focus_x ?? 50}
+              focusY={trophy?.focus_y ?? 40}
               accent={theme.accent}
               canEdit={canEdit}
               saving={savingTrophy}
@@ -441,7 +460,7 @@ function HallOfFameCard({
 
 // ───────────────────── COHORT SECTION ─────────────────────
 
-function CohortSection({ cohort, canEdit, onTrophySaved }: { cohort: Cohort; canEdit: boolean; onTrophySaved: () => void }) {
+function CohortSection({ cohort, canEdit, trophy }: { cohort: Cohort; canEdit: boolean; trophy: TrophyPhoto | null }) {
   // For cohorts with logos (4+), use bigger tiles
   const hasRealContent = cohort.has_logos || cohort.has_team_names;
 
@@ -491,7 +510,7 @@ function CohortSection({ cohort, canEdit, onTrophySaved }: { cohort: Cohort; can
               index={i}
               cohortNumber={cohort.cohort_number}
               canEdit={canEdit}
-              onTrophySaved={onTrophySaved}
+              trophy={trophy}
             />
           ))}
         </div>
@@ -508,10 +527,16 @@ function CohortSection({ cohort, canEdit, onTrophySaved }: { cohort: Cohort; can
 // ───────────────────── MAIN GALLERY ─────────────────────
 
 export default function PastCampsGallery() {
-  const { data, loading, refetch } = useApiData("GetPastCohorts", {});
+  const { data, loading } = useApiData("GetPastCohorts", {});
+  // Trophy photos live with the group photos, one per cohort (shared cache with the carousel).
+  const { data: photoData } = useApiData("GetGroupPhotos", {}, { staleTime: 60_000 });
   const { isAdmin } = useIsAdmin();
   const cohorts: Cohort[] = data?.cohorts ?? [];
-  const onTrophySaved = useCallback(() => void refetch(), [refetch]);
+  const trophyByCohort = useMemo(() => {
+    const map = new Map<number, TrophyPhoto>();
+    for (const p of photoData?.photos ?? []) if (p.kind === "trophy") map.set(p.cohort_number, p);
+    return map;
+  }, [photoData]);
 
   const stats = useMemo(() => {
     let totalCampers = 0;
@@ -610,7 +635,7 @@ export default function PastCampsGallery() {
       {/* Cohort sections */}
       {cohorts.map((cohort, i) => (
         <div key={cohort.id}>
-          <CohortSection cohort={cohort} canEdit={isAdmin} onTrophySaved={onTrophySaved} />
+          <CohortSection cohort={cohort} canEdit={isAdmin} trophy={trophyByCohort.get(cohort.cohort_number) ?? null} />
           {/* Divider between cohorts */}
           {i < cohorts.length - 1 && (
             <div className="flex items-center gap-4 mt-10">

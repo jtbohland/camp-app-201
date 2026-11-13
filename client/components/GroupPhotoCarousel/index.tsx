@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { useApiData } from "@/hooks/useApiData";
 
@@ -10,7 +10,7 @@ const ADVANCE_MS = 5000;
  */
 export default function GroupPhotoCarousel() {
   const { data, loading } = useApiData("GetGroupPhotos", {}, { staleTime: 60_000 });
-  const photos = data?.photos ?? [];
+  const photos = useMemo(() => (data?.photos ?? []).filter((p) => p.kind === "group"), [data]);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const count = photos.length;
