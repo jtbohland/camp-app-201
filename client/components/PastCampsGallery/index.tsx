@@ -1,5 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { toast } from "sonner";
 import { useApiData } from "@/hooks/useApiData";
+import { useApi } from "@/hooks/useApi.js";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import GroupPhotoCarousel from "@/components/GroupPhotoCarousel/index.js";
+import TrophyPhotoStrip from "./TrophyPhotoStrip.js";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,6 +153,8 @@ interface Team {
   presentation_company: string | null;
   /** Won the cohort's logo vote (set when voting closes, carried onto the Legacy Wall). */
   best_logo: boolean;
+  /** Trophy photo of the winning team (shown on the champion tile). */
+  trophy_photo_url: string | null;
   members: Array<{ id: number; full_name: string; role: string | null; region: string | null }>;
 }
 
@@ -237,16 +244,35 @@ function HallOfFameCard({
   hasPoints,
   index,
   cohortNumber,
+  canEdit,
+  onTrophySaved,
 }: {
   team: Team;
   hasLogos: boolean;
   hasPoints: boolean;
   index: number;
   cohortNumber: number;
+  canEdit: boolean;
+  onTrophySaved: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const theme = getTheme(team.team_name, index);
   const placeInfo = team.place ? PLACE_CONFIG[team.place] : null;
+  const isChampion = team.is_winner || team.place === 1;
+  const { run: saveTrophy, loading: savingTrophy } = useApi("SaveTrophyPhoto");
+  const handleTrophy = useCallback(
+    async (dataUrl: string) => {
+      try {
+        await saveTrophy({ team_id: team.id, photo_data: dataUrl });
+        toast.success(`Trophy photo added for ${team.team_name}`);
+        onTrophySaved();
+      } catch (error) {
+        const message = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : String(error);
+        toast.error("Couldn't save: " + message);
+      }
+    },
+    [saveTrophy, team.id, team.team_name, onTrophySaved]
+  );
 
   return (
     <div
@@ -321,6 +347,21 @@ function HallOfFameCard({
             </div>
           )}
         </div>
+
+        {/* Trophy photo: champions only, always visible (counselors can drop one in) */}
+        {isChampion && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <TrophyPhotoStrip
+              teamName={team.team_name}
+              photoUrl={team.trophy_photo_url}
+              accent={theme.accent}
+              canEdit={canEdit}
+              saving={savingTrophy}
+              onPhoto={(d) => void handleTrophy(d)}
+              onError={(m) => toast.error(m)}
+            />
+          </div>
+        )}
 
         {/* Info section with colored left border accent */}
         <div
@@ -400,7 +441,7 @@ function HallOfFameCard({
 
 // ───────────────────── COHORT SECTION ─────────────────────
 
-function CohortSection({ cohort }: { cohort: Cohort }) {
+function CohortSection({ cohort, canEdit, onTrophySaved }: { cohort: Cohort; canEdit: boolean; onTrophySaved: () => void }) {
   // For cohorts with logos (4+), use bigger tiles
   const hasRealContent = cohort.has_logos || cohort.has_team_names;
 
@@ -449,6 +490,8 @@ function CohortSection({ cohort }: { cohort: Cohort }) {
               hasPoints={cohort.has_points}
               index={i}
               cohortNumber={cohort.cohort_number}
+              canEdit={canEdit}
+              onTrophySaved={onTrophySaved}
             />
           ))}
         </div>
@@ -465,8 +508,10 @@ function CohortSection({ cohort }: { cohort: Cohort }) {
 // ───────────────────── MAIN GALLERY ─────────────────────
 
 export default function PastCampsGallery() {
-  const { data, loading } = useApiData("GetPastCohorts", {});
+  const { data, loading, refetch } = useApiData("GetPastCohorts", {});
+  const { isAdmin } = useIsAdmin();
   const cohorts: Cohort[] = data?.cohorts ?? [];
+  const onTrophySaved = useCallback(() => void refetch(), [refetch]);
 
   const stats = useMemo(() => {
     let totalCampers = 0;
@@ -559,10 +604,13 @@ export default function PastCampsGallery() {
         )}
       </div>
 
+      {/* Group photo carousel (oldest cohort first) */}
+      <GroupPhotoCarousel />
+
       {/* Cohort sections */}
       {cohorts.map((cohort, i) => (
         <div key={cohort.id}>
-          <CohortSection cohort={cohort} />
+          <CohortSection cohort={cohort} canEdit={isAdmin} onTrophySaved={onTrophySaved} />
           {/* Divider between cohorts */}
           {i < cohorts.length - 1 && (
             <div className="flex items-center gap-4 mt-10">

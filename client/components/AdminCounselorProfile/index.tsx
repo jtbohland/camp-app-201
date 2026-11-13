@@ -10,6 +10,7 @@ import { getCountryDisplayName } from "@/lib/countryUtils.js";
 import CountryPicker from "@/components/CountryPicker/index.js";
 import { toast } from "sonner";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload/index.js";
+import LegoUploader from "@/components/LegoUploader/index.js";
 
 export default function AdminCounselorProfile() {
   const user = useSuperblocksUser();
@@ -98,6 +99,9 @@ export default function AdminCounselorProfile() {
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </div>
+
+        {/* LEGO Me saves on its own (separate from Save Profile) */}
+        <LegoUploader currentLegoUrl={camper.lego_url ?? null} onSaved={refetch} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

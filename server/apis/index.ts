@@ -124,6 +124,7 @@ import GetFeatureGates from './camp/get-feature-gates.js';
 import UpdateFeatureGate from './camp/update-feature-gate.js';
 import SeedPastCohorts from './camp/seed-past-cohorts.js';
 import GetPastCohorts from './camp/get-past-cohorts.js';
+import { GetGroupPhotos, SaveGroupPhoto, DeleteGroupPhoto, SaveTrophyPhoto, SaveCounselorLego } from './camp/legacy-photos.js';
 import GenerateTeamLogo from './camp/generate-team-logo.js';
 import MigrateLogoVotes from './camp/migrate-logo-votes.js';
 import GetTeamVotes from './camp/get-team-votes.js';
@@ -357,6 +358,11 @@ const apis = {
   UpdateFeatureGate,
   SeedPastCohorts,
   GetPastCohorts,
+  GetGroupPhotos,
+  SaveGroupPhoto,
+  DeleteGroupPhoto,
+  SaveTrophyPhoto,
+  SaveCounselorLego,
   GenerateTeamLogo,
   MigrateLogoVotes,
   GetTeamVotes,

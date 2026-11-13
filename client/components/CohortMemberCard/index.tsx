@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import LegoFigure from "@/components/LegoFigure/index.js";
 import RegionPill from "@/components/RegionPill/index.js";
 import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
 import { getRoleStyle, isCounselorRole } from "@/lib/roles.js";
@@ -24,6 +25,7 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
   const [bioExpanded, setBioExpanded] = useState(false);
   const bioIsLong = bio.length > 220;
   const clickable = !!onOpen;
+  const lego = isCounselor ? member.lego_url : null;
 
   return (
     <div
@@ -40,10 +42,16 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
             }
           : undefined
       }
-      className={`flex flex-col border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all text-left ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""} ${clickable ? "cursor-pointer hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
+      className={`group relative flex flex-col border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all text-left ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""} ${clickable ? "cursor-pointer hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
     >
-      {/* Photo + Name header */}
-      <div className="flex items-center gap-3 p-4">
+      {/* Counselor LEGO Me: stands in the top-right corner, hops on hover */}
+      {lego && (
+        <div className="pointer-events-none absolute right-2 top-2 z-10" title={`${member.first_name}'s LEGO Me`}>
+          <LegoFigure src={lego} alt={`${member.first_name}'s LEGO minifig`} className="h-[88px]" hop />
+        </div>
+      )}
+      {/* Photo + Name header (leaves room for the LEGO figure) */}
+      <div className={`flex items-center gap-3 p-4 ${lego ? "pr-24" : ""}`}>
         <CamperAvatar
           email={member.email}
           photoUrl={member.photo_url}
@@ -74,11 +82,11 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
             </a>
           )}
         </div>
-        {clickable && <Icon icon="maximize-2" className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />}
+        {clickable && !lego && <Icon icon="maximize-2" className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />}
       </div>
 
       {/* Pills */}
-      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+      <div className={`flex flex-wrap gap-1.5 px-4 pb-3 ${lego ? "pr-24" : ""}`}>
         {member.role && !isCounselor && (
           <span
             className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${roleStyle.pill}`}

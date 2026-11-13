@@ -15,6 +15,7 @@ const CamperSchema = z.object({
   city: z.string().nullable(),
   start_date: z.string().nullable(),
   photo_url: z.string().nullable(),
+  lego_url: z.string().nullable().optional(),
   bio: z.string().nullable(),
   linkedin_option: z.string().nullable(),
   linkedin_url: z.string().nullable(),

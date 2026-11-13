@@ -16,6 +16,8 @@ export type CohortMember = {
   country: string | null;
   city: string | null;
   photo_url: string | null;
+  /** Counselor's LEGO minifig (transparent PNG). */
+  lego_url?: string | null;
   linkedin_url: string | null;
   bio?: string | null;
   fun_fact: string | null;
