@@ -21,6 +21,7 @@ export const ptTime = (iso: string) =>
 /** Who gave the points, in plain words. */
 export function awardedByLabel(by: string | null): string {
   if (!by || by === "system") return "Automatic";
+  if (by === "points_audit") return "Points audit (missed award)";
   return by;
 }
 

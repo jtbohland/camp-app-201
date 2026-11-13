@@ -26,7 +26,7 @@ export default function AppShell() {
     <>
       <div className="flex h-full w-full">
         <AppSidebar />
-        <div className="flex-1 flex flex-col h-full">
+        <div className="flex-1 min-w-0 flex flex-col h-full">
           <header className="flex items-center justify-end gap-3 px-4 py-2 border-b border-border bg-background/80 backdrop-blur-sm h-12 shrink-0">
             {isAdmin && (
               <div className="w-64">

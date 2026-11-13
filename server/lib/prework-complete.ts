@@ -70,10 +70,21 @@ export type MarkResult = {
   earlyBirdPoints: number;
 };
 
+const MarkRow = z.object({
+  newly: z.coerce.number(),
+  counselor: z.boolean().nullable(),
+  past: z.boolean().nullable(),
+  pts: z.coerce.number(),
+});
+
 /**
  * Marks one pre-work item complete for a cAMPer and awards points, only the first time.
  * Already-complete items are left exactly as they are (no extra points, no changes).
- * Points are awarded by writing a point-log entry; the database adds it to the total.
+ *
+ * The check-off and its point-log entry are written in ONE statement, so an item can never be
+ * marked done without its points (or the other way round). Every check-off leaves a log line:
+ * +5 on time, -3 for a flagged submission, or 0 "after deadline", so totals are always explainable.
+ * The database adds each log entry to the cAMPer's total.
  */
 export async function markPreworkComplete(
   db: any,
@@ -82,59 +93,49 @@ export async function markPreworkComplete(
   { flagged, awardPoints }: MarkOptions
 ): Promise<MarkResult> {
   const none: MarkResult = { newlyCompleted: false, pointsAwarded: 0, penaltyApplied: false, pastDeadline: false, earlyBirdPoints: 0 };
-  // RETURNING tells us for certain whether this call is the one that completed it.
-  const inserted = await db.query(
+  const rows = await db.query(
     `WITH done AS (
        INSERT INTO camp201_prework (user_id, item, completed, completed_at)
-       VALUES ($1, $2, true, NOW())
+       VALUES ($1, $2::text, true, NOW())
        ON CONFLICT (user_id, item) DO UPDATE
          SET completed = true, completed_at = COALESCE(camp201_prework.completed_at, NOW())
          WHERE camp201_prework.completed IS NOT TRUE
        RETURNING item
+     ),
+     who AS (
+       SELECT (c.role IN ('counselor', 'admin') OR camp201_is_admin_email(c.email)) AS counselor,
+              (camp201_prework_deadline() IS NOT NULL AND NOW() >= camp201_prework_deadline()) AS past
+       FROM camp201_campers c WHERE c.id = $1
+     ),
+     award AS (
+       INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
+       SELECT $1,
+              CASE WHEN $3::boolean THEN ${PREWORK_PENALTY_POINTS} WHEN w.past THEN 0 ELSE ${PREWORK_POINTS} END,
+              CASE WHEN $3::boolean THEN 'Flagged pre-work submission: '
+                   WHEN w.past THEN 'Pre-work completed after deadline: '
+                   ELSE 'Pre-work completed: ' END || $2::text,
+              'system', 'prework'
+       FROM done, who w
+       WHERE NOT w.counselor AND ($3::boolean OR w.past OR $4::boolean)
+       ON CONFLICT DO NOTHING
+       RETURNING points
      )
-     SELECT COUNT(*)::int AS n FROM done`,
-    z.object({ n: z.coerce.number() }),
-    [userId, item],
-    { label: "Mark pre-work item complete" }
+     SELECT (SELECT COUNT(*) FROM done)::int AS newly,
+            (SELECT counselor FROM who) AS counselor,
+            (SELECT past FROM who) AS past,
+            COALESCE((SELECT SUM(points) FROM award), 0)::int AS pts`,
+    MarkRow,
+    [userId, item, flagged, awardPoints],
+    { label: "Mark pre-work complete + award points" }
   );
-  const newlyCompleted = (inserted[0]?.n ?? 0) > 0;
-  if (!newlyCompleted) return none;
+  const r = rows[0];
+  if (!r || r.newly === 0) return none;
 
-  // Counselors never hold points (also enforced by a DB trigger), so award/deduct nothing.
-  const roleRows = await db.query(
-    `SELECT role FROM camp201_campers WHERE id = $1 LIMIT 1`,
-    z.object({ role: z.string().nullable() }),
-    [userId],
-    { label: "Check camper role" }
-  );
-  if ((roleRows[0]?.role ?? "").toLowerCase() === "counselor") {
-    return { ...none, newlyCompleted: true };
-  }
+  // Counselors never hold points (also enforced by a DB trigger).
+  if (r.counselor) return { ...none, newlyCompleted: true };
+  if (flagged) return { ...none, newlyCompleted: true, pointsAwarded: r.pts, penaltyApplied: true };
+  if (r.past) return { ...none, newlyCompleted: true, pastDeadline: true };
 
-  if (flagged) {
-    await db.execute(
-      `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-       VALUES ($1, $2, $3, 'system', 'prework')`,
-      [userId, PREWORK_PENALTY_POINTS, `Flagged pre-work submission: ${item}`],
-      { label: "Deduct flagged submission penalty" }
-    );
-    return { ...none, newlyCompleted: true, pointsAwarded: PREWORK_PENALTY_POINTS, penaltyApplied: true };
-  }
-
-  if (await isPastPreworkDeadline(db)) {
-    return { ...none, newlyCompleted: true, pastDeadline: true };
-  }
-
-  let pointsAwarded = 0;
-  if (awardPoints) {
-    await db.execute(
-      `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-       VALUES ($1, $2, $3, 'system', 'prework')`,
-      [userId, PREWORK_POINTS, `Pre-work completed: ${item}`],
-      { label: "Award pre-work points" }
-    );
-    pointsAwarded = PREWORK_POINTS;
-  }
   const earlyBirdPoints = await tryEarlyBird(db, userId);
-  return { ...none, newlyCompleted: true, pointsAwarded, earlyBirdPoints };
+  return { ...none, newlyCompleted: true, pointsAwarded: r.pts, earlyBirdPoints };
 }

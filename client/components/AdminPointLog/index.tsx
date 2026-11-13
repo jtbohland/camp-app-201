@@ -8,6 +8,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { executeApi } from "@/lib/executeApi";
 import PointLogFilters, { EMPTY_POINT_LOG_FILTERS, type PointLogFilterValues } from "@/components/PointLogFilters/index.js";
 import PointLogTable, { awardedByLabel, ptDate, ptTime, type PointLogEntry } from "@/components/PointLogTable/index.js";
+import PointsAuditPanel from "@/components/PointsAuditPanel/index.js";
 
 const PAGE_SIZE = 50;
 
@@ -83,6 +84,7 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
 
   return (
     <div className="space-y-4">
+      <PointsAuditPanel onCamperClick={onCamperClick} />
       <Card className="p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

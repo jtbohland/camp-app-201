@@ -188,8 +188,10 @@ export async function loadReportCard(
       { label: "Report card: engagement counts" }
     ),
     db.query(
-      `SELECT points, reason, created_at::text AS created_at FROM camp201_points_log
-       WHERE camper_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      `SELECT points, reason,
+              to_char(created_at::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
+       FROM camp201_points_log
+       WHERE camper_id = $1 AND points <> 0 ORDER BY created_at DESC, id DESC LIMIT 100`,
       PointsRow, [camperId], { label: "Report card: points history" }
     ),
     db.query(
