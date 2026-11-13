@@ -9,6 +9,7 @@ import TeamLogoBadge from "@/components/TeamLogoBadge/index.js";
 import TeamHubView from "@/components/TeamHubView/index.js";
 import { denseRanks } from "@/lib/rank";
 import { errorText } from "@/lib/teamHub";
+import { campDayNumber, type AgendaResource } from "@/lib/sessionResources.js";
 
 export default function TeamHubPage() {
   const { teamId } = useParams();
@@ -22,6 +23,14 @@ export default function TeamHubPage() {
     { team_id: teamIdNum },
     { enabled: Number.isFinite(teamIdNum) && teamIdNum > 0, retry: false },
   );
+
+  // Today's session decks for the Home tab (server hides locked days from cAMPers).
+  const { data: resourceData } = useApiData("GetAgendaResources", {}, { staleTime: 60_000 });
+  const { data: configData } = useApiData("GetCampConfig", {});
+  const today = useMemo(() => {
+    const start = (configData?.config as Array<{ key: string; value: string }> | undefined)?.find((c) => c.key === "camp_start_date")?.value;
+    return campDayNumber(start);
+  }, [configData]);
 
   const teams = teamsData?.teams ?? [];
   const team = useMemo(() => teams.find((t) => t.id === teamIdNum), [teams, teamIdNum]);
@@ -90,6 +99,8 @@ export default function TeamHubPage() {
         myName={myName}
         fetching={fetching}
         refetch={refetch}
+        resources={(resourceData?.resources ?? []) as AgendaResource[]}
+        today={today}
       />
     </div>
   );

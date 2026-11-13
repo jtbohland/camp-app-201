@@ -12,9 +12,12 @@ const SessionBankItemSchema = z.object({
   created_by: z.string().nullable(),
   is_blackout: z.boolean(),
   blackout_roles: z.array(z.string()),
+  /** Slide decks / resource links shown on every tile scheduled from this session. */
+  links: z.array(z.object({ title: z.string(), url: z.string() })),
 });
 
-const BankRow = SessionBankItemSchema.extend({ blackout_roles: RawRoles });
+const BankRow = SessionBankItemSchema.omit({ links: true }).extend({ blackout_roles: RawRoles });
+const LinkRow = z.object({ session_bank_id: z.coerce.number(), title: z.string(), url: z.string() });
 
 export default api({
   name: "GetSessionBank",
@@ -38,6 +41,17 @@ export default api({
       { label: "Fetch session bank" }
     );
 
-    return { sessions: sessions.map((s) => ({ ...s, blackout_roles: parseRoles(s.blackout_roles) })) };
+    const links = await ctx.integrations.camp_201_db.query(
+      `SELECT session_bank_id, title, url FROM camp201_session_links ORDER BY session_bank_id, sort_order, id LIMIT 1000`,
+      LinkRow,
+      undefined,
+      { label: "Fetch session links" }
+    );
+    const byBank = new Map<number, { title: string; url: string }[]>();
+    for (const l of links) byBank.set(l.session_bank_id, [...(byBank.get(l.session_bank_id) ?? []), { title: l.title, url: l.url }]);
+
+    return {
+      sessions: sessions.map((s) => ({ ...s, blackout_roles: parseRoles(s.blackout_roles), links: byBank.get(s.id) ?? [] })),
+    };
   },
 });

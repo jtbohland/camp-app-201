@@ -7,6 +7,8 @@ import HubHomeUpNext from "@/components/HubHomeUpNext/index.js";
 import HubHomeTodos from "@/components/HubHomeTodos/index.js";
 import HubHomeActivity from "@/components/HubHomeActivity/index.js";
 import HubDeleteDialog from "@/components/HubDeleteDialog/index.js";
+import HubHomeResources from "@/components/HubHomeResources/index.js";
+import type { AgendaResource } from "@/lib/sessionResources.js";
 import { useHubPosts } from "./useHubPosts";
 import { BOARD_SECTION, HOME_TAB, boardFor, presKey, type HubData, type HubItem, type HubMember } from "@/lib/teamHub";
 
@@ -23,10 +25,14 @@ type Props = {
   myName: string;
   fetching: boolean;
   refetch: () => Promise<unknown>;
+  /** Unlocked session decks/links for the Home tab. */
+  resources: AgendaResource[];
+  /** Today's cAMP day (PT), or null outside cAMP week. */
+  today: number | null;
 };
 
 /** Tabs + content for one team's hub. Data comes from the page; this owns tab state and post actions. */
-export default function TeamHubView({ teamId, hub, members, company, rank, totalTeams, totalPoints, myName, fetching, refetch }: Props) {
+export default function TeamHubView({ teamId, hub, members, company, rank, totalTeams, totalPoints, myName, fetching, refetch, resources, today }: Props) {
   const [active, setActive] = useState<string>(HOME_TAB);
   const { viewer } = hub;
   const actions = useHubPosts({ teamId, myCamperId: viewer.camper_id, myName, members, refetch });
@@ -130,6 +136,7 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
               totalPoints={totalPoints}
               presentingSlot={hub.presenting_slot}
             />
+            <HubHomeResources resources={resources} today={today} />
             <div className="grid gap-4 lg:grid-cols-2">
               <HubHomeUpNext
                 presentations={presentations}

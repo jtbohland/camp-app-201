@@ -12,6 +12,8 @@ import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import ExecutivesTab from "@/components/ExecutivesTab/index.js";
 import AgendaResources from "@/components/AgendaResources/index.js";
+import SessionResourcesPill from "@/components/SessionResourcesPill/index.js";
+import { linksByAgendaItem, type AgendaResource } from "@/lib/sessionResources.js";
 import { getRoleGroup } from "@/lib/roles.js";
 
 const DAY_LABELS: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday" };
@@ -59,10 +61,16 @@ export default function AgendaPage() {
     email: user?.email ?? "",
   }, { enabled: !!user?.email });
 
-  const camperId = camperData?.camper?.id ?? 0;
   const myRole = getRoleGroup(camperData?.camper?.role);
 
   const { isAdmin } = useIsAdmin();
+
+  // Session decks/links. Server already drops locked days for cAMPers.
+  const { data: resourceData } = useApiData("GetAgendaResources", {});
+  const linksByItem = useMemo(
+    () => linksByAgendaItem((resourceData?.resources ?? []) as AgendaResource[]),
+    [resourceData]
+  );
 
   // Day lock states from config
   const lockedDays = useMemo(() => {
@@ -83,8 +91,9 @@ export default function AgendaPage() {
     try {
       await toggleLock({ day_number: dayNum, locked: !currentlyLocked });
       refetchConfig();
-      // Speakers show up on the Speakers tab when their day unlocks.
+      // Speakers and session resources show up when their day unlocks.
       queryClient.invalidateQueries("GetExecutives");
+      queryClient.invalidateQueries("GetAgendaResources");
       toast.success(`Day ${dayNum} ${!currentlyLocked ? "locked" : "unlocked"}`);
     } catch {
       toast.error("Failed to toggle lock");
@@ -256,6 +265,7 @@ export default function AgendaPage() {
                                     <Icon icon="external-link" className="w-3 h-3" />
                                   </a>
                                 )}
+                                <SessionResourcesPill links={linksByItem.get(item.id) ?? []} />
                               </div>
                               <Badge variant="outline" className={`text-[10px] ${colors.text} border-current/20`}>
                                 {item.session_type}
@@ -275,7 +285,7 @@ export default function AgendaPage() {
         {activeTab === "speakers" && <ExecutivesTab />}
         {activeTab === "resources" && (
           <div className="p-6 max-w-5xl">
-            <AgendaResources agendaItems={agendaItems} isAdmin={false} camperId={camperId} />
+            <AgendaResources isAdmin={isAdmin} />
           </div>
         )}
       </div>
