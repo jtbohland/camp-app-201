@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLocation } from "react-router";
 import { useSuperblocksUser } from "@superblocksteam/library";
 import { toast } from "sonner";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
@@ -16,6 +17,7 @@ export default function JourneyPage() {
   const { isAdmin } = useIsAdmin();
   const showPoints = usePointsBubble();
   const announced = useRef(false);
+  const { hash } = useLocation();
 
   const {
     data: camperData,
@@ -49,6 +51,15 @@ export default function JourneyPage() {
   const deadline = preworkData?.deadline ?? "";
 
   const loading = camperLoading || preworkLoading;
+
+  // Arriving from the pre-work reminder (/journey#prework): jump to the Pre-work section.
+  useEffect(() => {
+    if (loading || hash !== "#prework") return;
+    const t = setTimeout(() => {
+      document.getElementById("prework")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [loading, hash]);
 
   if (loading) {
     return (
@@ -107,7 +118,7 @@ export default function JourneyPage() {
       <KnowBeforeYouGo isAdmin={isAdmin} camperId={camper?.id ?? 0} teamId={camper?.team_id ?? null} />
 
       {/* Pre-Work Section */}
-      <div className={preworkFetching && !preworkLoading ? "opacity-70" : ""}>
+      <div id="prework" className={`scroll-mt-4 ${preworkFetching && !preworkLoading ? "opacity-70" : ""}`}>
         <PreWork
           userId={camperId}
           camperEmail={user?.email ?? ""}

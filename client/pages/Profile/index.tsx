@@ -24,6 +24,7 @@ import FromYourManagerCard from "@/components/FromYourManagerCard/index.js";
 import DietaryCard from "@/components/DietaryCard/index.js";
 import { formatLastSeenFull } from "@/lib/lastSeen.js";
 import { executeApi } from "@/lib/executeApi.js";
+import { requestPreworkReminder } from "@/lib/preworkReminder.js";
 import { READ_ONLY_MESSAGE } from "@/lib/readOnlyGuard";
 import { clearProfileDraft, loadProfileDraft, saveProfileDraft, sameDraft, type ProfileDraft } from "@/lib/profileDraft.js";
 
@@ -201,6 +202,8 @@ export default function ProfilePage() {
     setSaved(draft);
     setRestoredDraft(false);
     const justCompleted = !data?.camper?.profile_completed && result?.camper?.profile_completed;
+    // First completed profile save → show the full pre-work checklist next.
+    if (justCompleted) requestPreworkReminder();
     if (result && result.pointsAwarded > 0) {
       toast.success(`Profile saved! 🎉 +${result.pointsAwarded} points earned for completing your profile!`);
     } else if (result?.pastDeadline) {

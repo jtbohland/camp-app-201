@@ -1,7 +1,7 @@
 import { z } from "@superblocksteam/sdk-api";
 
 export const PREWORK_PENALTY_POINTS = -3;
-const PREWORK_POINTS = 5;
+export const PREWORK_POINTS = 5;
 
 /**
  * True once the pre-work deadline has passed (Settings value in Pacific time; blank = cAMP start
