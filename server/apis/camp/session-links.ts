@@ -87,6 +87,12 @@ export const GetAgendaResources = api({
        FROM camp201_session_links l
        JOIN camp201_agenda a ON a.session_bank_id = l.session_bank_id
        LEFT JOIN camp201_config cfg ON cfg.key = 'agenda_day_' || a.day_number || '_locked'
+       -- Only days that are part of this cAMP (same cutoff the Agenda and Counselor Hub use);
+       -- leftover tiles on days beyond num_days are hidden there, so hide their resources too.
+       WHERE a.day_number <= COALESCE(
+         (SELECT CASE WHEN value ~ '^[0-9]+$' THEN value::int END FROM camp201_config WHERE key = 'num_days' LIMIT 1),
+         4
+       )
        ORDER BY a.day_number, a.start_time, l.sort_order, l.id
        LIMIT 300`,
       ResourceRow,
