@@ -9,94 +9,114 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import GroupPhotoSlot, { type GroupPhoto } from "./GroupPhotoSlot.js";
-import TrophyPhotoRow, { type ChampionTeam } from "./TrophyPhotoRow.js";
+import LegacyPhotoSlot, { type LegacyPhoto, type SaveLegacyPhotoArgs } from "./LegacyPhotoSlot.js";
+
+type Kind = "group" | "trophy";
 
 function errorText(error: unknown): string {
   return error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : String(error);
 }
 
+type Slot = { cohortNumber: number; defaultLabel: string; caption?: string; photo: LegacyPhoto | null };
+
+/** "Another cohort" box: adds an empty slot for a cohort not on the Legacy Wall yet. */
+function AddCohortSlot({ taken, onAdd, accent }: { taken: number[]; onAdd: (n: number) => void; accent: string }) {
+  const [value, setValue] = useState("");
+  const n = Number(value);
+  const ok = Number.isInteger(n) && n > 0 && !taken.includes(n);
+  return (
+    <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-4 text-center">
+      <Icon icon="plus" className={`h-5 w-5 ${accent}`} />
+      <p className="text-xs text-muted-foreground">Another cohort</p>
+      <div className="flex items-center gap-2">
+        <Input value={value} onChange={(e) => setValue(e.target.value.replace(/\D/g, ""))} placeholder="#" className="h-8 w-16 text-center text-xs" />
+        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!ok} onClick={() => { onAdd(n); setValue(""); }}>
+          Add
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /**
- * Counselor Hub → Legacy Photos: the cohort group photos (Past cAMPs carousel) and champion
- * trophy photos (Legacy Wall). Every save shows up on Past cAMPs right away.
+ * Counselor Hub → Legacy Photos: cohort group photos (Past cAMPs carousel) and trophy photos
+ * (champion tiles). Both work the same way: one slot per cohort, drop to add, drag to reposition.
  */
 export default function AdminLegacyPhotos() {
   const { data: photoData, loading: loadingPhotos, refetch: refetchPhotos } = useApiData("GetGroupPhotos", {});
-  const { data: pastData, loading: loadingPast, refetch: refetchPast } = useApiData("GetPastCohorts", {});
-  const { run: saveGroupPhoto, loading: savingGroup } = useApi("SaveGroupPhoto");
-  const { run: deleteGroupPhoto, loading: deleting } = useApi("DeleteGroupPhoto");
-  const { run: saveTrophy, loading: savingTrophy } = useApi("SaveTrophyPhoto");
-  const [pendingDelete, setPendingDelete] = useState<GroupPhoto | null>(null);
-  const [extraNumber, setExtraNumber] = useState("");
-  /** Cohorts added from "Another cohort" that don't have a photo yet. */
-  const [extraSlots, setExtraSlots] = useState<number[]>([]);
+  const { data: pastData, loading: loadingPast } = useApiData("GetPastCohorts", {});
+  const { run: savePhoto, loading: saving } = useApi("SaveGroupPhoto");
+  const { run: deletePhoto, loading: deleting } = useApi("DeleteGroupPhoto");
+  const [pendingDelete, setPendingDelete] = useState<LegacyPhoto | null>(null);
+  const [extraSlots, setExtraSlots] = useState<Record<Kind, number[]>>({ group: [], trophy: [] });
+  /** After a fresh upload, open the positioner on that slot. */
+  const [positionAfterUpload, setPositionAfterUpload] = useState<string | null>(null);
 
-  const photos = useMemo(() => photoData?.photos ?? [], [photoData]);
+  const photos = useMemo(() => (photoData?.photos ?? []) as LegacyPhoto[], [photoData]);
   const cohorts = useMemo(() => [...(pastData?.cohorts ?? [])].sort((a, b) => a.cohort_number - b.cohort_number), [pastData]);
 
-  // One slot per Legacy Wall cohort, plus any photo for a cohort not on the wall yet (e.g. the current one).
-  const slots = useMemo(() => {
-    const byNumber = new Map(photos.map((p) => [p.cohort_number, p]));
-    const list = cohorts.map((c) => ({ cohortNumber: c.cohort_number, defaultLabel: c.date_label, photo: byNumber.get(c.cohort_number) ?? null }));
-    for (const p of photos) {
-      if (!cohorts.some((c) => c.cohort_number === p.cohort_number)) list.push({ cohortNumber: p.cohort_number, defaultLabel: p.label, photo: p });
-    }
-    for (const n of extraSlots) {
-      if (!list.some((s) => s.cohortNumber === n)) list.push({ cohortNumber: n, defaultLabel: "", photo: null });
-    }
-    return list.sort((a, b) => a.cohortNumber - b.cohortNumber);
-  }, [photos, cohorts, extraSlots]);
-
-  const champions: ChampionTeam[] = useMemo(
-    () =>
-      cohorts.flatMap((c) =>
-        c.teams
-          .filter((t) => t.is_winner || t.place === 1)
-          .map((t) => ({ id: t.id, team_name: t.team_name, cohort_number: c.cohort_number, date_label: c.date_label, trophy_photo_url: t.trophy_photo_url }))
-      ),
-    [cohorts]
+  const buildSlots = useCallback(
+    (kind: Kind): Slot[] => {
+      const byNumber = new Map(photos.filter((p) => p.kind === kind).map((p) => [p.cohort_number, p]));
+      const list: Slot[] = cohorts
+        // Trophy slots only for cohorts that crowned a champion
+        .filter((c) => kind === "group" || c.teams.some((t) => t.is_winner || t.place === 1))
+        .map((c) => {
+          const champ = c.teams.find((t) => t.is_winner) ?? c.teams.find((t) => t.place === 1);
+          return {
+            cohortNumber: c.cohort_number,
+            defaultLabel: kind === "group" ? c.date_label : champ?.team_name ?? "",
+            caption: kind === "trophy" ? `Cohort ${c.cohort_number} · ${c.date_label}` : undefined,
+            photo: byNumber.get(c.cohort_number) ?? null,
+          };
+        });
+      for (const p of byNumber.values()) {
+        if (!list.some((s) => s.cohortNumber === p.cohort_number)) {
+          list.push({ cohortNumber: p.cohort_number, defaultLabel: p.label, caption: kind === "trophy" ? `Cohort ${p.cohort_number}` : undefined, photo: p });
+        }
+      }
+      for (const n of extraSlots[kind]) {
+        if (!list.some((s) => s.cohortNumber === n)) list.push({ cohortNumber: n, defaultLabel: "", caption: kind === "trophy" ? `Cohort ${n}` : undefined, photo: null });
+      }
+      return list.sort((a, b) => a.cohortNumber - b.cohortNumber);
+    },
+    [photos, cohorts, extraSlots]
   );
 
-  const withPhotos = slots.filter((s) => s.photo).length;
-  const withTrophies = champions.filter((t) => t.trophy_photo_url).length;
+  const groupSlots = useMemo(() => buildSlots("group"), [buildSlots]);
+  // Newest champion first, since that's the one counselors add after each cAMP.
+  const trophySlots = useMemo(() => [...buildSlots("trophy")].reverse(), [buildSlots]);
 
-  const handleSaveGroup = useCallback(
-    async (args: { id: number | null; cohort_number: number; label: string; photo_data: string | null }) => {
+  const handleSave = useCallback(
+    async (args: SaveLegacyPhotoArgs) => {
       try {
-        await saveGroupPhoto(args);
-        toast.success(args.photo_data ? `Cohort ${args.cohort_number} photo added to the carousel` : "Label updated");
+        await savePhoto(args);
+        const isTrophy = args.kind === "trophy";
+        toast.success(
+          args.photo_data
+            ? isTrophy ? "Trophy photo added. Drag it to frame the faces." : `Cohort ${args.cohort_number} photo added to the carousel`
+            : "Saved"
+        );
         await Promise.all([refetchPhotos(), queryClient.invalidateQueries("GetGroupPhotos")]);
+        if (args.photo_data && isTrophy) setPositionAfterUpload(`trophy-${args.cohort_number}`);
       } catch (error) {
         toast.error("Couldn't save: " + errorText(error));
       }
     },
-    [saveGroupPhoto, refetchPhotos]
+    [savePhoto, refetchPhotos]
   );
 
   const confirmDelete = useCallback(async () => {
     if (!pendingDelete) return;
     try {
-      await deleteGroupPhoto({ id: pendingDelete.id });
-      toast.success(`Cohort ${pendingDelete.cohort_number} photo deleted`);
+      await deletePhoto({ id: pendingDelete.id });
+      toast.success(`Cohort ${pendingDelete.cohort_number} ${pendingDelete.kind} photo deleted`);
       setPendingDelete(null);
       await Promise.all([refetchPhotos(), queryClient.invalidateQueries("GetGroupPhotos")]);
     } catch (error) {
       toast.error("Couldn't delete: " + errorText(error));
     }
-  }, [pendingDelete, deleteGroupPhoto, refetchPhotos]);
-
-  const handleTrophy = useCallback(
-    async (teamId: number, photo: string | null) => {
-      try {
-        await saveTrophy({ team_id: teamId, photo_data: photo });
-        toast.success(photo ? "Trophy photo added to the Legacy Wall" : "Trophy photo removed");
-        await Promise.all([refetchPast(), queryClient.invalidateQueries("GetPastCohorts")]);
-      } catch (error) {
-        toast.error("Couldn't save: " + errorText(error));
-      }
-    },
-    [saveTrophy, refetchPast]
-  );
+  }, [pendingDelete, deletePhoto, refetchPhotos]);
 
   if (loadingPhotos || loadingPast) {
     return (
@@ -109,87 +129,71 @@ export default function AdminLegacyPhotos() {
     );
   }
 
-  const extra = Number(extraNumber);
-  const canAddExtra = Number.isInteger(extra) && extra > 0 && !slots.some((s) => s.cohortNumber === extra);
-
-  return (
-    <div className="space-y-6">
-      {/* Group photos */}
+  const renderSection = (kind: Kind, slots: Slot[]) => {
+    const isTrophy = kind === "trophy";
+    const filled = slots.filter((s) => s.photo).length;
+    return (
       <Card className="p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <Icon icon="camera" className="h-5 w-5" /> 201 Group Pics
+              {isTrophy ? <Icon icon="trophy" className="h-5 w-5 text-amber-500" /> : <Icon icon="camera" className="h-5 w-5" />}
+              {isTrophy ? "Champion Trophy Photos" : "201 Group Pics"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              One tradition photo per cohort. Each one joins the Past cAMPs carousel, oldest first, as soon as it's added.
+              {isTrophy
+                ? "One per cohort, shown on the winning team's tile on the Legacy Wall. After uploading, drag the photo to keep faces in frame. Add one for a new cohort with “Another cohort”."
+                : "One tradition photo per cohort. Each joins the Past cAMPs carousel, oldest first, and is always shown in full."}
             </p>
           </div>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground">
-            {withPhotos} of {slots.length} cohorts have a photo
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isTrophy ? "bg-amber-100 text-amber-800" : "bg-muted text-foreground"}`}>
+            {filled} of {slots.length} have a photo
           </span>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {slots.map((s) => (
-            <GroupPhotoSlot
-              key={`${s.cohortNumber}-${s.photo?.id ?? "new"}`}
-              cohortNumber={s.cohortNumber}
-              defaultLabel={s.defaultLabel}
-              photo={s.photo}
-              busy={savingGroup || deleting}
-              onSave={handleSaveGroup}
-              onDelete={setPendingDelete}
-            />
-          ))}
-          {/* Add a slot for a cohort that isn't on the Legacy Wall yet (e.g. the current cohort) */}
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-4 text-center">
-            <Icon icon="plus" className="h-5 w-5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Another cohort</p>
-            <div className="flex items-center gap-2">
-              <Input value={extraNumber} onChange={(e) => setExtraNumber(e.target.value.replace(/\D/g, ""))} placeholder="#" className="h-8 w-16 text-center text-xs" />
-              <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!canAddExtra}
-                onClick={() => {
-                  setExtraSlots((s) => [...s, extra]);
-                  setExtraNumber("");
-                }}>
-                Add
-              </Button>
-            </div>
-          </div>
+          {slots.map((s) => {
+            const key = `${kind}-${s.cohortNumber}`;
+            return (
+              <LegacyPhotoSlot
+                key={`${key}-${s.photo?.id ?? "new"}`}
+                kind={kind}
+                cohortNumber={s.cohortNumber}
+                defaultLabel={s.defaultLabel}
+                caption={s.caption}
+                photo={s.photo}
+                busy={saving || deleting}
+                startPositioning={positionAfterUpload === key && !!s.photo}
+                onPositioningDone={() => setPositionAfterUpload((cur) => (cur === key ? null : cur))}
+                onSave={handleSave}
+                onDelete={setPendingDelete}
+              />
+            );
+          })}
+          <AddCohortSlot
+            taken={slots.map((s) => s.cohortNumber)}
+            accent={isTrophy ? "text-amber-500" : "text-muted-foreground"}
+            onAdd={(n) => setExtraSlots((cur) => ({ ...cur, [kind]: [...cur[kind], n] }))}
+          />
         </div>
       </Card>
+    );
+  };
 
-      {/* Trophy photos */}
-      <Card className="p-5">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <Icon icon="trophy" className="h-5 w-5 text-amber-500" /> Champion Trophy Photos
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Shows on each winning team's tile on the Legacy Wall. You can also drop a photo right onto the tile there.
-            </p>
-          </div>
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-            {withTrophies} of {champions.length} champions have a photo
-          </span>
-        </div>
-        {champions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No champion teams on the Legacy Wall yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {[...champions].reverse().map((t) => (
-              <TrophyPhotoRow key={t.id} team={t} busy={savingTrophy} onSave={handleTrophy} />
-            ))}
-          </div>
-        )}
-      </Card>
+  return (
+    <div className="space-y-6">
+      {renderSection("group", groupSlots)}
+      {renderSection("trophy", trophySlots)}
 
       <Dialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete the Cohort {pendingDelete?.cohort_number} photo?</DialogTitle>
-            <DialogDescription>It will be removed from the Past cAMPs carousel. You can upload it again anytime.</DialogDescription>
+            <DialogTitle>Delete the Cohort {pendingDelete?.cohort_number} {pendingDelete?.kind === "trophy" ? "trophy" : "group"} photo?</DialogTitle>
+            <DialogDescription>
+              {pendingDelete?.kind === "trophy"
+                ? "It will be removed from the champion tile on the Legacy Wall."
+                : "It will be removed from the Past cAMPs carousel."}{" "}
+              You can upload it again anytime.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingDelete(null)}>Cancel</Button>

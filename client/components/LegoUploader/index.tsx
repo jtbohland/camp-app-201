@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { useCallback, useRef, useState, type DragEvent, type PointerEvent } from "react";
 import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi.js";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Slider } from "@/components/ui/slider";
-import { readFileAsDataUrl, removeBackground, shrinkPng } from "@/lib/removeBackground.js";
+import { cropToAspect, readFileAsDataUrl } from "@/lib/cropImage.js";
 import LegoFigure from "@/components/LegoFigure/index.js";
 
 type Props = {
@@ -12,53 +12,27 @@ type Props = {
   onSaved: () => void;
 };
 
-/** Checkerboard so transparent areas read as "transparent" in the preview. */
-const CHECKER = {
-  backgroundImage:
-    "linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)",
-  backgroundSize: "16px 16px",
-  backgroundPosition: "0 0,0 8px,8px -8px,-8px 0",
-};
+/** Same shape as the LEGO frame on the card. */
+const ASPECT = 4 / 5;
+const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
 /**
- * Counselor Cabin: upload a photo of your LEGO minifig. The background is removed in the browser
- * (best on a plain backdrop), with a strength slider and a before/after preview before saving.
+ * Counselor Cabin: upload any photo of your LEGO minifig (regular photo or transparent PNG).
+ * Drag to frame it and zoom in, with a live preview of the LEGO-brick frame on your card.
  */
 export default function LegoUploader({ currentLegoUrl, onSaved }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [original, setOriginal] = useState<string | null>(null);
-  const [cutout, setCutout] = useState<string | null>(null);
-  const [strength, setStrength] = useState(0.5);
-  const [keepBackground, setKeepBackground] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
+  const [original, setOriginal] = useState<{ src: string; keepAlpha: boolean } | null>(null);
+  const [focus, setFocus] = useState({ x: 50, y: 40 });
+  const [zoom, setZoom] = useState(1);
   const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { run: saveLego, loading: saving } = useApi("SaveCounselorLego");
 
-  // Re-run background removal whenever the photo or strength changes.
-  useEffect(() => {
-    if (!original) return;
-    let cancelled = false;
-    setProcessing(true);
-    setError(null);
-    const t = setTimeout(() => {
-      const job = keepBackground ? shrinkPng(original).then((d) => ({ dataUrl: d, removed: 0 })) : removeBackground(original, strength);
-      job
-        .then((r) => {
-          if (cancelled) return;
-          setCutout(r.dataUrl);
-          if (!keepBackground && r.removed < 0.15) setError("Not much background was found. Try more strength, or a photo on a plain background.");
-        })
-        .catch((e: unknown) => !cancelled && setError(e instanceof Error ? e.message : "Couldn't process that photo"))
-        .finally(() => !cancelled && setProcessing(false));
-    }, 150);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [original, strength, keepBackground]);
-
   const pickFile = useCallback(async (file: File) => {
+    setError(null);
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setError("Use a PNG, JPG, or WebP photo");
       return;
@@ -68,31 +42,57 @@ export default function LegoUploader({ currentLegoUrl, onSaved }: Props) {
       return;
     }
     try {
-      setOriginal(await readFileAsDataUrl(file));
+      setOriginal({ src: await readFileAsDataUrl(file), keepAlpha: file.type !== "image/jpeg" });
+      setFocus({ x: 50, y: 40 });
+      setZoom(1);
     } catch {
       setError("Failed to read that file");
     }
   }, []);
 
-  const onDrop = useCallback((e: DragEvent) => {
+  const onDropFile = useCallback((e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const f = e.dataTransfer.files?.[0];
     if (f) void pickFile(f);
   }, [pickFile]);
 
-  const handleSave = useCallback(async (value: string | null) => {
+  // Drag the photo to reframe (zoom makes the drag move further across the photo).
+  const onPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, y: e.clientY, fx: focus.x, fy: focus.y };
+  }, [focus]);
+  const onPointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    const box = boxRef.current;
+    if (!d || !box) return;
+    const dx = ((e.clientX - d.x) / box.clientWidth) * 100 / zoom;
+    const dy = ((e.clientY - d.y) / box.clientHeight) * 100 / zoom;
+    setFocus({ x: clamp(d.fx - dx), y: clamp(d.fy - dy) });
+  }, [zoom]);
+  const endDrag = useCallback(() => { drag.current = null; }, []);
+
+  const handleSave = useCallback(async (remove = false) => {
     try {
+      const value = remove || !original
+        ? null
+        : await cropToAspect(original.src, { aspect: ASPECT, focusX: focus.x, focusY: focus.y, zoom, outWidth: 480, keepAlpha: original.keepAlpha });
       await saveLego({ lego_data: value });
       toast.success(value ? "Your LEGO Me is live on your counselor card!" : "LEGO Me removed");
       setOriginal(null);
-      setCutout(null);
       onSaved();
     } catch (error) {
       const message = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : String(error);
       toast.error("Couldn't save: " + message);
     }
-  }, [saveLego, onSaved]);
+  }, [original, focus, zoom, saveLego, onSaved]);
+
+  // Preview the crop with CSS (same math as cropToAspect: object-position + scale from the anchor).
+  const previewStyle = {
+    objectPosition: `${focus.x}% ${focus.y}%`,
+    transform: `scale(${zoom})`,
+    transformOrigin: `${focus.x}% ${focus.y}%`,
+  };
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
@@ -103,21 +103,21 @@ export default function LegoUploader({ currentLegoUrl, onSaved }: Props) {
             My LEGO Me
           </h3>
           <p className="text-xs text-muted-foreground">
-            Snap your minifig on a plain background. We'll cut it out and add it to your counselor card.
+            Upload any photo of your minifig, with or without a background. You can drag and zoom to frame it.
           </p>
         </div>
         {currentLegoUrl && !original && (
-          <Button variant="ghost" size="sm" onClick={() => void handleSave(null)} disabled={saving}>
+          <Button variant="ghost" size="sm" onClick={() => void handleSave(true)} disabled={saving}>
             <Icon icon="trash-2" className="h-3.5 w-3.5" /> Remove
           </Button>
         )}
       </div>
 
       {!original ? (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           {currentLegoUrl && (
-            <div className="flex h-28 w-24 shrink-0 items-end justify-center rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 pb-1">
-              <LegoFigure src={currentLegoUrl} className="h-24" />
+            <div className="shrink-0 px-2 pt-1">
+              <LegoFigure src={currentLegoUrl} size="sm" />
             </div>
           )}
           <div
@@ -127,60 +127,77 @@ export default function LegoUploader({ currentLegoUrl, onSaved }: Props) {
             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
+            onDrop={onDropFile}
             className={`flex h-28 flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-xs transition-colors ${
               dragging ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-300 hover:bg-amber-50/40"
             }`}
           >
             <Icon icon="image-plus" className="h-5 w-5 text-muted-foreground" />
-            <span className="font-medium text-foreground">{currentLegoUrl ? "Replace your minifig" : "Drop a photo of your minifig"}</span>
+            <span className="font-medium text-foreground">{currentLegoUrl ? "Replace your LEGO Me" : "Drop a photo of your minifig"}</span>
             <span className="text-muted-foreground">or click to choose · PNG, JPG, WebP</span>
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Original</p>
-              <div className="flex h-44 items-center justify-center overflow-hidden rounded-lg bg-muted">
-                <img src={original} alt="Original" className="max-h-full max-w-full object-contain" />
+        <div className="flex flex-col gap-5 sm:flex-row">
+          {/* Framing area */}
+          <div className="flex-1 space-y-3">
+            <div
+              ref={boxRef}
+              className="relative mx-auto w-full max-w-[240px] cursor-grab touch-none select-none overflow-hidden rounded-lg bg-gradient-to-b from-amber-50 to-yellow-100 ring-2 ring-amber-400 active:cursor-grabbing"
+              style={{ aspectRatio: "4 / 5" }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <img src={original.src} alt="Frame your minifig" draggable={false} className="pointer-events-none h-full w-full object-cover" style={previewStyle} />
+              <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white">
+                  <Icon icon="move" className="h-3 w-3" /> Drag to frame
+                </span>
               </div>
             </div>
-            <div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">On your card</p>
-              <div className="relative flex h-44 items-center justify-center overflow-hidden rounded-lg" style={CHECKER}>
-                {cutout && <img src={cutout} alt="Cut-out preview" className={`max-h-[90%] max-w-[90%] object-contain drop-shadow-lg ${processing ? "opacity-50" : ""}`} />}
-                {processing && <Icon icon="loader-circle" className="absolute h-6 w-6 animate-spin text-muted-foreground" />}
-              </div>
+            <div className="flex items-center gap-3">
+              <Icon icon="zoom-out" className="h-4 w-4 text-muted-foreground" />
+              <Slider value={[zoom]} min={1} max={3} step={0.05} onValueChange={(v) => setZoom(v[0] ?? 1)} className="flex-1" />
+              <Icon icon="zoom-in" className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
 
-          {!keepBackground && (
-            <div className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-xs text-muted-foreground">Cleanup strength</span>
-              <Slider value={[strength]} min={0} max={1} step={0.05} onValueChange={(v) => setStrength(v[0] ?? 0.5)} className="flex-1" />
+          {/* Card preview */}
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg bg-card p-4 ring-1 ring-border sm:w-48">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">On your card</p>
+            <div className="group py-2">
+              {/* Live preview of the frame using the same crop */}
+              <div className="relative w-28 rotate-3 transition-transform duration-300 group-hover:-translate-y-1 group-hover:rotate-0 group-hover:scale-105">
+                <div className="flex justify-evenly px-1.5">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <span key={i} className="-mb-0.5 h-3 w-3 rounded-t-[3px] bg-gradient-to-b from-yellow-300 to-yellow-500" />
+                  ))}
+                </div>
+                <div className="rounded-lg bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 p-1.5 shadow-[0_6px_14px_-4px_rgba(180,120,0,0.55)]">
+                  <div className="aspect-[4/5] overflow-hidden rounded-md bg-gradient-to-b from-amber-50 to-yellow-100 ring-1 ring-black/10">
+                    <img src={original.src} alt="" className="h-full w-full object-cover" style={previewStyle} />
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input type="checkbox" checked={keepBackground} onChange={(e) => setKeepBackground(e.target.checked)} />
-            My image already has a transparent background (skip cleanup)
-          </label>
-
-          {error && (
-            <p className="flex items-center gap-1 text-xs text-amber-700">
-              <Icon icon="triangle-alert" className="h-3.5 w-3.5" /> {error}
-            </p>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setOriginal(null); setCutout(null); setError(null); }}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={() => cutout && void handleSave(cutout)} disabled={!cutout || processing || saving}>
-              {saving ? "Saving…" : "Save to my card"}
-            </Button>
+            <div className="mt-1 flex w-full flex-col gap-2">
+              <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
+                {saving ? "Saving…" : "Save to my card"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setOriginal(null); setError(null); }}>
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
+      )}
+
+      {error && (
+        <p className="mt-2 flex items-center gap-1 text-xs text-red-600">
+          <Icon icon="triangle-alert" className="h-3.5 w-3.5" /> {error}
+        </p>
       )}
 
       <input
