@@ -20,7 +20,11 @@ const HEIGHTS: Record<Size, string> = {
  */
 export default function LegoFigure({ src, alt = "LEGO minifig", size = "md", hop = false }: Props) {
   return (
-    <div className={`relative flex items-end justify-center ${HEIGHTS[size]}`}>
+    <div
+      className={`relative flex origin-bottom items-end justify-center transition-transform duration-300 ${HEIGHTS[size]} ${
+        hop ? "group-hover:scale-110" : ""
+      }`}
+    >
       {/* Warm glow behind the figure */}
       <div
         className={`absolute inset-0 rounded-full bg-gradient-to-b from-yellow-200 to-transparent opacity-50 blur-xl transition-opacity duration-300 ${hop ? "group-hover:opacity-90" : ""}`}

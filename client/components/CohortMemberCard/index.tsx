@@ -42,11 +42,11 @@ function CohortMemberCard({ member, onOpen, extraPills }: CohortMemberCardProps)
             }
           : undefined
       }
-      className={`group relative flex flex-col border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all text-left ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""} ${clickable ? "cursor-pointer hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
+      className={`group relative flex flex-col border rounded-xl ${lego ? "overflow-visible hover:z-20" : "overflow-hidden"} shadow-sm hover:shadow-md transition-all text-left ${roleStyle.bg} ${roleStyle.border} ${isCounselor ? "ring-1 ring-primary/20" : ""} ${clickable ? "cursor-pointer hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
     >
-      {/* Counselor LEGO Me: stands in the top-right corner, glows and hops on hover */}
+      {/* Counselor LEGO Me: stands in front of the tile, breaking the top edge, so the hop leaps out of the card */}
       {lego && (
-        <div className="pointer-events-none absolute right-4 top-3 z-10" title={`${member.first_name}'s LEGO Me`}>
+        <div className="pointer-events-none absolute -top-5 right-4 z-30" title={`${member.first_name}'s LEGO Me`}>
           <LegoFigure src={lego} alt={`${member.first_name}'s LEGO minifig`} size="md" hop />
         </div>
       )}

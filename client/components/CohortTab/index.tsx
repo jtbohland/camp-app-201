@@ -135,7 +135,8 @@ export default function CohortTab() {
               <Icon icon="shield" className="w-4 h-4" />
               Counselors ({counselors.length})
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Extra top room + row gap: counselor LEGO figures stand above their tiles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-8 pt-5">
               {counselors.map((m) => (
                 <CohortMemberCard key={m.id} member={m} onOpen={setOpenMember} />
               ))}
