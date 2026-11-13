@@ -67,6 +67,10 @@ export default api({
      * Accepted, which creates the account before they ever saw the form). They must finish the form.
      */
     needsRegistration: z.boolean(),
+    /** Registration fields still blank (plain labels for the "finish registration" modal). */
+    missingRegistration: z.array(z.string()),
+    /** Profile items still blank (plain labels). Empty when the profile is complete. */
+    missingProfile: z.array(z.string()),
   }),
   async run(ctx, { email }) {
     const campers = await ctx.integrations.camp_201_db.query(
@@ -77,13 +81,13 @@ export default api({
     );
 
     if (campers.length === 0) {
-      return { camper: null, isRegistered: false, isRemoved: false, rejoinPending: false, needsRegistration: false };
+      return { camper: null, isRegistered: false, isRemoved: false, rejoinPending: false, needsRegistration: false, missingRegistration: [], missingProfile: [] };
     }
 
     // Removed cAMPers are treated as not registered everywhere in the app.
     const camper = campers[0];
     if (camper.removed_at) {
-      return { camper: null, isRegistered: false, isRemoved: true, rejoinPending: !!camper.rejoin_requested_at, needsRegistration: false };
+      return { camper: null, isRegistered: false, isRemoved: true, rejoinPending: !!camper.rejoin_requested_at, needsRegistration: false, missingRegistration: [], missingProfile: [] };
     }
 
     // Last login: only when the signed-in person opens their own record, at most every 5 minutes.
@@ -106,13 +110,39 @@ export default api({
     // Every registration field is required. Counselors never register this way.
     const blank = (v: string | null | undefined) => !(v ?? "").trim();
     const isCounselor = camper.role === "counselor" || camper.role === "admin";
-    const needsRegistration = !isCounselor && (
-      blank(camper.first_name) || blank(camper.last_name) ||
-      blank(camper.role) || camper.role === "camper" ||
-      blank(camper.manager_email) || blank(camper.region) || blank(camper.country) ||
-      blank(camper.city) || blank(camper.start_date) || blank(camper.pin)
-    );
+    const missingRegistration = isCounselor
+      ? []
+      : ([
+          blank(camper.first_name) && "First name",
+          blank(camper.last_name) && "Last name",
+          (blank(camper.role) || camper.role === "camper") && "Role",
+          blank(camper.manager_email) && "Manager's work email",
+          blank(camper.region) && "Region",
+          blank(camper.country) && "Country",
+          blank(camper.city) && "City",
+          blank(camper.start_date) && "Start date",
+          // The PIN is generated for them when they save registration.
+          blank(camper.pin) && "Check-in PIN",
+        ].filter(Boolean) as string[]);
+    const needsRegistration = missingRegistration.length > 0;
 
-    return { camper, isRegistered: true, isRemoved: false, rejoinPending: false, needsRegistration };
+    // Profile: bio, fun fact, three goals, and all 16 ice breaker questions.
+    const answers = camper.ice_breaker_answers && typeof camper.ice_breaker_answers === "object" ? (camper.ice_breaker_answers as Record<string, unknown>) : {};
+    const answered = Object.values(answers).filter((v) => typeof v === "string" && v.trim()).length;
+    const iceLeft = Math.max(0, 16 - answered);
+    const missingProfile = isCounselor || camper.profile_completed
+      ? []
+      : ([
+          blank(camper.bio) && "Bio",
+          blank(camper.fun_fact) && "Fun fact",
+          blank(camper.goal_1) && "Goal 1",
+          blank(camper.goal_2) && "Goal 2",
+          blank(camper.goal_3) && "Goal 3",
+          iceLeft > 0 && `${iceLeft} ice breaker question${iceLeft === 1 ? "" : "s"}`,
+        ].filter(Boolean) as string[]);
+    // Flag says incomplete but every field is filled: they just need to press Save.
+    if (!isCounselor && !camper.profile_completed && missingProfile.length === 0) missingProfile.push("Save your profile");
+
+    return { camper, isRegistered: true, isRemoved: false, rejoinPending: false, needsRegistration, missingRegistration, missingProfile };
   },
 });

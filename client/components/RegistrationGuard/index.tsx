@@ -4,6 +4,7 @@ import { useSuperblocksUser } from "@superblocksteam/library";
 import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
+import RegistrationCompletionModal from "@/components/RegistrationCompletionModal/index.js";
 
 // Pages managers may open without a camper record
 const MANAGER_PATHS = ["/manager", "/agenda", "/leaderboard"];
@@ -31,6 +32,7 @@ export default function RegistrationGuard({ children }: { children: ReactNode })
     );
   }
 
+  // Counselors/admins are never blocked by registration or profile checks.
   if (isAdmin) return <>{children}</>;
 
   const camper = camperData?.camper;
@@ -44,11 +46,22 @@ export default function RegistrationGuard({ children }: { children: ReactNode })
     return <>{children}</>;
   }
 
-  // Has an account but required registration details are missing → back to Base Camp to finish
-  if (camperData?.needsRegistration && pathname !== "/") {
-    return <Navigate to="/" replace />;
+  // Has an account but required registration details are missing → blocking modal on any page.
+  // Nothing behind it is usable, and it can't be closed until every field is filled in.
+  if (camperData?.needsRegistration) {
+    return (
+      <div className="flex flex-col gap-4 p-8" aria-hidden>
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-48 w-full" />
+        <RegistrationCompletionModal
+          key={camper.id}
+          userEmail={email}
+          camper={camper}
+          missingProfile={camperData.missingProfile ?? []}
+        />
+      </div>
+    );
   }
-  if (camperData?.needsRegistration) return <>{children}</>;
 
   // Registered but profile not complete → profile page only
   if (!camper.profile_completed && pathname !== "/profile") {
