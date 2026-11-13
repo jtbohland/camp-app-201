@@ -144,7 +144,9 @@ export default api({
                         WHERE hs.presentation_id = p.id AND hs.team_id = $1) AS has_submission
          FROM camp201_presentations p
          LEFT JOIN camp201_team_workspace w ON w.presentation_id = p.id AND w.team_id = $1
-         WHERE p.day_number BETWEEN 1 AND COALESCE(
+         -- Team sessions only (the "Team" pill on Presentations); solo sessions never show in a team hub.
+         WHERE p.presentation_type IN ('team_presentation', 'team_workshop', 'hackathon')
+           AND p.day_number BETWEEN 1 AND COALESCE(
            (SELECT NULLIF(value, '')::int FROM camp201_config WHERE key = 'num_days' LIMIT 1), 3)
          ORDER BY p.day_number, p.sort_order, p.id
          LIMIT 50`,

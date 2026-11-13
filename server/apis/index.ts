@@ -214,6 +214,7 @@ import GetMyAccess from './camp/get-my-access.js';
 import VerifyCounselor from './camp/verify-counselor.js';
 import GetCounselorRotation from './camp/get-counselor-rotation.js';
 import GetPointLog from './camp/get-point-log.js';
+import { AuditCamperPoints, FixCamperPoints } from './camp/audit-camper-points.js';
 import { GetSharedTimer, UpdateSharedTimer } from './camp/shared-timer.js';
 import {
   GetMyManagerThreads,
@@ -454,6 +455,8 @@ const apis = {
   MarkSpeakerLinkCopied,
   AnswerExecQuestion,
   GetPointLog,
+  AuditCamperPoints,
+  FixCamperPoints,
   GetSharedTimer,
   UpdateSharedTimer,
 } as const;

@@ -39,13 +39,11 @@ export const PRES_TYPE_META: Record<string, { label: string; icon: IconName }> =
   team_presentation: { label: "Team presentation", icon: "presentation" },
   team_workshop: { label: "Team workshop", icon: "search" },
   hackathon: { label: "AI build", icon: "bot" },
-  bingo: { label: "Icebreaker", icon: "target" },
-  standard: { label: "Individual exercise", icon: "clipboard-list" },
 };
 
-export const presTypeMeta = (type: string) => PRES_TYPE_META[type] ?? PRES_TYPE_META.standard;
+export const presTypeMeta = (type: string) => PRES_TYPE_META[type] ?? PRES_TYPE_META.team_presentation;
 
-/** Presentation types the whole team works on together (gets a team board + feedback). */
+/** Team session types: the only ones that appear in a Team Hub (the server filters to these). */
 export const isTeamWork = (type: string) => ["team_presentation", "team_workshop", "hackathon"].includes(type);
 
 /**
@@ -68,7 +66,7 @@ export function prepStatus(p: HubPresentation, postCount: number): { label: stri
   if (p.presentation_type === "team_presentation") {
     return postCount > 0 ? { label: `${postCount} post${postCount === 1 ? "" : "s"}`, done: false } : { label: "No prep yet", done: false };
   }
-  return { label: "Individual", done: false };
+  return { label: "Team session", done: false };
 }
 
 export function errorText(error: unknown): string {
