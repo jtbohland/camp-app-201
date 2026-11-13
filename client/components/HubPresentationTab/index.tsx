@@ -135,7 +135,7 @@ function LockedBrief() {
       <Icon icon="lock" className="mx-auto h-8 w-8 text-muted-foreground/40" />
       <p className="mt-2 text-sm font-medium text-foreground">The brief unlocks when it's time</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Counselors open each session's brief and tools during cAMP. You can already use the team board to prep.
+        Counselors open each session's brief, tools, and team board during cAMP.
       </p>
     </Card>
   );

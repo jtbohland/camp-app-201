@@ -1,10 +1,11 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertPresentationUnlocked, resolveHubViewer } from "../../lib/team-hub.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SaveHackathonSubmission",
-  description: "Saves or updates a team's hackathon submission",
+  description: "Saves a team's hackathon submission once the session is unlocked",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     presentation_id: z.number(),
@@ -19,7 +20,13 @@ export default api({
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, input) {
-    await ctx.integrations.camp_201_db.execute(
+    const db = ctx.integrations.camp_201_db;
+    // Only this team (or a counselor), and only once counselors unlock the hackathon.
+    const viewer = await resolveHubViewer(db, ctx.user.email, input.team_id);
+    if (!viewer.isMember && !viewer.isCounselor) throw new Error("Only this team can submit its hackathon app.");
+    await assertPresentationUnlocked(db, { presentationId: input.presentation_id }, viewer.isCounselor);
+
+    await db.execute(
       `INSERT INTO camp201_hackathon_submissions (presentation_id, team_id, app_name, description, use_case, how_it_works, who_uses_it, app_link, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
        ON CONFLICT (team_id)

@@ -3,7 +3,7 @@ import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { BADGE_IDS } from "../../lib/accelerator.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 import {
-  HUB_ITEM_TYPES, assertAssigneeOnTeam, assertCanContribute, cleanLink, isValidSection, resolveHubViewer,
+  HUB_ITEM_TYPES, assertAssigneeOnTeam, assertCanContribute, assertPresentationUnlocked, cleanLink, isValidSection, resolveHubViewer,
 } from "../../lib/team-hub.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
@@ -40,6 +40,7 @@ export default api({
 
     const viewer = await resolveHubViewer(db, ctx.user.email, team_id);
     const authorId = assertCanContribute(viewer);
+    await assertPresentationUnlocked(db, { section }, viewer.isCounselor);
     const link = cleanLink(link_url);
     const assignee = item_type === "task" ? assignee_id : null;
     await assertAssigneeOnTeam(db, assignee, team_id);

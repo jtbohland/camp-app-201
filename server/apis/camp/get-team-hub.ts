@@ -183,7 +183,11 @@ export default api({
       ),
     ]);
 
-    // cAMPers only see a presentation's brief once counselors unlock it.
+    // cAMPers only see a presentation's brief (and its board) once counselors unlock it.
+    const lockedSections = new Set(
+      viewer.isCounselor ? [] : presRows.filter((p) => p.is_locked).map((p) => `pres_${p.id}`)
+    );
+    const visibleItems = items.filter((i) => !lockedSections.has(i.section));
     const presentations = presRows.map((p) => {
       const hidden = p.is_locked && !viewer.isCounselor;
       return {
@@ -238,7 +242,7 @@ export default api({
         is_member: viewer.isMember,
         can_contribute: viewer.canContribute,
       },
-      items,
+      items: visibleItems,
       presentations,
       peer_feedback: feedback,
       scores,

@@ -9,6 +9,7 @@ import RegisterCamper from './camp/register-camper.js';
 import GetCurrentCamper from './camp/get-current-camper.js';
 import UpdateCamperProfile from './camp/update-camper-profile.js';
 import GetPreworkStatus from './camp/get-prework-status.js';
+import GetPreworkReminder from './camp/get-prework-reminder.js';
 import CompletePreworkItem from './camp/complete-prework-item.js';
 import GetSessionBank from './camp/get-session-bank.js';
 import CreateBankSession from './camp/create-bank-session.js';
@@ -232,6 +233,7 @@ const apis = {
   GetCurrentCamper,
   UpdateCamperProfile,
   GetPreworkStatus,
+  GetPreworkReminder,
   CompletePreworkItem,
   GetSessionBank,
   CreateBankSession,

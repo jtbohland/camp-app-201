@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useApi } from "@/hooks/useApi";
+import { requestPreworkReminder } from "@/lib/preworkReminder.js";
 import RegistrationFieldInput from "./RegistrationFieldInput";
 import { fieldsToAsk, isFilled, valuesFrom, FIELD_LABELS, type RegField, type RegValues } from "./fields";
 
@@ -62,6 +63,8 @@ export default function RegistrationCompletionModal({ userEmail, camper, missing
         city: values.city.trim(),
         start_date: values.start_date,
       });
+      // Pre-work reminder opens next (and again after their first profile save, if that's still to do).
+      requestPreworkReminder();
       await queryClient.invalidateQueries("GetCurrentCamper");
       toast.success(profileDone ? "Registration complete. Welcome to cAMP!" : "Registration complete. Now finish your profile.");
       navigate(profileDone ? "/" : "/profile");

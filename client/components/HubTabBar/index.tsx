@@ -7,11 +7,13 @@ type Props = {
   presentations: HubPresentation[];
   postCounts: Map<string, number>;
   boardCount: number;
+  /** Counselors can open locked sessions; cAMPers can't until they're unlocked. */
+  isCounselor: boolean;
   onSelect: (key: string) => void;
 };
 
 /** Home · Team Board · one tab per scheduled presentation (grouped by day). */
-export default function HubTabBar({ active, presentations, postCounts, boardCount, onSelect }: Props) {
+export default function HubTabBar({ active, presentations, postCounts, boardCount, isCounselor, onSelect }: Props) {
   return (
     <div className="flex w-full min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-muted/20 px-6 py-3">
       <TabButton active={active === HOME_TAB} onClick={() => onSelect(HOME_TAB)} icon="house" label="Home" />
@@ -19,6 +21,7 @@ export default function HubTabBar({ active, presentations, postCounts, boardCoun
 
       {presentations.map((p, idx) => {
         const key = presKey(p.id);
+        const blocked = p.is_locked && !isCounselor;
         const newDay = idx === 0 || presentations[idx - 1].day_number !== p.day_number;
         return (
           <div key={key} className="flex items-center gap-1">
@@ -34,7 +37,12 @@ export default function HubTabBar({ active, presentations, postCounts, boardCoun
               label={p.title}
               count={postCounts.get(key) ?? 0}
               locked={p.is_locked}
-              title={`Day ${p.day_number}${DAY_NAMES[p.day_number] ? ` — ${DAY_NAMES[p.day_number]}` : ""}`}
+              disabled={blocked}
+              title={
+                blocked
+                  ? "Locked until counselors open it"
+                  : `Day ${p.day_number}${DAY_NAMES[p.day_number] ? ` — ${DAY_NAMES[p.day_number]}` : ""}${p.is_locked ? " · Locked for cAMPers" : ""}`
+              }
             />
           </div>
         );
@@ -50,22 +58,29 @@ export default function HubTabBar({ active, presentations, postCounts, boardCoun
   );
 }
 
-function TabButton({ active, onClick, icon, label, count = 0, locked, title }: {
+function TabButton({ active, onClick, icon, label, count = 0, locked, disabled, title }: {
   active: boolean;
   onClick: () => void;
   icon: string;
   label: string;
   count?: number;
   locked?: boolean;
+  disabled?: boolean;
   title?: string;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
       title={title}
       className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        disabled
+          ? "cursor-not-allowed text-muted-foreground/50"
+          : active
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       <Icon icon={icon as "house"} className="h-4 w-4" />

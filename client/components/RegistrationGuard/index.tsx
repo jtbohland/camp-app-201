@@ -5,6 +5,7 @@ import { useApiData } from "@/hooks/useApiData";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
 import RegistrationCompletionModal from "@/components/RegistrationCompletionModal/index.js";
+import PreworkReminderGate from "@/components/PreworkReminderGate/index.js";
 
 // Pages managers may open without a camper record
 const MANAGER_PATHS = ["/manager", "/agenda", "/leaderboard"];
@@ -71,5 +72,10 @@ export default function RegistrationGuard({ children }: { children: ReactNode })
   // Counselor Hub is for counselors only
   if (pathname.startsWith("/admin")) return <Navigate to="/" replace />;
 
-  return <>{children}</>;
+  // Unfinished pre-work → daily reminder (also right after registration / first profile save).
+  return (
+    <PreworkReminderGate email={email} profileCompleted={!!camper.profile_completed}>
+      {children}
+    </PreworkReminderGate>
+  );
 }

@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { getCounselorAccess } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -70,6 +71,16 @@ export default api({
       { label: "Get scheduled presentations" }
     );
 
-    return { presentations };
+    // cAMPers never receive a locked session's brief, questions, or templates. Only counselors
+    // (and guest judges) see what's behind the lock.
+    const access = await getCounselorAccess(ctx.integrations.camp_db, ctx.user.email);
+    if (access.isAdmin) return { presentations };
+    return {
+      presentations: presentations.map((p) =>
+        p.is_locked
+          ? { ...p, description: null, instructions: null, resources: [], deck_template_url: null, questions: [] }
+          : p
+      ),
+    };
   },
 });
