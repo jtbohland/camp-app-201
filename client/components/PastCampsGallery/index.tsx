@@ -66,11 +66,6 @@ function getTheme(teamName: string, index: number): TeamTheme {
   return TEAM_COLOR_MAP[teamName] ?? PALETTE[index % PALETTE.length];
 }
 
-// ───────────────────── BEST LOGO WINNERS ─────────────────────
-// Past cohort logo vote winners (by team ID in camp201_past_teams).
-// For the current cohort, the live voting feature determines this automatically.
-const BEST_LOGO_TEAM_IDS = new Set([11, 12, 15, 20]); // C4:Trailblazers, C5:DataPuff Girls, C6:chAMPiones, C7:K-POP Data Hunters
-
 // ───────────────────── CAMPER COUNTRIES ─────────────────────
 // [flag emoji, country name, pill bg color] — colors pulled from each flag
 const CAMPER_COUNTRIES: [string, string, string][] = [
@@ -151,6 +146,8 @@ interface Team {
   is_winner: boolean;
   tagline: string | null;
   presentation_company: string | null;
+  /** Won the cohort's logo vote (set when voting closes, carried onto the Legacy Wall). */
+  best_logo: boolean;
   members: Array<{ id: number; full_name: string; role: string | null; region: string | null }>;
 }
 
@@ -315,7 +312,7 @@ function HallOfFameCard({
           )}
 
           {/* Best Logo pill — bottom-right of logo area */}
-          {BEST_LOGO_TEAM_IDS.has(team.id) && (
+          {team.best_logo && (
             <div className="absolute bottom-2.5 right-2.5 z-20">
               <div className="bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md flex items-center gap-1">
                 <span>🎨</span>

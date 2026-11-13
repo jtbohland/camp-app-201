@@ -110,12 +110,13 @@ export default function TeamsTab() {
         )}
       </div>
 
-      {/* Logo Voting — shows when gate is open or results are final */}
+      {/* Logo Voting — cAMPers see it while open or once final; counselors always see it with controls */}
       {rankedTeams.length > 0 && camperId > 0 && (
         <LogoVoting
           teams={rankedTeams}
           camperId={camperId}
           myTeamId={camperData?.camper?.team_id ?? null}
+          isCounselor={isAdmin}
         />
       )}
 

@@ -6,7 +6,7 @@ const MemberSchema = z.object({ id: z.coerce.number(), full_name: z.string(), ro
 const TeamSchema = z.object({
   id: z.coerce.number(), team_name: z.string(), logo_url: z.string().nullable(), points: z.coerce.number().nullable(),
   points_note: z.string().nullable(), place: z.coerce.number().nullable(), is_winner: z.boolean(), tagline: z.string().nullable(),
-  presentation_company: z.string().nullable(), cohort_id: z.coerce.number(),
+  presentation_company: z.string().nullable(), cohort_id: z.coerce.number(), best_logo: z.boolean().nullable(),
 });
 const CohortSchema = z.object({
   id: z.coerce.number(), cohort_number: z.coerce.number(), date_label: z.string(), month: z.string(), year: z.coerce.number(),
@@ -26,6 +26,7 @@ export default api({
         id: z.number(), team_name: z.string(), logo_url: z.string().nullable(), points: z.number().nullable(),
         points_note: z.string().nullable(), place: z.number().nullable(), is_winner: z.boolean(), tagline: z.string().nullable(),
         presentation_company: z.string().nullable(),
+        best_logo: z.boolean(),
         members: z.array(z.object({ id: z.number(), full_name: z.string(), role: z.string().nullable(), region: z.string().nullable() })),
       })),
     })),
@@ -72,6 +73,7 @@ export default api({
             id: t.id, team_name: t.team_name, logo_url: t.logo_url, points: t.points,
             points_note: t.points_note, place: t.place, is_winner: t.is_winner, tagline: t.tagline,
             presentation_company: t.presentation_company,
+            best_logo: t.best_logo === true,
             members: mByTeam[t.id] ?? [],
           })),
       })),

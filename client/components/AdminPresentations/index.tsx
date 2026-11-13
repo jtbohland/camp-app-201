@@ -1,62 +1,141 @@
-import { useState, useCallback, useEffect } from "react";
-import { useApiData } from "@/hooks/useApiData.js";
-import { useApi } from "@/hooks/useApi.js";
-import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useCallback, useMemo, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCorners,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { queryClient } from "@superblocksteam/library";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/useApi.js";
+import { useApiData } from "@/hooks/useApiData.js";
+import { errorMessage } from "@/lib/cohortRefresh";
+import ScheduleCard from "@/components/ScheduleCard/index.js";
+import ScheduleColumn from "@/components/ScheduleColumn/index.js";
+import PresentationEditorSheet from "@/components/PresentationEditorSheet/index.js";
+import {
+  DAY_NAMES,
+  itemsIn,
+  moveItem,
+  outOfRange,
+  slotOf,
+  type ScheduleItem,
+  type Slot,
+} from "@/lib/presentationSchedule";
 
-type Presentation = {
-  id: number;
-  title: string;
-  description: string | null;
-  instructions: string | null;
-  resources: any;
-  prep_time_minutes: number | null;
-  present_time_minutes: number | null;
-  day_number: number | null;
-  status: string;
-  sort_order: number;
-  is_locked: boolean;
-  deck_template_url: string | null;
+type BoardData = { num_days: number; items: ScheduleItem[] };
+
+// Full class names so Tailwind includes them (it can't see `xl:grid-cols-${n}`).
+const XL_COLS: Record<number, string> = {
+  1: "xl:grid-cols-1",
+  2: "xl:grid-cols-2",
+  3: "xl:grid-cols-3",
+  4: "xl:grid-cols-4",
+  5: "xl:grid-cols-5",
 };
 
+/**
+ * Counselor Hub › Presentations: decide which presentations show in the app and on which day.
+ * Days match the Agenda. Everything not on a day sits in the bank (hidden from cAMPers).
+ */
 export default function AdminPresentations() {
-  const { data, refetch, fetching } = useApiData("GetPresentations", { status: null });
+  const { data, loading, fetching, refetch } = useApiData("GetPresentationSchedule", {});
+  const { run: saveLayout } = useApi("SavePresentationSchedule");
+  const { run: toggleLock } = useApi("TogglePresentationLock");
   const { run: createPres, loading: creating } = useApi("CreatePresentation");
-  const { run: updatePres, loading: updating } = useApi("UpdatePresentation");
+  const [editing, setEditing] = useState<ScheduleItem | null>(null);
+  const [dragId, setDragId] = useState<number | null>(null);
 
-  const presentations = (data?.presentations ?? []) as Presentation[];
-  const [editId, setEditId] = useState<number | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const cacheKey = useMemo(() => queryClient.buildCacheKey("GetPresentationSchedule", {}), []);
+  const numDays = data?.num_days ?? 3;
+  const items = (data?.items ?? []) as ScheduleItem[];
+  const days = useMemo(() => Array.from({ length: numDays }, (_, i) => i + 1), [numDays]);
+  const stranded = useMemo(() => outOfRange(items, numDays), [items, numDays]);
+  const bank = useMemo(() => itemsIn(items, "bank"), [items]);
 
-  const handleToggleLock = useCallback(async (p: Presentation) => {
-    try {
-      await updatePres({
-        id: p.id,
-        title: p.title,
-        description: p.description,
-        instructions: p.instructions,
-        resources: JSON.stringify(p.resources ?? []),
-        prep_time_minutes: p.prep_time_minutes,
-        present_time_minutes: p.present_time_minutes,
-        day_number: p.day_number,
-        sort_order: p.sort_order,
-        deck_template_url: p.deck_template_url,
-        is_locked: !p.is_locked,
-        status: p.status,
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  /** Every screen that lists presentations should pick up the change. */
+  const refreshAll = useCallback(async () => {
+    await refetch();
+    await queryClient.invalidateQueries("GetPresentations");
+  }, [refetch]);
+
+  /** Apply a new layout instantly, save only the cards that changed, roll back on failure. */
+  const applyLayout = useCallback(
+    async (next: ScheduleItem[], successMsg?: string) => {
+      const prev = queryClient.getQueryData<BoardData>(cacheKey);
+      if (!prev) return;
+      const before = new Map(prev.items.map((i) => [i.id, i]));
+      const changed = next.filter((i) => {
+        const b = before.get(i.id);
+        return !b || b.day_number !== i.day_number || b.sort_order !== i.sort_order;
       });
-      toast.success(p.is_locked ? `"${p.title}" unlocked` : `"${p.title}" locked`);
-      refetch();
-    } catch {
-      toast.error("Failed to toggle lock");
-    }
-  }, [updatePres, refetch]);
+      if (changed.length === 0) return;
+      queryClient.setQueryData<BoardData>(cacheKey, { ...prev, items: next });
+      try {
+        await saveLayout({
+          layout: changed.map((i) => ({ id: i.id, day_number: i.day_number, sort_order: i.sort_order })),
+        });
+        if (successMsg) toast.success(successMsg);
+        await refreshAll();
+      } catch (e) {
+        queryClient.setQueryData<BoardData>(cacheKey, prev);
+        toast.error("Couldn't save the schedule: " + errorMessage(e));
+      }
+    },
+    [cacheKey, saveLayout, refreshAll],
+  );
+
+  const handleMoveTo = useCallback(
+    (item: ScheduleItem, slot: Slot) => {
+      const msg = slot === "bank" ? `"${item.title}" removed from the app` : `"${item.title}" moved to ${DAY_NAMES[slot]}`;
+      applyLayout(moveItem(items, item.id, slot), msg);
+    },
+    [items, applyLayout],
+  );
+
+  const handleShift = useCallback(
+    (item: ScheduleItem, delta: -1 | 1) => {
+      const slot = slotOf(item);
+      const list = itemsIn(items, slot);
+      const idx = list.findIndex((i) => i.id === item.id);
+      applyLayout(moveItem(items, item.id, slot, idx + delta));
+    },
+    [items, applyLayout],
+  );
+
+  const handleToggleLock = useCallback(
+    async (item: ScheduleItem) => {
+      const prev = queryClient.getQueryData<BoardData>(cacheKey);
+      if (prev) {
+        queryClient.setQueryData<BoardData>(cacheKey, {
+          ...prev,
+          items: prev.items.map((i) => (i.id === item.id ? { ...i, is_locked: !item.is_locked } : i)),
+        });
+      }
+      try {
+        await toggleLock({ presentation_id: item.id, is_locked: !item.is_locked });
+        toast.success(item.is_locked ? `"${item.title}" unlocked for cAMPers` : `"${item.title}" locked for cAMPers`);
+        await refreshAll();
+      } catch (e) {
+        if (prev) queryClient.setQueryData<BoardData>(cacheKey, prev);
+        toast.error("Couldn't change the lock: " + errorMessage(e));
+      }
+    },
+    [cacheKey, toggleLock, refreshAll],
+  );
 
   const handleCreate = useCallback(async () => {
     try {
-      await createPres({
+      const res = await createPres({
         title: "New Presentation",
         description: null,
         instructions: null,
@@ -67,218 +146,160 @@ export default function AdminPresentations() {
         day_number: null,
         created_by: 0,
       });
-      toast.success("Presentation created — edit it below");
-      setShowCreate(false);
-      refetch();
-    } catch {
-      toast.error("Failed to create");
+      await refetch();
+      const fresh = queryClient.getQueryData<BoardData>(cacheKey)?.items.find((i) => i.id === res?.id);
+      if (fresh) setEditing(fresh);
+      toast.success("Added to the bank. Fill in the details, then drag it onto a day.");
+    } catch (e) {
+      toast.error("Couldn't create: " + errorMessage(e));
     }
-  }, [createPres, refetch]);
+  }, [createPres, refetch, cacheKey]);
+
+  const handleDragStart = useCallback((e: DragStartEvent) => setDragId(Number(e.active.id)), []);
+
+  const handleDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      setDragId(null);
+      const { active, over } = e;
+      if (!over) return;
+      const id = Number(active.id);
+      const overSlot = over.data.current?.slot as Slot | undefined;
+      // Dropped on a column body → end of that column. Dropped on a card → that card's position.
+      if (overSlot !== undefined) {
+        applyLayout(moveItem(items, id, overSlot));
+        return;
+      }
+      const overItem = items.find((i) => i.id === Number(over.id));
+      if (!overItem || overItem.id === id) return;
+      const slot = slotOf(overItem);
+      const index = itemsIn(items, slot).findIndex((i) => i.id === overItem.id);
+      applyLayout(moveItem(items, id, slot, index));
+    },
+    [items, applyLayout],
+  );
+
+  const dragging = dragId !== null ? items.find((i) => i.id === dragId) ?? null : null;
+
+  const renderCards = (slot: Slot) => {
+    const list = itemsIn(items, slot);
+    return list.map((item, idx) => (
+      <ScheduleCard
+        key={item.id}
+        item={item}
+        position={slot === "bank" ? null : idx + 1}
+        numDays={numDays}
+        canMoveUp={idx > 0}
+        canMoveDown={idx < list.length - 1}
+        onMoveTo={(s) => handleMoveTo(item, s)}
+        onShift={(d) => handleShift(item, d)}
+        onEdit={() => setEditing(item)}
+        onToggleLock={() => handleToggleLock(item)}
+      />
+    ));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-10 w-72" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-64 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Icon icon="presentation" className="w-5 h-5" />
-            Presentations ({presentations.length})
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Icon icon="presentation" className="h-5 w-5" />
+            Presentations
           </h2>
-          <p className="text-sm text-muted-foreground">Create, edit content, and lock/unlock presentations</p>
+          <p className="text-sm text-muted-foreground">
+            Drag presentations onto a day to show them in the app, or back to the bank to hide them. Days match the Agenda ({numDays} days).
+          </p>
         </div>
-        <Button
-          onClick={handleCreate}
-          disabled={creating}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
-          size="sm"
+        {fetching && <span className="text-xs text-muted-foreground">Updating…</span>}
+      </div>
+
+      {stranded.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <Icon icon="triangle-alert" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            {stranded.length} presentation{stranded.length === 1 ? " is" : "s are"} on a day that's no longer on the Agenda
+            ({stranded.map((s) => s.title).join(", ")}). cAMPers can't see {stranded.length === 1 ? "it" : "them"}.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-7 shrink-0"
+            onClick={() => applyLayout(stranded.reduce((acc, s) => moveItem(acc, s.id, "bank"), items), "Moved to the bank")}
+          >
+            Move to bank
+          </Button>
+        </div>
+      )}
+
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setDragId(null)}>
+        <div className={`grid grid-cols-1 gap-3 md:grid-cols-2 ${XL_COLS[numDays] ?? "xl:grid-cols-3"} ${fetching ? "opacity-90" : ""}`}>
+          {days.map((d) => (
+            <ScheduleColumn
+              key={d}
+              slot={d}
+              title={`Day ${d}`}
+              subtitle={DAY_NAMES[d]}
+              itemIds={itemsIn(items, d).map((i) => i.id)}
+              emptyText="Drag a presentation here"
+            >
+              {renderCards(d)}
+            </ScheduleColumn>
+          ))}
+        </div>
+
+        <ScheduleColumn
+          slot="bank"
+          variant="bank"
+          title="Presentation Bank"
+          subtitle="Built but not showing in the app. Drag one onto a day to add it."
+          itemIds={bank.map((i) => i.id)}
+          emptyText="Everything is scheduled. Drag a card here to remove it from the app."
+          action={
+            <Button size="sm" onClick={handleCreate} disabled={creating} className="h-7 bg-purple-600 text-white hover:bg-purple-700">
+              <Icon icon="plus" className="mr-1 h-3.5 w-3.5" />
+              {creating ? "Creating…" : "New"}
+            </Button>
+          }
         >
-          <Icon icon="plus" className="w-4 h-4 mr-1" />
-          {creating ? "Creating..." : "New Presentation"}
-        </Button>
-      </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">{renderCards("bank")}</div>
+        </ScheduleColumn>
 
-      {fetching && <p className="text-xs text-muted-foreground">Updating...</p>}
-
-      {/* Presentation list */}
-      <div className="flex flex-col gap-3">
-        {presentations.map((p) => (
-          <div key={p.id} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            {/* Summary row */}
-            <div className="flex items-center gap-3 p-4">
-              <button
-                onClick={() => handleToggleLock(p)}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  p.is_locked
-                    ? "bg-red-100 text-red-600 hover:bg-red-200"
-                    : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                }`}
-                title={p.is_locked ? "Click to unlock" : "Click to lock"}
-              >
-                <Icon icon={p.is_locked ? "lock" : "lock-open"} className="w-4 h-4" />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{p.title}</p>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                  {!!p.day_number && <span>Day {p.day_number}</span>}
-                  {!!p.present_time_minutes && <span>{p.present_time_minutes}m present</span>}
-                  <span className={p.status === "completed" ? "text-emerald-700" : p.status === "in_progress" ? "text-green-700" : "text-blue-600"}>
-                    {p.status}
-                  </span>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditId(editId === p.id ? null : p.id)}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted"
-              >
-                <Icon icon={editId === p.id ? "chevron-up" : "pencil"} className="w-4 h-4 mr-1" />
-                {editId === p.id ? "Close" : "Edit"}
-              </Button>
+        <DragOverlay dropAnimation={null}>
+          {dragging && (
+            <div className="flex items-center gap-2 rounded-lg border border-primary bg-card px-3 py-2 shadow-lg">
+              <Icon icon="grip-vertical" className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">{dragging.title}</span>
             </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
-            {/* Edit form */}
-            {editId === p.id && (
-              <PresentationEditor
-                presentation={p}
-                onSaved={() => { setEditId(null); refetch(); }}
-              />
-            )}
-          </div>
-        ))}
+      <p className="text-[11px] text-muted-foreground">
+        Tip: use a card's <Icon icon="ellipsis-vertical" className="-mt-0.5 inline h-3 w-3" /> menu to move it without dragging.
+        The lock controls whether cAMPers can open it on the day it shows.
+      </p>
 
-        {presentations.length === 0 && (
-          <div className="bg-muted/50 rounded-xl p-8 text-center">
-            <Icon icon="presentation" className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No presentations yet. Create one to get started.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PresentationEditor({ presentation, onSaved }: { presentation: Presentation; onSaved: () => void }) {
-  const { run: update, loading } = useApi("UpdatePresentation");
-
-  const [title, setTitle] = useState(presentation.title);
-  const [description, setDescription] = useState(presentation.description ?? "");
-  const [instructions, setInstructions] = useState(presentation.instructions ?? "");
-  const [prepTime, setPrepTime] = useState(String(presentation.prep_time_minutes ?? ""));
-  const [presentTime, setPresentTime] = useState(String(presentation.present_time_minutes ?? ""));
-  const [dayNumber, setDayNumber] = useState(String(presentation.day_number ?? ""));
-  const [sortOrder, setSortOrder] = useState(String(presentation.sort_order ?? 0));
-  const [deckUrl, setDeckUrl] = useState(presentation.deck_template_url ?? "");
-  const [status, setStatus] = useState(presentation.status);
-
-  // Resources as simple text list (label|url per line)
-  const resourcesArray = Array.isArray(presentation.resources) ? presentation.resources : [];
-  const [resourcesText, setResourcesText] = useState(
-    resourcesArray.map((r: any) => `${r.label || ""}|${r.url || ""}`).join("\n")
-  );
-
-  const handleSave = useCallback(async () => {
-    // Parse resources from text
-    const resources = resourcesText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const [label, ...urlParts] = line.split("|");
-        return { label: label.trim(), url: urlParts.join("|").trim() };
-      })
-      .filter((r) => r.url);
-
-    try {
-      await update({
-        id: presentation.id,
-        title,
-        description: description || null,
-        instructions: instructions || null,
-        resources: JSON.stringify(resources),
-        prep_time_minutes: prepTime ? Number(prepTime) : null,
-        present_time_minutes: presentTime ? Number(presentTime) : null,
-        day_number: dayNumber ? Number(dayNumber) : null,
-        sort_order: sortOrder ? Number(sortOrder) : 0,
-        deck_template_url: deckUrl || null,
-        is_locked: presentation.is_locked,
-        status,
-      });
-      toast.success("Presentation saved!");
-      onSaved();
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("Error: " + message);
-    }
-  }, [title, description, instructions, resourcesText, prepTime, presentTime, dayNumber, sortOrder, deckUrl, status, presentation, update, onSaved]);
-
-  return (
-    <div className="border-t border-border p-4 bg-muted/40 space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="text-xs text-muted-foreground mb-1 block">Title</label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)}
-            className="bg-background border-input text-foreground" />
-        </div>
-        <div className="col-span-2">
-          <label className="text-xs text-muted-foreground mb-1 block">Description (markdown supported)</label>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-            rows={4} className="bg-background border-input text-foreground font-mono text-xs" />
-        </div>
-        <div className="col-span-2">
-          <label className="text-xs text-muted-foreground mb-1 block">Instructions (markdown supported)</label>
-          <Textarea value={instructions} onChange={(e) => setInstructions(e.target.value)}
-            rows={6} className="bg-background border-input text-foreground font-mono text-xs" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Prep Time (min)</label>
-          <Input value={prepTime} onChange={(e) => setPrepTime(e.target.value)} type="number"
-            className="bg-background border-input text-foreground" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Present Time (min)</label>
-          <Input value={presentTime} onChange={(e) => setPresentTime(e.target.value)} type="number"
-            className="bg-background border-input text-foreground" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Day Number</label>
-          <Input value={dayNumber} onChange={(e) => setDayNumber(e.target.value)} type="number"
-            className="bg-background border-input text-foreground" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Sort Order</label>
-          <Input value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} type="number"
-            className="bg-background border-input text-foreground" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-background border border-input text-foreground text-sm">
-            <option value="upcoming">Upcoming</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Deck Template URL</label>
-          <Input value={deckUrl} onChange={(e) => setDeckUrl(e.target.value)}
-            placeholder="https://docs.google.com/..."
-            className="bg-background border-input text-foreground" />
-        </div>
-        <div className="col-span-2">
-          <label className="text-xs text-muted-foreground mb-1 block">Resources (one per line: label|url)</label>
-          <Textarea value={resourcesText} onChange={(e) => setResourcesText(e.target.value)}
-            rows={3} placeholder="Slide Template|https://docs.google.com/presentation/..."
-            className="bg-background border-input text-foreground font-mono text-xs" />
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <Button onClick={handleSave} disabled={loading} className="bg-purple-600 hover:bg-purple-700 text-white">
-          {loading ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
+      <PresentationEditorSheet
+        item={editing}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          setEditing(null);
+          await refreshAll();
+        }}
+      />
     </div>
   );
 }

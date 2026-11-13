@@ -43,12 +43,12 @@ export async function archiveCohortToLegacyWall(
 
   const teams = await db.query(
     `SELECT t.id, t.name, COALESCE(t.logo_url, '') AS logo_url,
-            t.assigned_company->>'name' AS company,
+            t.assigned_company->>'name' AS company, t.best_logo,
             COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
      FROM camp201_teams t
      LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
      WHERE t.cohort_id = $1 AND t.name <> 'TEST'
-     GROUP BY t.id, t.name, t.logo_url, t.assigned_company, t.team_points
+     GROUP BY t.id, t.name, t.logo_url, t.assigned_company, t.team_points, t.best_logo
      ORDER BY total DESC, t.name
      LIMIT 20`,
     z.object({
@@ -56,6 +56,7 @@ export async function archiveCohortToLegacyWall(
       name: z.string(),
       logo_url: z.string(),
       company: z.string().nullable(),
+      best_logo: z.boolean(),
       total: z.coerce.number(),
     }),
     [cohortId],
@@ -119,11 +120,11 @@ export async function archiveCohortToLegacyWall(
     const team = teams[i];
     const pastTeam = await db.query(
       `INSERT INTO camp201_past_teams
-         (cohort_id, team_name, logo_url, points, place, is_winner, presentation_company)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (cohort_id, team_name, logo_url, points, place, is_winner, presentation_company, best_logo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id`,
       z.object({ id: z.coerce.number() }),
-      [pastCohortId, team.name, team.logo_url || null, team.total, i + 1, team.id === winnerId, team.company],
+      [pastCohortId, team.name, team.logo_url || null, team.total, i + 1, team.id === winnerId, team.company, team.best_logo],
       { label: `Archive team ${team.name}` }
     );
     const result = await db.execute(

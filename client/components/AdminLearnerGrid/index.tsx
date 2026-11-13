@@ -165,6 +165,21 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
                     <Icon icon="calendar-x" className="h-3 w-3" />
                     {camper.absences_used}/3 absences
                   </span>
+                  {(camper as any).prework_total > 0 && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        (camper as any).prework_done >= (camper as any).prework_total
+                          ? "bg-green-100 text-green-800"
+                          : (camper as any).prework_done === 0
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-amber-100 text-amber-800"
+                      }`}
+                      title={`Pre-work: ${(camper as any).prework_done} of ${(camper as any).prework_total} items complete`}
+                    >
+                      <Icon icon="book-open" className="h-3 w-3" />
+                      {(camper as any).prework_done}/{(camper as any).prework_total} pre-work
+                    </span>
+                  )}
                   <LastSeenPill lastSeenAt={camper.last_seen_at} />
                   {(() => {
                     const m = messagesByCamper.get(camper.id);

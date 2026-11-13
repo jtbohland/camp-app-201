@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -16,6 +17,8 @@ export default api({
     success: z.boolean(),
   }),
   async run(ctx, { presentation_id, is_locked }) {
+    await requireCounselor(ctx.integrations.camp_201_db, ctx.user.email);
+    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
     await ctx.integrations.camp_201_db.execute(
       `UPDATE camp201_presentations SET is_locked = $1 WHERE id = $2`,
       [is_locked, presentation_id],

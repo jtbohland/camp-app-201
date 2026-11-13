@@ -22,6 +22,7 @@ import { useCallback, useMemo } from "react";
 import { useTypedApi } from "@superblocksteam/library";
 import { toast } from "sonner";
 import { isWriteBlocked, READ_ONLY_MESSAGE } from "@/lib/readOnlyGuard";
+import { handleStaleAppError, pendingReload } from "@/lib/staleApp";
 
 import type { ApiRegistry } from "../../server/apis/index.js"; // Type-only import
 
@@ -40,7 +41,13 @@ export const useApi = ((name: string, ...rest: unknown[]) => {
         toast.info(READ_ONLY_MESSAGE);
         throw new Error(READ_ONLY_MESSAGE);
       }
-      return baseRun(...args);
+      try {
+        return await baseRun(...args);
+      } catch (err) {
+        // Tab is running an old copy of the app: reload to the latest instead of showing an error.
+        if (handleStaleAppError(err)) return pendingReload();
+        throw err;
+      }
     },
     [name, baseRun]
   );

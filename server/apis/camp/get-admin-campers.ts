@@ -37,6 +37,8 @@ const CamperMetricSchema = z.object({
   late_count: z.coerce.number(),
   created_at: z.string(),
   last_seen_at: z.string().nullable(),
+  prework_done: z.coerce.number(),
+  prework_total: z.coerce.number(),
 });
 
 export default api({
@@ -80,7 +82,9 @@ export default api({
               COALESCE(cr.checkin_count, 0)::int as checkin_count,
               COALESCE(cr.early_count, 0)::int as early_count,
               COALESCE(cr.late_count, 0)::int as late_count,
-              c.created_at, c.last_seen_at::text AS last_seen_at
+              c.created_at, c.last_seen_at::text AS last_seen_at,
+              COALESCE(pw.done, 0)::int AS prework_done,
+              COALESCE(pw.total, 0)::int AS prework_total
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON t.id = c.team_id
        LEFT JOIN LATERAL (
@@ -89,6 +93,13 @@ export default api({
                 COUNT(*) FILTER (WHERE timing = 'late') as late_count
          FROM camp201_checkin_responses WHERE camper_id = c.id
        ) cr ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) FILTER (WHERE p.completed = true) AS done,
+                COUNT(*) AS total
+         FROM camp201_prework p
+         WHERE p.user_id = c.id
+           AND (p.cohort_id IS NULL OR p.cohort_id = c.cohort_id)
+       ) pw ON true
        WHERE c.role != 'counselor' AND c.removed_at IS NULL ${cohortFilter}
        ORDER BY c.points DESC, c.last_name ASC
        LIMIT 100`,
