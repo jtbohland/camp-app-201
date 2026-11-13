@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -21,6 +22,8 @@ export default api({
   }),
   output: z.object({ success: z.boolean(), id: z.coerce.number() }),
   async run(ctx, input) {
+    await requireCounselor(ctx.integrations.camp_db, ctx.user.email);
+    await assertNotViewingPast(ctx.integrations.camp_db, ctx.user.email);
     const result = await ctx.integrations.camp_db.query(
       `INSERT INTO camp201_presentations (title, description, instructions, resources, prep_time_minutes, present_time_minutes, team_id, day_number, created_by)
        VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)

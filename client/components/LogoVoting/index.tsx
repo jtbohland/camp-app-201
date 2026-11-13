@@ -1,187 +1,147 @@
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useApi } from "@/hooks/useApi.js";
-import { Icon } from "@/components/ui/icon";
-import { toast } from "sonner";
-
-type Team = {
-  id: number;
-  name: string;
-  logo_url?: string | null;
-  color: string | null;
-  total_points?: number;
-};
+import LogoVoteTile, { type LogoVoteTeam } from "@/components/LogoVoteTile/index.js";
+import LogoVoteCounselorBar from "@/components/LogoVoteCounselorBar/index.js";
+import { errorMessage } from "@/lib/cohortRefresh";
 
 type LogoVotingProps = {
-  teams: Team[];
+  teams: LogoVoteTeam[];
   camperId: number;
   myTeamId: number | null;
+  /** Counselors always see the card, with lock/unlock and close controls. */
+  isCounselor: boolean;
 };
 
-export default function LogoVoting({ teams, camperId, myTeamId }: LogoVotingProps) {
-  const { data, loading, fetching, refetch } = useApiData("GetTeamVotes", {
-    camper_id: camperId,
-  }, { enabled: camperId > 0 });
-
+export default function LogoVoting({ teams, camperId, myTeamId, isCounselor }: LogoVotingProps) {
+  // Poll while voting is live so the tally updates for everyone.
+  const { data, loading, fetching, refetch } = useApiData(
+    "GetTeamVotes",
+    { camper_id: camperId },
+    { enabled: camperId > 0, refetchInterval: 20_000 },
+  );
   const { run: submitVote, loading: voting } = useApi("SubmitTeamVote");
-  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
 
   const votingOpen = data?.votingOpen ?? false;
+  const finalized = data?.finalized ?? false;
   const myVote = data?.myVote ?? null;
   const totalVoters = data?.totalVoters ?? 0;
   const totalCampers = data?.totalCampers ?? 0;
-  const voteCounts: Record<number, number> = useMemo(() => {
+  const bestLogoIds = useMemo(() => new Set(data?.bestLogoTeamIds ?? []), [data?.bestLogoTeamIds]);
+
+  const voteCounts = useMemo(() => {
     const map: Record<number, number> = {};
-    for (const v of data?.votes ?? []) {
-      map[v.team_id] = v.vote_count;
-    }
+    for (const v of data?.votes ?? []) map[v.team_id] = v.vote_count;
     return map;
   }, [data?.votes]);
 
-  const allVotedIn = totalCampers > 0 && totalVoters >= totalCampers;
+  const sortedTeams = useMemo(
+    () => [...teams].sort((a, b) => (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0)),
+    [teams, voteCounts],
+  );
 
-  const handleVote = useCallback(async (teamId: number) => {
-    try {
-      const result = await submitVote({ camper_id: camperId, team_id: teamId });
-      if (result?.success) {
-        toast.success(result.message);
-        refetch();
-      } else {
-        toast.error(result?.message ?? "Could not cast vote");
+  // Final places (ties share a place) once voting is closed.
+  const places = useMemo(() => {
+    const map: Record<number, number> = {};
+    let place = 0;
+    let last: number | null = null;
+    for (const t of sortedTeams) {
+      const c = voteCounts[t.id] ?? 0;
+      if (c === 0) continue;
+      if (c !== last) {
+        place += 1;
+        last = c;
       }
-    } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String((error as { message: unknown }).message) : String(error);
-      toast.error("Vote failed: " + message);
+      map[t.id] = place;
     }
-  }, [camperId, submitVote, refetch]);
+    return map;
+  }, [sortedTeams, voteCounts]);
 
-  if (!votingOpen && !allVotedIn) return null;
-  if (loading) return null;
+  const totalVotes = useMemo(() => Object.values(voteCounts).reduce((a, b) => a + b, 0), [voteCounts]);
 
-  // Sort teams by votes for display
-  const sortedTeams = useMemo(() => {
-    return [...teams].sort((a, b) => (voteCounts[b.id] ?? 0) - (voteCounts[a.id] ?? 0));
-  }, [teams, voteCounts]);
+  const handleVote = useCallback(
+    async (teamId: number) => {
+      try {
+        const result = await submitVote({ camper_id: camperId, team_id: teamId });
+        if (result?.success) toast.success(result.message);
+        else toast.error(result?.message ?? "Could not cast vote");
+        await refetch();
+      } catch (error) {
+        toast.error("Vote failed: " + errorMessage(error));
+      }
+    },
+    [camperId, submitVote, refetch],
+  );
 
-  const totalVotes = Object.values(voteCounts).reduce((a, b) => a + b, 0);
+  // All hooks above this line, so the card can appear and disappear safely.
+  if (loading || !data) return null;
+  if (!isCounselor && !votingOpen && !finalized) return null;
+
   const progressPercent = totalCampers > 0 ? Math.round((totalVoters / totalCampers) * 100) : 0;
+  const showResults = finalized || !!myVote || isCounselor;
+
+  const subtitle = finalized
+    ? "Voting is closed! Final results below."
+    : !votingOpen
+      ? "Voting is locked. cAMPers can't see this yet."
+      : myVote
+        ? "Thanks for voting! Waiting for everyone else…"
+        : "Vote for the best team logo (you can't vote for your own team)";
 
   return (
-    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-6 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-amber-900 flex items-center gap-2">
-            🗳️ Logo Vote
-          </h3>
-          <p className="text-xs text-amber-700 mt-0.5">
-            {allVotedIn
-              ? "All votes are in! Results below."
-              : myVote
-                ? "Thanks for voting! Waiting for everyone else…"
-                : "Vote for the best team logo (you can't vote for your own team)"
-            }
-          </p>
+          <h3 className="text-lg font-bold text-amber-900 flex items-center gap-2">🗳️ Logo Vote</h3>
+          <p className="text-xs text-amber-700 mt-0.5">{subtitle}</p>
         </div>
         <div className="text-right">
           <p className="text-sm font-semibold text-amber-800">{totalVoters}/{totalCampers} voted</p>
           <div className="w-24 h-2 bg-amber-200 rounded-full mt-1 overflow-hidden">
-            <div
-              className="h-full bg-amber-500 rounded-full transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
+            <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
       </div>
 
-      {fetching && <div className="text-xs text-amber-600 mb-2">Updating…</div>}
+      {isCounselor && (
+        <LogoVoteCounselorBar
+          votingOpen={votingOpen}
+          finalized={finalized}
+          totalVoters={totalVoters}
+          totalCampers={totalCampers}
+          onChanged={refetch}
+        />
+      )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {fetching && <div className="text-xs text-amber-600">Updating…</div>}
+
+      <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${fetching ? "opacity-70" : ""}`}>
         {sortedTeams.map((team) => {
-          const isMyTeam = team.id === myTeamId;
-          const isVoted = myVote === team.id;
           const voteCount = voteCounts[team.id] ?? 0;
-          const votePercent = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-
-          // Ranking for finished voting
-          const rank = allVotedIn ? sortedTeams.indexOf(team) + 1 : null;
-          const rankEmoji = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
-
+          const isMyTeam = team.id === myTeamId;
           return (
-            <button
+            <LogoVoteTile
               key={team.id}
-              type="button"
-              disabled={!!myVote || !votingOpen || isMyTeam || voting}
-              onClick={() => {
-                if (!myVote && !isMyTeam) {
-                  setSelectedTeam(team.id);
-                  handleVote(team.id);
-                }
-              }}
-              className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                isVoted
-                  ? "border-amber-500 bg-amber-100 ring-2 ring-amber-300"
-                  : isMyTeam
-                    ? "border-border bg-muted/50 opacity-60 cursor-not-allowed"
-                    : myVote
-                      ? "border-border bg-white cursor-default"
-                      : "border-border bg-white hover:border-amber-400 hover:shadow-md cursor-pointer"
-              }`}
-            >
-              {rankEmoji && (
-                <span className="absolute -top-2 -right-2 text-lg">{rankEmoji}</span>
-              )}
-
-              {/* Logo */}
-              <div
-                className="w-14 h-14 rounded-full border-2 flex items-center justify-center overflow-hidden"
-                style={{ borderColor: team.color ?? '#666' }}
-              >
-                {team.logo_url ? (
-                  <img src={team.logo_url} alt={team.name} className="w-full h-full bg-white object-contain" />
-                ) : (
-                  <span className="text-2xl">🏕️</span>
-                )}
-              </div>
-
-              <span className="text-xs font-semibold text-foreground text-center leading-tight">{team.name}</span>
-
-              {/* Vote count / bar (visible after voting or when results show) */}
-              {(myVote || allVotedIn) && (
-                <div className="w-full">
-                  <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
-                    <span>{voteCount} vote{voteCount !== 1 ? "s" : ""}</span>
-                    <span>{votePercent}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${votePercent}%`, backgroundColor: team.color ?? '#666' }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {isMyTeam && !myVote && (
-                <span className="text-[10px] text-muted-foreground italic">Your team</span>
-              )}
-              {isVoted && (
-                <span className="text-[10px] text-amber-700 font-medium flex items-center gap-0.5">
-                  <Icon icon="check-circle" className="w-3 h-3" />
-                  Your vote
-                </span>
-              )}
-            </button>
+              team={team}
+              voteCount={voteCount}
+              votePercent={totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0}
+              isMyTeam={isMyTeam}
+              isMyVote={myVote === team.id}
+              isBestLogo={bestLogoIds.has(team.id)}
+              showResults={showResults}
+              place={finalized ? places[team.id] ?? null : null}
+              disabled={isCounselor || !!myVote || !votingOpen || isMyTeam || voting}
+              onVote={() => handleVote(team.id)}
+            />
           );
         })}
       </div>
 
-      {allVotedIn && (
-        <div className="mt-4 pt-3 border-t border-amber-200">
-          <p className="text-xs text-amber-700 text-center">
-            🏆 Points awarded: 1st +20 · 2nd +15 · 3rd +10 · 4th +5
-          </p>
-        </div>
+      {finalized && (
+        <p className="text-xs text-amber-700 text-center border-t border-amber-200 pt-3">
+          🏆 Team points awarded: 1st +20 · 2nd +15 · 3rd +10 · 4th +5 · Best Logo goes on the Legacy Wall
+        </p>
       )}
     </div>
   );

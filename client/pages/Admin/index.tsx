@@ -65,7 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "flights", label: "Travel & Flights", icon: "plane" },
       { key: "schedule", label: "Agenda", icon: "calendar" },
-      { key: "presentations", label: "Activities", icon: "target" },
+      { key: "presentations", label: "Presentations", icon: "presentation" },
       { key: "teams", label: "Teams", icon: "flag" },
     ],
   },

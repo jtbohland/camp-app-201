@@ -126,6 +126,8 @@ import GenerateTeamLogo from './camp/generate-team-logo.js';
 import MigrateLogoVotes from './camp/migrate-logo-votes.js';
 import GetTeamVotes from './camp/get-team-votes.js';
 import SubmitTeamVote from './camp/submit-team-vote.js';
+import CloseLogoVoting from './camp/close-logo-voting.js';
+import { GetPresentationSchedule, SavePresentationSchedule } from './camp/presentation-schedule.js';
 import AutoGenerateTeams from './camp/auto-generate-teams.js';
 import GetTeamGeneratorPreview from './camp/get-team-generator-preview.js';
 import UpdateCounselorProfile from './camp/update-counselor-profile.js';
@@ -354,6 +356,9 @@ const apis = {
   MigrateLogoVotes,
   GetTeamVotes,
   SubmitTeamVote,
+  CloseLogoVoting,
+  GetPresentationSchedule,
+  SavePresentationSchedule,
   AutoGenerateTeams,
   GetTeamGeneratorPreview,
   UpdateCounselorProfile,

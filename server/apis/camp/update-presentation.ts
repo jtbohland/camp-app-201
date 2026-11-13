@@ -1,30 +1,32 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "UpdatePresentation",
-  description: "Updates a presentation's content, timing, deck link, lock state, and rubric",
+  description: "Counselor edits a presentation's content, timing, and deck",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
+  // Which day it shows on (and its order) is set on the Presentations board instead.
   input: z.object({
     id: z.number(),
-    title: z.string(),
+    title: z.string().min(1),
     description: z.string().nullable(),
     instructions: z.string().nullable(),
     resources: z.string().nullable(), // JSON string of [{label, url}]
     prep_time_minutes: z.number().nullable(),
     present_time_minutes: z.number().nullable(),
-    day_number: z.number().nullable(),
-    sort_order: z.number().nullable(),
     deck_template_url: z.string().nullable(),
-    is_locked: z.boolean(),
-    status: z.string(),
+    status: z.enum(["upcoming", "in_progress", "completed"]),
   }),
   output: z.object({ success: z.boolean() }),
   async run(ctx, input) {
-    await ctx.integrations.camp_201_db.execute(
+    const db = ctx.integrations.camp_201_db;
+    await requireCounselor(db, ctx.user.email);
+    await assertNotViewingPast(db, ctx.user.email);
+    await db.execute(
       `UPDATE camp201_presentations SET
         title = $2,
         description = $3,
@@ -32,11 +34,8 @@ export default api({
         resources = $5::jsonb,
         prep_time_minutes = $6,
         present_time_minutes = $7,
-        day_number = $8,
-        sort_order = $9,
-        deck_template_url = $10,
-        is_locked = $11,
-        status = $12
+        deck_template_url = $8,
+        status = $9
       WHERE id = $1`,
       [
         input.id,
@@ -46,10 +45,7 @@ export default api({
         input.resources ?? "[]",
         input.prep_time_minutes,
         input.present_time_minutes,
-        input.day_number,
-        input.sort_order ?? 0,
         input.deck_template_url ?? "",
-        input.is_locked,
         input.status,
       ],
       { label: "Update presentation" }

@@ -1,11 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { ACTIVE_COHORT_ID_SQL } from "../../lib/cohort.js";
+import { ACTIVE_COHORT_ID_SQL, getActiveCohortId } from "../../lib/cohort.js";
+import { finalizeLogoVote } from "../../lib/logo-vote.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 export default api({
   name: "SubmitTeamVote",
-  description: "Casts a vote for a team logo; awards points after all votes are in",
+  description: "Casts a logo vote; closes voting once everyone has voted",
   integrations: {
     camp_201_db: postgres(APPS_DB),
   },
@@ -18,30 +19,37 @@ export default api({
     message: z.string(),
   }),
   async run(ctx, { camper_id, team_id }) {
-    // Check if voting is open (is_locked = false means open)
-    const gateResult = await ctx.integrations.camp_201_db.query(
+    const db = ctx.integrations.camp_201_db;
+
+    // Voting is open while the gate is unlocked.
+    const gateResult = await db.query(
       `SELECT is_locked FROM camp201_feature_gates WHERE feature_key = $1 LIMIT 1`,
       z.object({ is_locked: z.boolean() }),
       ["logo_voting"],
       { label: "Check logo_voting gate" }
     );
     if (gateResult.length === 0 || gateResult[0].is_locked) {
-      return { success: false, message: "Logo voting is not open yet" };
+      return { success: false, message: "Logo voting is not open right now" };
     }
 
-    // Check camper is not on the team they're voting for (anti-self-vote)
-    const camperTeam = await ctx.integrations.camp_201_db.query(
-      `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
-      z.object({ team_id: z.coerce.number().nullable() }),
-      [camper_id],
-      { label: "Check camper team" }
+    // The team must belong to the active cohort, and cAMPers can't vote for their own team.
+    const teamCheck = await db.query(
+      `SELECT
+         (SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1) AS my_team,
+         EXISTS (SELECT 1 FROM camp201_teams WHERE id = $2 AND cohort_id = ${ACTIVE_COHORT_ID_SQL}) AS team_ok`,
+      z.object({ my_team: z.coerce.number().nullable(), team_ok: z.boolean() }),
+      [camper_id, team_id],
+      { label: "Check team and camper" }
     );
-    if (camperTeam.length > 0 && camperTeam[0].team_id === team_id) {
+    if (!teamCheck[0]?.team_ok) {
+      return { success: false, message: "That team isn't in this cohort" };
+    }
+    if (teamCheck[0].my_team === team_id) {
       return { success: false, message: "You can't vote for your own team!" };
     }
 
-    // Check if already voted
-    const existing = await ctx.integrations.camp_201_db.query(
+    // One vote per cAMPer.
+    const existing = await db.query(
       `SELECT id FROM camp201_team_logo_votes WHERE user_id = $1 LIMIT 1`,
       z.object({ id: z.coerce.number() }),
       [camper_id],
@@ -51,79 +59,34 @@ export default api({
       return { success: false, message: "You've already cast your vote!" };
     }
 
-    // Cast vote
-    await ctx.integrations.camp_201_db.execute(
-      `INSERT INTO camp201_team_logo_votes (user_id, team_id) VALUES ($1, $2)`,
+    await db.execute(
+      `INSERT INTO camp201_team_logo_votes (user_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
       [camper_id, team_id],
       { label: "Cast vote" }
     );
 
-    // Check if all campers have now voted
-    const statsResult = await ctx.integrations.camp_201_db.query(
+    // Once every cAMPer has voted, close voting and award points automatically.
+    const stats = await db.query(
       `SELECT
         (SELECT COUNT(*) FROM camp201_campers
-          WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL})::int as total_campers,
-        (SELECT COUNT(*) FROM camp201_team_logo_votes v
+          WHERE role NOT IN ('counselor', 'admin') AND cohort_id = ${ACTIVE_COHORT_ID_SQL})::int AS total_campers,
+        (SELECT COUNT(DISTINCT v.user_id) FROM camp201_team_logo_votes v
            JOIN camp201_teams t ON t.id = v.team_id
-          WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL})::int as total_voters`,
+          WHERE t.cohort_id = ${ACTIVE_COHORT_ID_SQL})::int AS total_voters`,
       z.object({ total_campers: z.coerce.number(), total_voters: z.coerce.number() }),
       undefined,
       { label: "Count voters" }
     );
+    const { total_campers, total_voters } = stats[0] ?? { total_campers: 0, total_voters: 0 };
 
-    // If all voted, award points to teams
-    if (statsResult[0].total_voters >= statsResult[0].total_campers) {
-      const ranked = await ctx.integrations.camp_201_db.query(
-        `SELECT team_id, COUNT(*)::int as vote_count
-         FROM camp201_team_logo_votes v
-         WHERE v.team_id IN (SELECT id FROM camp201_teams WHERE cohort_id = ${ACTIVE_COHORT_ID_SQL})
-         GROUP BY team_id
-         ORDER BY vote_count DESC
-         LIMIT 10`,
-        z.object({ team_id: z.coerce.number(), vote_count: z.coerce.number() }),
-        undefined,
-        { label: "Get final rankings" }
-      );
-
-      const pointsMap: Record<number, number> = { 1: 20, 2: 15, 3: 10, 4: 5 };
-
-      // Get active cohort
-      const cohortResult = await ctx.integrations.camp_201_db.query(
-        `SELECT id FROM camp201_cohorts WHERE is_active = true LIMIT 1`,
-        z.object({ id: z.coerce.number() }),
-        undefined,
-        { label: "Get active cohort" }
-      );
-      const cohortId = cohortResult.length > 0 ? cohortResult[0].id : null;
-
-      for (let i = 0; i < ranked.length; i++) {
-        const pts = pointsMap[i + 1] ?? 0;
-        if (pts > 0) {
-          await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_teams SET team_points = COALESCE(team_points, 0) + $2 WHERE id = $1`,
-            [ranked[i].team_id, pts],
-            { label: `Award ${pts} pts to rank ${i + 1}` }
-          );
-          const placeLabel = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : '4th';
-          await ctx.integrations.camp_201_db.execute(
-            // Shown on each member's history; counts once, on the team total.
-            `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, cohort_id, category)
-             SELECT c.id, $2, $3, 'system', $4, 'team_award'
-             FROM camp201_campers c WHERE c.team_id = $1 LIMIT 10`,
-            [ranked[i].team_id, pts, `Logo vote - ${placeLabel} place`, cohortId],
-            { label: `Log points for rank ${i + 1}` }
-          );
+    if (total_campers > 0 && total_voters >= total_campers) {
+      const cohortId = await getActiveCohortId(db);
+      if (cohortId !== null) {
+        const result = await finalizeLogoVote(db, cohortId);
+        if (result.finalized) {
+          return { success: true, message: "Vote cast! All votes are in — points have been awarded! 🏆" };
         }
       }
-
-      // Auto-lock voting
-      await ctx.integrations.camp_201_db.execute(
-        `UPDATE camp201_feature_gates SET is_locked = true WHERE feature_key = $1`,
-        ["logo_voting"],
-        { label: "Auto-close voting" }
-      );
-
-      return { success: true, message: "Vote cast! All votes are in — points have been awarded! 🏆" };
     }
 
     return { success: true, message: "Vote cast! 🗳️" };
