@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
+import LegoFigure from "@/components/LegoFigure/index.js";
 import RegionPill from "@/components/RegionPill/index.js";
 import { getCountryStyle, getCountryDisplayName, formatTenure } from "@/lib/countryUtils.js";
 import { getRoleStyle, isCounselorRole, mapToStandardRole } from "@/lib/roles.js";
@@ -41,7 +42,14 @@ export default function CohortMemberDialog({ member, onClose }: Props) {
       <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto p-0">
         {/* Header band */}
         <div className={`flex flex-col items-center gap-3 px-6 pt-8 pb-5 ${roleStyle.bg}`}>
-          <CamperAvatar email={member.email} photoUrl={member.photo_url} name={name} size="xl" className="ring-4 ring-background shadow-md" />
+          {isCounselor && member.lego_url ? (
+            <div className="group flex items-end gap-4">
+              <CamperAvatar email={member.email} photoUrl={member.photo_url} name={name} size="xl" className="ring-4 ring-background shadow-md" />
+              <LegoFigure src={member.lego_url} alt={`${member.first_name}'s LEGO minifig`} className="h-32" hop />
+            </div>
+          ) : (
+            <CamperAvatar email={member.email} photoUrl={member.photo_url} name={name} size="xl" className="ring-4 ring-background shadow-md" />
+          )}
           <div className="text-center">
             <DialogTitle className="text-2xl font-bold">{name}</DialogTitle>
             <DialogDescription className="mt-1 text-sm">

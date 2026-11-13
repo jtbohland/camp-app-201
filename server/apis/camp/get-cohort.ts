@@ -19,6 +19,8 @@ const CohortMemberSchema = z.object({
   country: z.string().nullable(),
   city: z.string().nullable(),
   photo_url: z.string().nullable(),
+  /** Counselor's LEGO minifig (transparent PNG), shown on their card. */
+  lego_url: z.string().nullable(),
   linkedin_url: z.string().nullable(),
   bio: z.string().nullable(),
   fun_fact: z.string().nullable(),
@@ -36,7 +38,9 @@ const MEMBER_COLUMNS = `c.id, c.first_name, c.last_name, c.email, c.role,
     WHERE lower(nh.email) = lower(c.email) ORDER BY nh.updated_at DESC NULLS LAST, nh.id DESC LIMIT 1) AS official_title,
   ${MANAGER_NAME_SQL} AS manager,
   c.manager_email,
-  c.region, c.country, c.city, c.photo_url, c.linkedin_url, c.bio, c.fun_fact,
+  c.region, c.country, c.city, c.photo_url,
+  CASE WHEN c.role IN ('counselor', 'admin') THEN c.lego_url END AS lego_url,
+  c.linkedin_url, c.bio, c.fun_fact,
   c.points, c.team_id, c.start_date::text AS start_date,
   t.name as team_name, t.color as team_color, t.logo_url as team_logo_url`;
 

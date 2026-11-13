@@ -30,6 +30,7 @@ import AdminCounselorRotation from "@/components/AdminCounselorRotation/index.js
 import AdminPresentations from "@/components/AdminPresentations/index.js";
 import AdminCloseCamp from "@/components/AdminCloseCamp/index.js";
 import AdminPointLog from "@/components/AdminPointLog/index.js";
+import AdminLegacyPhotos from "@/components/AdminLegacyPhotos/index.js";
 
 // New components
 import HubDashboard from "@/components/HubDashboard/index.js";
@@ -82,6 +83,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: "4 · Wrap Up",
     items: [
       { key: "close-camp", label: "Close cAMP", icon: "trophy" },
+      { key: "legacy-photos", label: "Legacy Photos", icon: "camera" },
     ],
   },
 ];
@@ -315,6 +317,7 @@ export default function AdminPage() {
               <AdminCounselorRotation />
             </div>
           )}
+          {view === "legacy-photos" && <AdminLegacyPhotos />}
           {view === "close-camp" && (
             isReadOnly ? <PastCohortResults /> : <AdminCloseCamp camperId={0} />
           )}
