@@ -19,6 +19,8 @@ export default function AppShell() {
   const { data: camperData } = useApiData("GetCurrentCamper", { email: user?.email ?? "" }, { enabled: !!user?.email });
   const camper = camperData?.camper;
   const { isAdmin } = useIsAdmin();
+  // Camp pop-ups wait until registration AND profile are both complete (the registration modal comes first).
+  const setupDone = !!camper?.profile_completed && !camperData?.needsRegistration;
   // Viewing a past cohort is read-only: hide tools that award points or change camp state.
   const { isReadOnly } = useCohortView();
 
@@ -49,13 +51,13 @@ export default function AppShell() {
       {isAdmin && !isReadOnly && camper?.id && (
         <CloseCampModal camperId={camper.id} isAdmin={isAdmin} />
       )}
-      {!isAdmin && camper?.id && camper.profile_completed && (
+      {!isAdmin && camper?.id && setupDone && (
         <LateCheckInModal camperId={camper.id} isAdmin={false} />
       )}
-      {!isAdmin && camper?.id && camper.profile_completed && (
+      {!isAdmin && camper?.id && setupDone && (
         <LateSurveyModal camperId={camper.id} isAdmin={false} />
       )}
-      {!isAdmin && !isReadOnly && camper?.id && camper.profile_completed && (
+      {!isAdmin && !isReadOnly && camper?.id && setupDone && (
         <BlackoutConflictModal camperId={camper.id} />
       )}
     </>

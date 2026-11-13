@@ -20,6 +20,8 @@ const AuditRow = z.object({
   profile_owed: z.boolean(),
   early_bird_owed: z.boolean(),
   has_audit_line: z.boolean(),
+  /** Registration still has blanks: the cAMPer is blocked by the finish-registration pop-up until they fill them in. */
+  registration_incomplete: z.boolean(),
 });
 
 const AUDIT_SQL = `
@@ -73,7 +75,12 @@ const AUDIT_SQL = `
             AND (SELECT (SELECT d FROM cfg) - MAX(pw.completed_at) FROM camp201_prework pw JOIN items i ON i.item_key = pw.item
                  WHERE pw.user_id = c.id AND pw.completed) >= INTERVAL '24 hours'
             AND NOT EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'prework_early_bird')) AS early_bird_owed,
-         EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'audit') AS has_audit_line
+         EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'audit') AS has_audit_line,
+         NOT (btrim(COALESCE(c.first_name, '')) <> '' AND btrim(COALESCE(c.last_name, '')) <> ''
+            AND btrim(COALESCE(c.role, '')) NOT IN ('', 'camper')
+            AND btrim(COALESCE(c.manager_email, '')) <> '' AND btrim(COALESCE(c.region, '')) <> ''
+            AND btrim(COALESCE(c.country, '')) <> '' AND btrim(COALESCE(c.city, '')) <> ''
+            AND c.start_date IS NOT NULL AND btrim(COALESCE(c.pin, '')) <> '') AS registration_incomplete
   FROM campers c
   ORDER BY name
   LIMIT 500`;
@@ -81,20 +88,28 @@ const AUDIT_SQL = `
 const ResultRow = AuditRow.extend({
   ok: z.boolean(),
   issues: z.array(z.string()),
+  /** Nothing to fix here: the cAMPer has to finish registration (they're prompted every time they open the app). */
+  waiting_on_camper: z.boolean(),
 });
+
+const REG_INCOMPLETE = "Registration incomplete: they're blocked by the finish-registration pop-up and earn the +10 once they finish it";
+const AUDIT_NOTE = "Has an earlier 'Audit balance' line. Check it doesn't already cover this before fixing.";
 
 function issuesOf(r: z.infer<typeof AuditRow>): string[] {
   const out: string[] = [];
   const missing = r.prework_missing ?? [];
   if (missing.length) out.push(`Pre-work with no points: ${missing.join(", ")}`);
   if (r.prework_duplicates > 0) out.push(`${r.prework_duplicates} duplicate pre-work award(s)`);
-  if (r.registration_owed) out.push("Registration +10 not given");
+  if (r.registration_incomplete) {
+    out.push(REG_INCOMPLETE);
+  } else if (r.registration_owed) {
+    out.push("Registration +10 not given");
+  }
   if (r.profile_owed) out.push("Profile +15 not given");
   if (r.early_bird_owed) out.push("Early-bird bonus not given");
   if (r.total !== r.log_sum) out.push(`Total ${r.total} doesn't match history ${r.log_sum}`);
-  if (out.length && r.has_audit_line) {
-    out.push("Has an earlier 'Audit balance' line. Check it doesn't already cover this before fixing.");
-  }
+  // Only worth a warning when there's something a counselor would actually fix.
+  if (r.has_audit_line && out.some((i) => i !== REG_INCOMPLETE)) out.push(AUDIT_NOTE);
   return out;
 }
 
@@ -102,7 +117,9 @@ async function runAudit(db: any) {
   const rows: z.infer<typeof AuditRow>[] = await db.query(AUDIT_SQL, AuditRow, undefined, { label: "Audit every cAMPer's points" });
   return rows.map((r) => {
     const issues = issuesOf(r);
-    return { ...r, issues, ok: issues.length === 0 };
+    // Only blocker is the registration they still owe: counselors can't fix that for them.
+    const waiting = r.registration_incomplete && issues.every((i) => i === REG_INCOMPLETE);
+    return { ...r, issues, ok: issues.length === 0, waiting_on_camper: waiting };
   });
 }
 

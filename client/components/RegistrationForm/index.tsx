@@ -11,38 +11,25 @@ import { toast } from "sonner";
 import CountryPicker from "@/components/CountryPicker/index.js";
 import { STANDARD_ROLES, ROLE_HINTS, type StandardRole } from "@/lib/roles.js";
 import { REGIONS, REGION_STYLES, getRegion, type Region } from "@/lib/regions.js";
-
-/** What's already on file for someone who has an account but is missing required details. */
-export type RegistrationPrefill = {
-  first_name: string | null;
-  last_name: string | null;
-  role: string | null;
-  manager_email?: string | null;
-  region: string | null;
-  country: string | null;
-  city: string | null;
-  start_date: string | null;
-};
+// getRegion maps the CSV's region text onto NAMER/EMEA/APAC below.
 
 type RegistrationFormProps = {
   userEmail: string;
   onSuccess: () => void;
-  /** Saved details to start from (account created by a counselor, or registered with blanks). */
-  existing?: RegistrationPrefill | null;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function RegistrationForm({ userEmail, onSuccess, existing }: RegistrationFormProps) {
-  const savedRole = existing?.role && (STANDARD_ROLES as readonly string[]).includes(existing.role) ? (existing.role as StandardRole) : "";
-  const [firstName, setFirstName] = useState(existing?.first_name ?? "");
-  const [lastName, setLastName] = useState(existing?.last_name ?? "");
-  const [role, setRole] = useState<StandardRole | "">(savedRole);
-  const [managerEmail, setManagerEmail] = useState(existing?.manager_email ?? "");
-  const [region, setRegion] = useState<Region | "">(getRegion(existing?.region, existing?.country) ?? "");
-  const [country, setCountry] = useState(existing?.country ?? "");
-  const [city, setCity] = useState(existing?.city ?? "");
-  const [startDate, setStartDate] = useState((existing?.start_date ?? "").slice(0, 10));
+/** First-time registration. Accounts with blanks are handled by RegistrationCompletionModal. */
+export default function RegistrationForm({ userEmail, onSuccess }: RegistrationFormProps) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [role, setRole] = useState<StandardRole | "">("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [region, setRegion] = useState<Region | "">("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
+  const [startDate, setStartDate] = useState("");
 
   const { run: registerCamper, loading } = useApi("RegisterCamper");
 
@@ -122,7 +109,7 @@ export default function RegistrationForm({ userEmail, onSuccess, existing }: Reg
           </div>
           <h1 className="text-2xl font-bold text-foreground">Welcome to cAMP 201</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {existing ? "Finish your registration: a few details are still missing" : "Register to begin your ascent"}
+            Register to begin your ascent. Every field is required.
           </p>
         </div>
 
@@ -251,8 +238,8 @@ export default function RegistrationForm({ userEmail, onSuccess, existing }: Reg
           </Button>
 
           {missing.length > 0 && (
-            <p className="text-xs text-center text-muted-foreground">
-              Still needed: {missing.join(", ")}
+            <p className="text-xs text-center text-camp-amber font-medium">
+              Fill in every field to register. Still needed: {missing.join(", ")}
             </p>
           )}
 

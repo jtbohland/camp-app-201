@@ -128,11 +128,6 @@ export default function HomePage() {
     );
   }
 
-  // Has an account but registration is missing details (e.g. a counselor marked them Accepted first)
-  if (!isAdmin && data?.camper && data.needsRegistration) {
-    return <RegistrationForm userEmail={user?.email ?? ""} onSuccess={handleRegistrationSuccess} existing={data.camper} />;
-  }
-
   // If user is a manager but not a camper, redirect to manager dashboard
   if (!data?.isRegistered && managerData?.isManager && !isAdmin) {
     return <Navigate to="/manager" replace />;

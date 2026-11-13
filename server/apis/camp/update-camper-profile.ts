@@ -77,14 +77,25 @@ export default api({
     }
 
     const existing = await ctx.integrations.camp_201_db.query(
-      `SELECT id, profile_completed FROM camp201_campers
+      `SELECT id, profile_completed,
+              (role IN ('counselor', 'admin')) AS is_counselor,
+              (btrim(COALESCE(first_name, '')) <> '' AND btrim(COALESCE(last_name, '')) <> ''
+               AND btrim(COALESCE(role, '')) NOT IN ('', 'camper')
+               AND btrim(COALESCE(manager_email, '')) <> '' AND btrim(COALESCE(region, '')) <> ''
+               AND btrim(COALESCE(country, '')) <> '' AND btrim(COALESCE(city, '')) <> ''
+               AND start_date IS NOT NULL AND btrim(COALESCE(pin, '')) <> '') AS registration_done
+       FROM camp201_campers
        WHERE lower(email) = $1 AND removed_at IS NULL
        ORDER BY id DESC LIMIT 1`,
-      z.object({ id: z.coerce.number(), profile_completed: z.boolean() }),
+      z.object({ id: z.coerce.number(), profile_completed: z.boolean(), is_counselor: z.boolean(), registration_done: z.boolean() }),
       [signedIn],
       { label: "Find signed-in cAMPer" }
     );
     if (!existing[0]) throw new Error("We couldn't find your cAMPer profile. Refresh the page and try again.");
+    // Registration comes first: no profile (or profile points) until every registration field is filled.
+    if (!existing[0].is_counselor && !existing[0].registration_done) {
+      throw new Error("Finish your registration first. Refresh the page to see what's missing.");
+    }
     const camperId = existing[0].id;
     const wasAlreadyCompleted = existing[0].profile_completed;
 
@@ -116,7 +127,8 @@ export default api({
         ice_breaker_q3 = $12,
         profile_completed = $13,
         ice_breaker_answers = $14::jsonb,
-        manager_email = NULLIF($15, ''),
+        -- Manager email is a required registration field: a profile save can change it, never blank it.
+        manager_email = COALESCE(NULLIF($15, ''), manager_email),
         updated_at = NOW()
       WHERE id = $1`,
       [camperId, input.photo_url, input.bio, input.linkedin_option, input.linkedin_url, input.fun_fact, input.goal_1, input.goal_2, input.goal_3, input.ice_breaker_q1, input.ice_breaker_q2, input.ice_breaker_q3, isComplete, JSON.stringify(iceBreakerAnswers), input.manager_email ?? ""],

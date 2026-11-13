@@ -19,6 +19,7 @@ type AuditRow = {
   prework_logged: number;
   issues: string[];
   ok: boolean;
+  waiting_on_camper: boolean;
 };
 
 /**
@@ -34,6 +35,9 @@ export default function PointsAuditPanel({ onCamperClick }: { onCamperClick?: (i
 
   const rows = (data?.campers ?? []) as AuditRow[];
   const flagged = useMemo(() => rows.filter((r) => !r.ok), [rows]);
+  // Rows a counselor can actually fix (the rest are waiting on the cAMPer to finish registration).
+  const fixable = useMemo(() => flagged.filter((r) => !r.waiting_on_camper), [flagged]);
+  const waitingCount = flagged.length - fixable.length;
   const visible = showAll ? rows : flagged;
 
   const handleFix = useCallback(
@@ -42,7 +46,7 @@ export default function PointsAuditPanel({ onCamperClick }: { onCamperClick?: (i
         const res = await fix({ camper_id: camperId });
         setConfirmOpen(false);
         await Promise.all([refetch(), queryClient.invalidateQueries("GetPointLog")]);
-        const remaining = (res?.campers ?? []).filter((c: AuditRow) => !c.ok).length;
+        const remaining = (res?.campers ?? []).filter((c: AuditRow) => !c.ok && !c.waiting_on_camper).length;
         if (!res || res.fixed === 0) {
           toast.success(remaining ? "Nothing more can be fixed automatically. Review the rows still flagged." : "Every total already checks out.");
         } else {
@@ -73,9 +77,9 @@ export default function PointsAuditPanel({ onCamperClick }: { onCamperClick?: (i
             <Icon icon="refresh-cw" className={`w-3.5 h-3.5 mr-1.5 ${fetching ? "animate-spin" : ""}`} />
             Re-check
           </Button>
-          <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={fixing || flagged.length === 0}>
+          <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={fixing || fixable.length === 0}>
             <Icon icon="wrench" className="w-3.5 h-3.5 mr-1.5" />
-            Fix all ({flagged.length})
+            Fix all ({fixable.length})
           </Button>
         </div>
       </div>
@@ -99,7 +103,17 @@ export default function PointsAuditPanel({ onCamperClick }: { onCamperClick?: (i
                 <span className="font-medium text-camp-green">All {rows.length} cAMPers check out.</span>
               ) : (
                 <>
-                  <span className="font-semibold text-red-600">{flagged.length}</span> of {rows.length} cAMPers need a fix
+                  {fixable.length > 0 && (
+                    <>
+                      <span className="font-semibold text-red-600">{fixable.length}</span> of {rows.length} cAMPers need a fix
+                    </>
+                  )}
+                  {fixable.length > 0 && waitingCount > 0 && " · "}
+                  {waitingCount > 0 && (
+                    <>
+                      <span className="font-semibold text-camp-amber">{waitingCount}</span> waiting to finish registration
+                    </>
+                  )}
                 </>
               )}
             </span>
@@ -129,6 +143,10 @@ export default function PointsAuditPanel({ onCamperClick }: { onCamperClick?: (i
                     <span className="text-xs font-medium text-camp-green flex items-center gap-1">
                       <Icon icon="check" className="w-3.5 h-3.5" /> OK
                     </span>
+                  ) : r.waiting_on_camper ? (
+                    <span className="text-xs font-medium text-camp-amber flex items-center gap-1 rounded-full bg-camp-amber/10 px-2 py-0.5">
+                      <Icon icon="hourglass" className="w-3.5 h-3.5" /> Waiting on cAMPer
+                    </span>
                   ) : (
                     <Button variant="outline" size="sm" disabled={fixing} onClick={() => handleFix(r.camper_id)}>
                       Fix
@@ -147,7 +165,7 @@ export default function PointsAuditPanel({ onCamperClick }: { onCamperClick?: (i
       <Dialog open={confirmOpen} onOpenChange={(o) => !fixing && setConfirmOpen(o)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Fix points for {flagged.length} cAMPer{flagged.length === 1 ? "" : "s"}?</DialogTitle>
+            <DialogTitle>Fix points for {fixable.length} cAMPer{fixable.length === 1 ? "" : "s"}?</DialogTitle>
             <DialogDescription>
               Each one gets any points the rules say they earned but never received, and their total is set to match
               their point history. Every change is added to the Point Log as "points_audit", so it's traceable.
