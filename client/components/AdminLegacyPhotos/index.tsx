@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import LegacyPhotoSlot, { type LegacyPhoto, type SaveLegacyPhotoArgs } from "./LegacyPhotoSlot.js";
+import { enhancePhoto } from "@/lib/enhancePhoto.js";
 
 type Kind = "group" | "trophy";
 
@@ -47,6 +48,10 @@ export default function AdminLegacyPhotos() {
   const { data: pastData, loading: loadingPast } = useApiData("GetPastCohorts", {});
   const { run: savePhoto, loading: saving } = useApi("SaveGroupPhoto");
   const { run: deletePhoto, loading: deleting } = useApi("DeleteGroupPhoto");
+  const { run: restoreOriginal, loading: restoring } = useApi("RestoreGroupPhotoOriginal");
+  /** Photo ids being enhanced right now. */
+  const [enhancingIds, setEnhancingIds] = useState<number[]>([]);
+  const [enhanceAllProgress, setEnhanceAllProgress] = useState<{ done: number; total: number } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LegacyPhoto | null>(null);
   const [extraSlots, setExtraSlots] = useState<Record<Kind, number[]>>({ group: [], trophy: [] });
   /** After a fresh upload, open the positioner on that slot. */
@@ -106,6 +111,79 @@ export default function AdminLegacyPhotos() {
     [savePhoto, refetchPhotos]
   );
 
+  /** Enhance one photo already in the library; keeps the current photo as the original for undo. */
+  const enhanceOne = useCallback(
+    async (photo: LegacyPhoto) => {
+      setEnhancingIds((cur) => [...cur, photo.id]);
+      try {
+        await new Promise((r) => setTimeout(r, 30)); // let "Enhancing…" paint
+        const { dataUrl } = await enhancePhoto(photo.photo_data);
+        await savePhoto({
+          id: photo.id,
+          kind: photo.kind,
+          cohort_number: photo.cohort_number,
+          label: photo.label,
+          photo_data: dataUrl,
+          original_data: photo.photo_data,
+          enhanced: true,
+          focus_x: photo.focus_x,
+          focus_y: photo.focus_y,
+        });
+        return true;
+      } finally {
+        setEnhancingIds((cur) => cur.filter((id) => id !== photo.id));
+      }
+    },
+    [savePhoto]
+  );
+
+  const handleEnhance = useCallback(
+    async (photo: LegacyPhoto) => {
+      try {
+        await enhanceOne(photo);
+        toast.success(`Cohort ${photo.cohort_number} ${photo.kind} photo enhanced. Tap “Original” to undo.`);
+        await Promise.all([refetchPhotos(), queryClient.invalidateQueries("GetGroupPhotos")]);
+      } catch (error) {
+        toast.error("Couldn't enhance: " + errorText(error));
+      }
+    },
+    [enhanceOne, refetchPhotos]
+  );
+
+  const handleEnhanceAll = useCallback(async () => {
+    const todo = photos.filter((p) => !p.enhanced);
+    if (todo.length === 0) return;
+    setEnhanceAllProgress({ done: 0, total: todo.length });
+    let failed = 0;
+    for (let i = 0; i < todo.length; i++) {
+      try {
+        await enhanceOne(todo[i]);
+      } catch {
+        failed++;
+      }
+      setEnhanceAllProgress({ done: i + 1, total: todo.length });
+    }
+    setEnhanceAllProgress(null);
+    await Promise.all([refetchPhotos(), queryClient.invalidateQueries("GetGroupPhotos")]);
+    if (failed) toast.error(`${failed} photo${failed > 1 ? "s" : ""} couldn't be enhanced`);
+    else toast.success(`Enhanced ${todo.length} photo${todo.length > 1 ? "s" : ""}. Each one can be undone with “Original”.`);
+  }, [photos, enhanceOne, refetchPhotos]);
+
+  const handleRestore = useCallback(
+    async (photo: LegacyPhoto) => {
+      try {
+        await restoreOriginal({ id: photo.id });
+        toast.success("Original photo restored");
+        await Promise.all([refetchPhotos(), queryClient.invalidateQueries("GetGroupPhotos")]);
+      } catch (error) {
+        toast.error("Couldn't restore: " + errorText(error));
+      }
+    },
+    [restoreOriginal, refetchPhotos]
+  );
+
+  const unenhancedCount = photos.filter((p) => !p.enhanced).length;
+
   const confirmDelete = useCallback(async () => {
     if (!pendingDelete) return;
     try {
@@ -161,7 +239,10 @@ export default function AdminLegacyPhotos() {
                 defaultLabel={s.defaultLabel}
                 caption={s.caption}
                 photo={s.photo}
-                busy={saving || deleting}
+                busy={saving || deleting || restoring || !!enhanceAllProgress}
+                enhancing={!!s.photo && enhancingIds.includes(s.photo.id)}
+                onEnhance={(p) => void handleEnhance(p)}
+                onRestore={(p) => void handleRestore(p)}
                 startPositioning={positionAfterUpload === key && !!s.photo}
                 onPositioningDone={() => setPositionAfterUpload((cur) => (cur === key ? null : cur))}
                 onSave={handleSave}
@@ -181,6 +262,24 @@ export default function AdminLegacyPhotos() {
 
   return (
     <div className="space-y-6">
+      {/* Auto-enhance banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
+        <div className="flex items-start gap-2">
+          <Icon icon="sparkles" className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p className="text-xs text-foreground/80">
+            <span className="font-semibold text-foreground">New uploads are auto-enhanced.</span> Brightness and contrast are balanced, grain is smoothed, and the photo is gently sharpened. Nothing is redrawn or AI-generated, and “Original” puts back the exact upload.
+          </p>
+        </div>
+        {unenhancedCount > 0 && (
+          <Button size="sm" variant="outline" className="shrink-0 border-amber-300 bg-white" disabled={!!enhanceAllProgress || saving}
+            onClick={() => void handleEnhanceAll()}>
+            <Icon icon="sparkles" className="h-3.5 w-3.5 text-amber-500" />
+            {enhanceAllProgress
+              ? `Enhancing ${enhanceAllProgress.done + 1 > enhanceAllProgress.total ? enhanceAllProgress.total : enhanceAllProgress.done + 1} of ${enhanceAllProgress.total}…`
+              : `Enhance ${unenhancedCount} existing photo${unenhancedCount > 1 ? "s" : ""}`}
+          </Button>
+        )}
+      </div>
       {renderSection("group", groupSlots)}
       {renderSection("trophy", trophySlots)}
 
