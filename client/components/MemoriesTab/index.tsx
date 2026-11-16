@@ -23,6 +23,8 @@ export default function MemoriesTab() {
   }, { enabled: !!user?.email });
 
   const camperId = camperData?.camper?.id ?? 0;
+  const role = camperData?.camper?.role;
+  const isCounselor = role === "counselor" || role === "admin";
 
   const { data, loading, fetching, refetch } = useApiData("GetMemories", {
     day_filter: dayFilter === "all" ? null : Number(dayFilter),
@@ -82,7 +84,7 @@ export default function MemoriesTab() {
 
         {/* Unified feed: memories + legacy gallery photos */}
         {memories.map((m: any) => (
-          <MemoryCard key={`m-${m.id}`} memory={m} camperId={camperId} onReacted={refetch} />
+          <MemoryCard key={`m-${m.id}`} memory={m} camperId={camperId} onReacted={refetch} canDelete={isCounselor} />
         ))}
 
         {totalCount === 0 && (
@@ -175,9 +177,11 @@ function AddMemoryForm({ camperId, onSuccess }: { camperId: number; onSuccess: (
             value={imageData}
             onChange={setImageData}
             label=""
-            hint="Drag & drop or click (PNG, JPG, GIF, WebP — max 5MB)"
+            hint="Drag & drop or click (PNG, JPG, WebP up to 25MB · GIFs up to 5MB)"
             shape="square"
-            maxSizeMB={5}
+            maxSizeMB={25}
+            maxGifSizeMB={5}
+            resizeTo={2000}
           />
           <Input
             value={caption}

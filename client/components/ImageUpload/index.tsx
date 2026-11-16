@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
 import { Icon } from "@/components/ui/icon";
+import { resizeImageToDataUrl } from "@/lib/resizeImage";
 
 type ImageUploadProps = {
   value: string; // base64 data URI or URL
@@ -8,6 +9,10 @@ type ImageUploadProps = {
   hint?: string;
   shape?: "circle" | "square";
   maxSizeMB?: number;
+  /** GIFs aren't resized, so they get their own (smaller) limit. Defaults to maxSizeMB. */
+  maxGifSizeMB?: number;
+  /** Shrink photos so the longest side is at most this many px before saving (GIFs are left as-is). */
+  resizeTo?: number;
   className?: string;
 };
 
@@ -18,10 +23,13 @@ export default function ImageUpload({
   hint = "Drag & drop or click to upload (PNG, JPG, GIF, WebP)",
   shape = "square",
   maxSizeMB = 2,
+  maxGifSizeMB,
+  resizeTo,
   className = "",
 }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback(
@@ -36,8 +44,19 @@ export default function ImageUpload({
       }
 
       // Validate size
-      if (file.size > maxSizeMB * 1024 * 1024) {
-        setError(`Image must be under ${maxSizeMB}MB`);
+      const isGif = file.type === "image/gif";
+      const limit = isGif ? maxGifSizeMB ?? maxSizeMB : maxSizeMB;
+      if (file.size > limit * 1024 * 1024) {
+        setError(isGif ? `GIFs must be under ${limit}MB` : `Image must be under ${limit}MB`);
+        return;
+      }
+
+      if (resizeTo && file.type !== "image/svg+xml") {
+        setProcessing(true);
+        resizeImageToDataUrl(file, resizeTo, 0.88)
+          .then(onChange)
+          .catch(() => setError("Couldn't read that image. Try a JPG or PNG."))
+          .finally(() => setProcessing(false));
         return;
       }
 
@@ -48,7 +67,7 @@ export default function ImageUpload({
       reader.onerror = () => setError("Failed to read file");
       reader.readAsDataURL(file);
     },
-    [onChange, maxSizeMB]
+    [onChange, maxSizeMB, maxGifSizeMB, resizeTo]
   );
 
   const handleDragOver = useCallback((e: DragEvent) => {
@@ -116,6 +135,11 @@ export default function ImageUpload({
           >
             <Icon icon="x" className="w-3.5 h-3.5" />
           </button>
+        </div>
+      ) : processing ? (
+        <div className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border ${isCircle ? "w-24 h-24" : "w-full h-32"} ${shapeClasses}`}>
+          <Icon icon="loader-circle" className="w-6 h-6 animate-spin text-muted-foreground" />
+          {!isCircle && <span className="text-xs text-muted-foreground">Preparing photo…</span>}
         </div>
       ) : (
         /* Drop zone */
