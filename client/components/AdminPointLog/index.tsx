@@ -10,6 +10,15 @@ import PointLogFilters, { EMPTY_POINT_LOG_FILTERS, type PointLogFilterValues } f
 import PointLogTable, { awardedByLabel, ptDate, ptTime, type PointLogEntry } from "@/components/PointLogTable/index.js";
 import PointsAuditPanel from "@/components/PointsAuditPanel/index.js";
 import RemovePointsDialog, { type RemovableEntry } from "@/components/RemovePointsDialog/index.js";
+import SelectionBar from "@/components/RemovePointsDialog/SelectionBar.js";
+import { useEntrySelection } from "@/components/RemovePointsDialog/selection.js";
+
+const toRemovable = (e: PointLogEntry): RemovableEntry => ({
+  id: e.id,
+  points: e.points,
+  reason: e.reason,
+  camperName: e.camper_name,
+});
 
 const PAGE_SIZE = 50;
 
@@ -41,11 +50,12 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
   const [filters, setFilters] = useState<PointLogFilterValues>(EMPTY_POINT_LOG_FILTERS);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [removing, setRemoving] = useState<RemovableEntry | null>(null);
-  const handleRemove = useCallback(
-    (e: PointLogEntry) => setRemoving({ id: e.id, points: e.points, reason: e.reason, camperName: e.camper_name }),
-    []
-  );
+  const [removing, setRemoving] = useState<RemovableEntry[] | null>(null);
+  const selection = useEntrySelection();
+  const { toggle, toggleAll } = selection;
+  const handleRemove = useCallback((e: PointLogEntry) => setRemoving([toRemovable(e)]), []);
+  const handleToggle = useCallback((e: PointLogEntry) => toggle(toRemovable(e)), [toggle]);
+  const handleToggleAll = useCallback((list: PointLogEntry[]) => toggleAll(list.map(toRemovable)), [toggleAll]);
   const debounced = useDebounced(filters);
 
   useEffect(() => setPage(0), [debounced]);
@@ -100,7 +110,8 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
             </h2>
             <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
               Every time a cAMPer earns or loses points, newest first. "Total points" is the cAMPer's running total right
-              after that entry. Times are Pacific. Use Remove / Undo to cancel a wrong award or an unfair deduction.
+              after that entry. Times are Pacific. Use Remove / Undo to cancel a wrong award or an unfair deduction, or
+              tick several entries to remove them together with one reason.
             </p>
           </div>
           <div className="flex gap-2">
@@ -147,8 +158,21 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
             </span>
             {fetching && <span>Updating…</span>}
           </div>
+          <SelectionBar
+            count={selection.count}
+            netChange={selection.netChange}
+            onRemove={() => setRemoving(selection.list)}
+            onClear={selection.clear}
+          />
           <div className={fetching ? "opacity-70" : ""}>
-            <PointLogTable entries={(data?.entries ?? []) as PointLogEntry[]} onCamperClick={onCamperClick} onRemove={handleRemove} />
+            <PointLogTable
+              entries={(data?.entries ?? []) as PointLogEntry[]}
+              onCamperClick={onCamperClick}
+              onRemove={handleRemove}
+              isSelected={selection.isSelected}
+              onToggle={handleToggle}
+              onToggleAll={handleToggleAll}
+            />
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">
@@ -165,7 +189,11 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
           </div>
         </>
       )}
-      <RemovePointsDialog entry={removing} onClose={() => setRemoving(null)} />
+      <RemovePointsDialog
+        entries={removing}
+        onClose={() => setRemoving(null)}
+        onRemoved={() => selection.drop((removing ?? []).map((r) => r.id))}
+      />
     </div>
   );
 }

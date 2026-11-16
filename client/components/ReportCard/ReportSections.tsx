@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import CamperAvatar from "@/components/CamperAvatar/index.js";
 import { APPROVAL_LABELS, formatDuration } from "@/lib/absences.js";
@@ -7,8 +7,10 @@ import { dietaryLabel, isAllergy } from "@/lib/dietary.js";
 import { EmptyLine, ReportSection, ReportStat, fmtDate } from "./ReportSection.js";
 import type { ReportCardData } from "./types.js";
 import type { IconName } from "lucide-react/dynamic";
-import EntryStatus from "@/components/RemovePointsDialog/EntryStatus.js";
 import RemovePointsDialog, { type RemovableEntry } from "@/components/RemovePointsDialog/index.js";
+import SelectionBar from "@/components/RemovePointsDialog/SelectionBar.js";
+import { isRemovable, useEntrySelection } from "@/components/RemovePointsDialog/selection.js";
+import PointsEntryRow, { type PointsLogRow } from "./PointsEntryRow.js";
 
 type Props = { data: ReportCardData };
 
@@ -16,9 +18,19 @@ type Props = { data: ReportCardData };
 export function PointsSection({ data, canRemove = false }: Props & { canRemove?: boolean }) {
   const s = data.stats!;
   const [showAll, setShowAll] = useState(false);
-  const [removing, setRemoving] = useState<RemovableEntry | null>(null);
+  const [removing, setRemoving] = useState<RemovableEntry[] | null>(null);
+  const selection = useEntrySelection();
+  const { toggle, toggleAll, drop } = selection;
   const camperName = `${data.profile!.first_name ?? ""} ${data.profile!.last_name ?? ""}`.trim();
   const rows = showAll ? data.points_log : data.points_log.slice(0, 10);
+  const toRemovable = useCallback(
+    (r: PointsLogRow): RemovableEntry => ({ id: r.id, points: r.points, reason: r.reason, camperName }),
+    [camperName]
+  );
+  const handleToggle = useCallback((r: PointsLogRow) => toggle(toRemovable(r)), [toggle, toRemovable]);
+  const handleRemove = useCallback((r: PointsLogRow) => setRemoving([toRemovable(r)]), [toRemovable]);
+  const visibleRemovable = useMemo(() => rows.filter(isRemovable), [rows]);
+  const allVisibleSelected = visibleRemovable.length > 0 && visibleRemovable.every((r) => selection.isSelected(r.id));
   return (
     <ReportSection icon="zap" iconClass="text-amber-500" title="Points" aside={`${data.points_log.length} entries`}>
       <div className="mb-3 grid grid-cols-3 gap-2">
@@ -26,31 +38,38 @@ export function PointsSection({ data, canRemove = false }: Props & { canRemove?:
         <ReportStat value={`+${s.points_gained}`} label="Earned" tone="text-emerald-600" />
         <ReportStat value={s.points_lost > 0 ? `−${s.points_lost}` : "0"} label="Lost" tone={s.points_lost > 0 ? "text-red-600" : "text-muted-foreground"} />
       </div>
+      {canRemove && (
+        <div className="mb-2 space-y-2">
+          <SelectionBar
+            count={selection.count}
+            netChange={selection.netChange}
+            onRemove={() => setRemoving(selection.list)}
+            onClear={selection.clear}
+          />
+          {visibleRemovable.length > 1 && (
+            <button
+              onClick={() => toggleAll(visibleRemovable.map(toRemovable))}
+              className="text-[11px] font-medium text-primary hover:underline print:hidden"
+            >
+              {allVisibleSelected ? "Unselect shown" : "Select all shown"}
+            </button>
+          )}
+        </div>
+      )}
       {data.points_log.length === 0 ? (
         <EmptyLine>No points recorded yet</EmptyLine>
       ) : (
         <div className="divide-y divide-border">
           {rows.map((r) => (
-            <div key={r.id} className={`flex items-center justify-between gap-3 py-1.5 ${r.reversed ? "opacity-60" : ""}`}>
-              <div className="min-w-0">
-                <p className="truncate text-xs text-foreground" title={r.reason ?? undefined}>{r.reason || "Points"}</p>
-                <p className="text-[10px] text-muted-foreground">{fmtDate(r.created_at, true)}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                {(canRemove || r.reversed || r.is_reversal) && (
-                  <EntryStatus
-                    points={r.points}
-                    category={r.category}
-                    reversed={r.reversed}
-                    isReversal={r.is_reversal}
-                    onRemove={canRemove ? () => setRemoving({ id: r.id, points: r.points, reason: r.reason, camperName }) : undefined}
-                  />
-                )}
-                <span className={`text-xs font-bold ${r.reversed ? "line-through" : ""} ${r.points < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                  {r.points > 0 ? `+${r.points}` : r.points}
-                </span>
-              </div>
-            </div>
+            <PointsEntryRow
+              key={r.id}
+              r={r}
+              canRemove={canRemove}
+              selectable={isRemovable(r)}
+              selected={selection.isSelected(r.id)}
+              onToggle={handleToggle}
+              onRemove={handleRemove}
+            />
           ))}
         </div>
       )}
@@ -59,7 +78,13 @@ export function PointsSection({ data, canRemove = false }: Props & { canRemove?:
           {showAll ? "Show less" : `Show all ${data.points_log.length}`}
         </button>
       )}
-      {canRemove && <RemovePointsDialog entry={removing} onClose={() => setRemoving(null)} />}
+      {canRemove && (
+        <RemovePointsDialog
+          entries={removing}
+          onClose={() => setRemoving(null)}
+          onRemoved={() => drop((removing ?? []).map((r) => r.id))}
+        />
+      )}
     </ReportSection>
   );
 }

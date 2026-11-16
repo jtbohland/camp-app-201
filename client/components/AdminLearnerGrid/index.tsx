@@ -14,6 +14,7 @@ import LastSeenPill from "@/components/LastSeenPill/index.js";
 import { errorMessage } from "@/lib/cohortRefresh";
 import { refreshRosterViews } from "@/lib/camperRemoval";
 import { COHORT_SORTS, sortCohortMembers, type CohortMember, type CohortSort } from "@/lib/cohortMember.js";
+import { useSessionState } from "@/lib/useSessionState";
 
 interface Props {
   cohortId: number | null;
@@ -38,9 +39,10 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
     [threadBadges],
   );
   const [pendingRemove, setPendingRemove] = useState<{ id: number; name: string } | null>(null);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<CohortSort | "points" | "last_login">("points");
-  const [page, setPage] = useState(0);
+  // Remembered for the tab, so Back from a report card returns to the same search, sort and page.
+  const [search, setSearch] = useSessionState("hub_campers_search", "");
+  const [sort, setSort] = useSessionState<CohortSort | "points" | "last_login">("hub_campers_sort", "points");
+  const [page, setPage] = useSessionState("hub_campers_page", 0);
 
   const handleConfirmRemove = useCallback(async () => {
     if (!pendingRemove) return;
@@ -86,7 +88,9 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
     return sortCohortMembers(list as unknown as CohortMember[], sort) as unknown as typeof list;
   }, [campers, search, sort]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // A remembered page can be past the end if the roster shrank; clamp instead of showing nothing.
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   if (loading) {
     return (
@@ -225,10 +229,10 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
 
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Page {page + 1} of {totalPages} ({filtered.length} cAMPers)</span>
+          <span>Page {safePage + 1} of {totalPages} ({filtered.length} cAMPers)</span>
           <div className="flex gap-2">
-            <button disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="rounded border border-border px-2 py-1 disabled:opacity-40">Previous</button>
-            <button disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} className="rounded border border-border px-2 py-1 disabled:opacity-40">Next</button>
+            <button disabled={safePage === 0} onClick={() => setPage(safePage - 1)} className="rounded border border-border px-2 py-1 disabled:opacity-40">Previous</button>
+            <button disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)} className="rounded border border-border px-2 py-1 disabled:opacity-40">Next</button>
           </div>
         </div>
       )}
