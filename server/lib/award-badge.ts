@@ -18,6 +18,8 @@ export async function awardRepeatableBadge(
   badgeId: number,
   reason: string,
   cohortId?: number | null,
+  /** Use these points instead of base + accelerator (e.g. flat-rate badges). 0 counts the badge without points. */
+  pointsOverride?: number,
 ): Promise<{ points: number; earnCount: number }> {
   // Get current earn count
   const CountSchema = z.object({ earn_count: z.coerce.number() });
@@ -48,7 +50,7 @@ export async function awardRepeatableBadge(
   }
 
   const newCount = currentCount + 1;
-  const points = calculateAcceleratedPoints(badgeId, currentCount);
+  const points = pointsOverride ?? calculateAcceleratedPoints(badgeId, currentCount);
 
   if (points > 0) {
     // The point-log entry adds to the cAMPer's total (database trigger).

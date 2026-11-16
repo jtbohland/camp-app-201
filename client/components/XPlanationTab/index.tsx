@@ -78,10 +78,11 @@ const categories: PointCategory[] = [
   {
     icon: "message-circle",
     title: "Peer Feedback",
-    subtitle: "🚀 Accelerated — give more feedback, earn more each time!",
+    subtitle: "Review the teams that present: up to 9 pts per presentation",
     color: "bg-teal-500/10 text-teal-600",
     items: [
-      { label: "Give peer feedback", points: "3 base", positive: true, note: "Earns a Peer Feedback badge + accelerator bonus" },
+      { label: "Review a team that presented", points: "+3", positive: true, note: "3 Glows + 3 Grows. One review per team, never your own team" },
+      { label: "Max per presentation", points: "9", positive: true, note: "3 teams × 3 pts. Closes 10 min after every team is scored" },
     ],
   },
   {
@@ -213,7 +214,7 @@ export default function XPlanationTab() {
           How Accelerators Work
         </h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Check-Ins, Peer Feedback, Hub Posts, and Exec Q&A all use the accelerator system.
+          Check-Ins, Hub Posts, and Exec Q&A all use the accelerator system.
           The more you earn a badge, the more each action is worth. Keep going!
         </p>
         <div className="overflow-x-auto">
@@ -298,7 +299,7 @@ export default function XPlanationTab() {
             "Complete your profile early — it's the easiest +15 you'll earn.",
             "Check in 10+ min early every time — the accelerator makes each one worth more.",
             "Submit surveys every day — points escalate from +2 to +10 by Day 5.",
-            "Give peer feedback often — accelerator bonuses stack fast.",
+            "Review every team during each presentation — feedback closes 10 minutes after the last team is scored.",
             "The Mini EBR is the highest-value presentation — each counselor can award up to 50 team pts.",
             "Team points matter! Check-in races, survey races, and rubric scores all boost your team.",
             "Share a photo AND a text memory to earn the KINDling badge.",

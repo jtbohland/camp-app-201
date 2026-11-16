@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import PresentationGrid from "@/components/PresentationGrid/index.js";
 import PresentationDetail from "@/components/PresentationDetail/index.js";
-import PeerFeedbackForm from "@/components/PeerFeedbackForm/index.js";
+import PeerFeedbackForm, { type FeedbackRound } from "@/components/PeerFeedbackForm/index.js";
 import CampfireFeed from "@/components/CampfireFeed/index.js";
 import PresentationOrderStrip from "@/components/PresentationOrderStrip/index.js";
 
@@ -44,10 +44,19 @@ export default function PresentationsPage() {
 
   // Live presenting round (live cohort). Polls so everyone sees who's up.
   const { data: round, refetch: refetchRound } = useApiData("GetPresentationRound", {}, { refetchInterval: 10_000 });
-  const presenting = useMemo(() => {
-    const up = round?.picked.find((p) => p.is_up_now);
-    return up && round?.active ? { teamId: up.id, presentationTitle: round.active.title } : null;
+  const feedbackRound = useMemo<FeedbackRound>(() => {
+    const fb = round?.feedback;
+    const reviewable = new Set(fb?.reviewable_team_ids ?? []);
+    const up = round?.picked.find((p) => p.is_up_now) ?? null;
+    return {
+      status: fb?.status ?? "none",
+      presentationTitle: fb?.presentation_title ?? null,
+      closesAt: fb?.closes_at ?? null,
+      presented: (round?.picked ?? []).filter((p) => reviewable.has(p.id)).map((p) => ({ id: p.id, name: p.name })),
+      upNowId: up?.id ?? null,
+    };
   }, [round]);
+  const handleRoundStale = useCallback(() => { void refetchRound(); }, [refetchRound]);
 
   const { data, loading, fetching, refetch } = useApiData("GetPresentations", {
     status: null,
@@ -133,7 +142,7 @@ export default function PresentationsPage() {
             Peer feedback will open during presentations — your counselor will unlock it
           </div>
         ) : (
-          <PeerFeedbackForm camperTeamId={camperTeamId} presenting={presenting} />
+          <PeerFeedbackForm camperTeamId={camperTeamId} round={feedbackRound} onRoundStale={handleRoundStale} />
         )}
 
         {/* Presentation Cards */}

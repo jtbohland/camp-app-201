@@ -5,7 +5,8 @@ import {
   RoundPresentationSchema, RoundTeamSchema, loadPresentingTeams, loadRound, loadRoundPresentations, saveRound,
   type RoundState,
 } from "../../lib/presentation-round.js";
-import { isFullyScored, loadRubricResults, resultKey } from "../../lib/score-visibility.js";
+import { isFullyScored, loadRubricResults, resultKey, type TeamRubricResult } from "../../lib/score-visibility.js";
+import { FeedbackWindowSchema, computeFeedbackWindow } from "../../lib/feedback-window.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 /** cAMPers can press Randomize; this stops a double-tap from skipping a team. Counselors aren't limited. */
@@ -34,6 +35,8 @@ const RoundOutput = z.object({
   round_complete: z.boolean(),
   /** Teams that still need at least one judge's score (rubric sessions only). */
   waiting_on_scores: z.number(),
+  /** Whether cAMPfire feedback is open for the live presentation, and for which teams. */
+  feedback: FeedbackWindowSchema,
 });
 type RoundOutputT = z.infer<typeof RoundOutput>;
 
@@ -44,6 +47,9 @@ async function buildRound(db: any, email: string | undefined): Promise<RoundOutp
   const empty: RoundOutputT = {
     is_counselor: access.isAdmin, presentations, active: null, picked: [], up_now: null,
     remaining: 0, total_teams: 0, judges_needed: 0, all_picked: false, round_complete: false, waiting_on_scores: 0,
+    feedback: {
+      status: "none", presentation_id: null, presentation_title: null, closes_at: null, override: null, reviewable_team_ids: [],
+    },
   };
   if (cohortId === null) return empty;
 
@@ -64,7 +70,7 @@ async function buildRound(db: any, email: string | undefined): Promise<RoundOutp
   const rubricId = active.rubric_template_id;
   const { results, requiredJudges } = rubricId !== null
     ? await loadRubricResults(db, cohortId, [rubricId])
-    : { results: new Map(), requiredJudges: 0 };
+    : { results: new Map<string, TeamRubricResult>(), requiredJudges: 0 };
 
   const picked = pickIds.map((id, idx) => {
     const team = teamById.get(id)!;
@@ -96,6 +102,7 @@ async function buildRound(db: any, email: string | undefined): Promise<RoundOutp
     all_picked: allPicked,
     round_complete: allPicked && waiting === 0,
     waiting_on_scores: waiting,
+    feedback: computeFeedbackWindow({ state, active, teams, results, requiredJudges }),
   };
 }
 
@@ -153,10 +160,13 @@ export const PickNextPresenter = api({
     if (pool.length === 0) return { success: false, message: "Every team has already presented.", team_name: null };
 
     const chosen = pool[Math.floor(Math.random() * pool.length)];
+    const nowIso = new Date().toISOString();
     const next: RoundState = {
       ...state,
       picks: { ...state.picks, [key]: [...(state.picks[key] ?? []), chosen.id] },
-      last_pick_at: new Date().toISOString(),
+      last_pick_at: nowIso,
+      // The last team going starts the clock toward closing feedback (after scoring + grace).
+      all_picked_at: pool.length === 1 ? { ...state.all_picked_at, [key]: nowIso } : state.all_picked_at,
     };
     if (!(await saveRound(db, cohortId, raw, next))) {
       return { success: false, message: "Someone else just picked a team. Take a look!", team_name: null };
@@ -165,13 +175,16 @@ export const PickNextPresenter = api({
   },
 });
 
-/** Counselor controls: start a presentation's round, undo the last pick, or end the round. */
+/**
+ * Counselor controls: start a presentation's round, undo the last pick, restart, end the round,
+ * or close / reopen cAMPfire feedback for the live presentation (auto_feedback returns to automatic).
+ */
 export const SetPresentationRound = api({
   name: "SetPresentationRound",
-  description: "Counselor starts, undoes, or ends a presenting round",
+  description: "Counselor runs a presenting round and its feedback window",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
-    action: z.enum(["start", "undo_last", "restart", "end"]),
+    action: z.enum(["start", "undo_last", "restart", "end", "close_feedback", "reopen_feedback", "auto_feedback"]),
     presentation_id: z.number().nullable(),
   }),
   output: z.object({ success: z.boolean(), message: z.string() }),
@@ -182,7 +195,12 @@ export const SetPresentationRound = api({
     if (cohortId === null) throw new Error("There's no active cohort.");
 
     const { state, raw } = await loadRound(db, cohortId);
-    let next: RoundState = { ...state, picks: { ...state.picks } };
+    let next: RoundState = {
+      ...state,
+      picks: { ...state.picks },
+      all_picked_at: { ...state.all_picked_at },
+      feedback_override: { ...state.feedback_override },
+    };
     let message = "";
 
     if (action === "start") {
@@ -200,11 +218,23 @@ export const SetPresentationRound = api({
         if (list.length === 0) return { success: false, message: "No team has been picked yet." };
         next.picks[key] = list.slice(0, -1);
         next.last_pick_at = null;
+        delete next.all_picked_at[key];
         message = "Last pick undone.";
       } else if (action === "restart") {
         next.picks[key] = [];
         next.last_pick_at = null;
+        delete next.all_picked_at[key];
+        delete next.feedback_override[key];
         message = "Round restarted. Every team can be picked again.";
+      } else if (action === "close_feedback") {
+        next.feedback_override[key] = "closed";
+        message = "cAMPfire feedback closed for this presentation.";
+      } else if (action === "reopen_feedback") {
+        next.feedback_override[key] = "reopened";
+        message = "cAMPfire feedback reopened. It stays open until you close it.";
+      } else if (action === "auto_feedback") {
+        delete next.feedback_override[key];
+        message = "Feedback is back on automatic: it closes 10 minutes after every team is scored.";
       } else {
         next = { ...next, active_presentation_id: null, last_pick_at: null };
         message = "Round ended.";

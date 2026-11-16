@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
-import { BADGE_IDS } from "../../lib/accelerator.js";
+import { BADGE_IDS, PEER_FEEDBACK_POINTS } from "../../lib/accelerator.js";
+import { PAID_REVIEWS_PER_PRESENTATION, loadFeedbackWindow } from "../../lib/feedback-window.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 import { getActiveCohortId } from "../../lib/cohort.js";
 
@@ -14,6 +15,8 @@ const ItemSchema = z.object({
 /**
  * One cAMPfire review: every Glow, Grow, and Trail note for one team's presentation, saved together.
  * The author is the signed-in cAMPer. Each cAMPer can review a team once per presentation, never their own team.
+ * Reviews are only accepted for the live presentation, for teams that have already presented, while the
+ * feedback window is open. Each review earns a flat 3 pts, for up to 3 reviews per presentation (9 max).
  */
 export default api({
   name: "SubmitPeerFeedback",
@@ -28,7 +31,7 @@ export default api({
   }),
   output: z.object({
     success: z.boolean(),
-    error: z.enum(["already_submitted", "own_team"]).nullable(),
+    error: z.enum(["already_submitted", "own_team", "closed", "not_presented"]).nullable(),
     points_awarded: z.number(),
   }),
   async run(ctx, input) {
@@ -46,6 +49,22 @@ export default api({
     if (gate[0]?.is_locked) throw new Error("Peer feedback is currently locked by your counselor.");
 
     const cohortId = await getActiveCohortId(db);
+    if (cohortId === null) throw new Error("There's no active cohort.");
+
+    // Only the live presentation, only while its feedback window is open, only teams that have gone.
+    const fbWindow = await loadFeedbackWindow(db, cohortId);
+    if (
+      fbWindow.presentation_title === null ||
+      fbWindow.presentation_title !== input.session_label ||
+      fbWindow.status === "closed" ||
+      fbWindow.status === "none"
+    ) {
+      return { success: false, error: "closed" as const, points_awarded: 0 };
+    }
+    if (!fbWindow.reviewable_team_ids.includes(input.team_id)) {
+      return { success: false, error: "not_presented" as const, points_awarded: 0 };
+    }
+
     const me = await db.query(
       `SELECT id, team_id FROM camp201_campers WHERE lower(email) = $1 AND removed_at IS NULL ORDER BY id DESC LIMIT 1`,
       z.object({ id: z.coerce.number(), team_id: z.coerce.number().nullable() }),
@@ -84,7 +103,19 @@ export default api({
     );
     if ((inserted[0]?.n ?? 0) === 0) return { success: false, error: "already_submitted" as const, points_awarded: 0 };
 
-    const badge = await awardRepeatableBadge(db, authorId, BADGE_IDS.PEER_FEEDBACK, `Peer feedback: ${input.session_label}`, cohortId);
+    // Flat 3 pts per review, for the first 3 reviews this cAMPer gives on this presentation.
+    const reviewed = await db.query(
+      `SELECT COUNT(DISTINCT team_id)::int AS n FROM camp201_peer_feedback
+       WHERE author_id = $1 AND session_label = $2 AND cohort_id IS NOT DISTINCT FROM $3`,
+      z.object({ n: z.coerce.number() }),
+      [authorId, input.session_label, cohortId],
+      { label: "Count this cAMPer's reviews for the presentation" }
+    );
+    const paid = (reviewed[0]?.n ?? 0) <= PAID_REVIEWS_PER_PRESENTATION;
+    const badge = await awardRepeatableBadge(
+      db, authorId, BADGE_IDS.PEER_FEEDBACK, `Peer feedback: ${input.session_label}`, cohortId,
+      paid ? PEER_FEEDBACK_POINTS : 0
+    );
     return { success: true, error: null, points_awarded: badge.points };
   },
 });

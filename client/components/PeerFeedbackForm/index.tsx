@@ -8,14 +8,25 @@ import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
 import FeedbackLines from "./FeedbackLines.js";
 import FeedbackTargetPicker from "./FeedbackTargetPicker.js";
+import FeedbackStatusNote from "./FeedbackStatusNote.js";
+
+export type FeedbackRound = {
+  status: "none" | "open" | "closing" | "closed";
+  presentationTitle: string | null;
+  closesAt: string | null;
+  /** Teams that have presented in the live round, in order. */
+  presented: { id: number; name: string }[];
+  /** The team presenting right now. */
+  upNowId: number | null;
+};
 
 type Props = {
   camperTeamId: number;
-  /** The team the live round picked, and the presentation running. Pre-fills the form. */
-  presenting: { teamId: number; presentationTitle: string } | null;
+  round: FeedbackRound;
+  /** Refresh the round (e.g. after a submit is rejected because feedback just closed). */
+  onRoundStale: () => void;
 };
 
-const TEAM_TYPES = ["team_presentation", "team_workshop", "hackathon"];
 const GLOW_HINTS = ["Their opening hook was incredible...", "Data storytelling was clear and compelling...", "Great energy and confidence on stage..."];
 const GROW_HINTS = ["Could tighten the value prop section...", "More eye contact with the audience...", "Add a stronger closing CTA..."];
 
@@ -28,57 +39,59 @@ function errorText(err: unknown): string {
 
 /**
  * cAMPfire Review: 3 Glows, 3 Grows, and optional Trail Notes for another team's presentation.
- * One review per cAMPer per team per presentation, never for your own team.
+ * Only for the live presentation, only for teams that have presented, never your own team,
+ * and only until feedback closes (10 minutes after every team is scored).
  */
-export default function PeerFeedbackForm({ camperTeamId, presenting }: Props) {
+export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: Props) {
   const showPoints = usePointsBubble();
   const [isOpen, setIsOpen] = useState(false);
   const [teamId, setTeamId] = useState<number | null>(null);
-  const [presentation, setPresentation] = useState("");
   const [manual, setManual] = useState(false);
   const [glow, setGlow] = useState(["", "", ""]);
   const [grow, setGrow] = useState(["", "", ""]);
   const [trailNotes, setTrailNotes] = useState("");
 
   const { run: submitFeedback, loading: submitting } = useApi("SubmitPeerFeedback");
-  const { data: teamsData } = useApiData("GetTeams", {}, { staleTime: 30_000 });
-  const { data: presentationsData } = useApiData("GetPresentations", { status: null }, { staleTime: 30_000 });
   const { data: feedbackData, refetch: refetchFeedback } = useApiData("GetPeerFeedback", { session_label: null, team_id: null });
 
-  // You can never review your own team (or the TEST team).
-  const teams = useMemo(
-    () => (teamsData?.teams ?? []).filter((t) => t.id !== camperTeamId && t.name.trim().toUpperCase() !== "TEST"),
-    [teamsData, camperTeamId]
-  );
-  const presentations = useMemo(
-    () => (presentationsData?.presentations ?? [])
-      .filter((p) => TEAM_TYPES.includes(p.presentation_type ?? ""))
-      .map((p) => p.title),
-    [presentationsData]
+  const presentation = round.presentationTitle ?? "";
+  const accepting = round.status === "open" || round.status === "closing";
+
+  const reviewedIds = useMemo(
+    () => new Set((feedbackData?.my_reviews ?? []).filter((r) => r.session_label === presentation).map((r) => r.team_id)),
+    [feedbackData, presentation]
   );
 
-  const myTeamIsUp = !!presenting && presenting.teamId === camperTeamId;
-  const canAutoFill = !!presenting && !myTeamIsUp && teams.some((t) => t.id === presenting.teamId);
+  // Teams you can review this round: they've presented, and they aren't your team or TEST.
+  const teams = useMemo(
+    () => round.presented
+      .filter((t) => t.id !== camperTeamId && t.name.trim().toUpperCase() !== "TEST")
+      .map((t) => ({ ...t, reviewed: reviewedIds.has(t.id) })),
+    [round.presented, camperTeamId, reviewedIds]
+  );
+  const reviewedCount = teams.filter((t) => t.reviewed).length;
+
+  const myTeamIsUp = round.upNowId !== null && round.upNowId === camperTeamId;
+  const canAutoFill = round.upNowId !== null && teams.some((t) => t.id === round.upNowId);
   const autoFilled = canAutoFill && !manual;
 
   // Follow the live round: whenever a new team is picked, the form points at them.
   useEffect(() => {
-    if (!canAutoFill || manual || !presenting) return;
-    setTeamId(presenting.teamId);
-    setPresentation(presenting.presentationTitle);
-  }, [canAutoFill, manual, presenting]);
+    if (canAutoFill && !manual) setTeamId(round.upNowId);
+  }, [canAutoFill, manual, round.upNowId]);
 
-  const alreadySubmitted = useMemo(() => {
-    if (!teamId || !presentation) return false;
-    return (feedbackData?.my_reviews ?? []).some((r) => r.team_id === teamId && r.session_label === presentation);
-  }, [teamId, presentation, feedbackData]);
+  // If the chosen team is no longer reviewable (round changed), clear it.
+  useEffect(() => {
+    if (teamId !== null && !teams.some((t) => t.id === teamId)) setTeamId(null);
+  }, [teamId, teams]);
 
+  const alreadySubmitted = teamId !== null && reviewedIds.has(teamId);
   const glowValid = glow.every((s) => s.trim().length > 0);
   const growValid = grow.every((s) => s.trim().length > 0);
-  const canSubmit = !!teamId && teamId !== camperTeamId && !!presentation && glowValid && growValid && !alreadySubmitted && !submitting;
+  const canSubmit = accepting && !!teamId && teamId !== camperTeamId && glowValid && growValid && !alreadySubmitted && !submitting;
 
-  const missing = !teamId || !presentation
-    ? "Pick a team and presentation"
+  const missing = !teamId
+    ? "Pick a team"
     : !glowValid || !growValid
       ? `Fill in all 3 Glows and 3 Grows (${glow.filter((s) => s.trim()).length + grow.filter((s) => s.trim()).length}/6)`
       : null;
@@ -101,6 +114,16 @@ export default function PeerFeedbackForm({ camperTeamId, presenting }: Props) {
         toast.error("You can't review your own team.");
         return;
       }
+      if (res?.error === "closed") {
+        toast.error("Feedback for this presentation just closed.");
+        onRoundStale();
+        return;
+      }
+      if (res?.error === "not_presented") {
+        toast.error("That team hasn't presented yet.");
+        onRoundStale();
+        return;
+      }
       toast.success("🏕️ cAMPfire Feedback submitted!");
       if (res?.points_awarded) showPoints(res.points_awarded);
       setGlow(["", "", ""]);
@@ -112,22 +135,41 @@ export default function PeerFeedbackForm({ camperTeamId, presenting }: Props) {
     } catch (err) {
       toast.error("Failed to submit: " + errorText(err));
     }
-  }, [canSubmit, teamId, glow, grow, trailNotes, presentation, submitFeedback, refetchFeedback, showPoints]);
+  }, [canSubmit, teamId, glow, grow, trailNotes, presentation, submitFeedback, refetchFeedback, showPoints, onRoundStale]);
 
   const update = (setter: typeof setGlow) => (index: number, value: string) =>
     setter((prev) => prev.map((v, i) => (i === index ? value : v)));
 
-  if (!isOpen) {
+  const status = (
+    <FeedbackStatusNote
+      status={round.status}
+      presentationTitle={round.presentationTitle}
+      closesAt={round.closesAt}
+      reviewedCount={reviewedCount}
+      reviewableCount={teams.length}
+    />
+  );
+
+  if (!isOpen || !accepting) {
     return (
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          onClick={() => setIsOpen(true)}
-          className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
-        >
-          <Icon icon="message-circle" className="mr-2 h-4 w-4" />
-          🏕️ Give cAMPfire Feedback
-        </Button>
-        {myTeamIsUp && <span className="text-xs text-muted-foreground">Your team is presenting. You can review the other teams.</span>}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={() => setIsOpen(true)}
+            disabled={!accepting || teams.length === 0}
+            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+          >
+            <Icon icon="message-circle" className="mr-2 h-4 w-4" />
+            🏕️ Give cAMPfire Feedback
+          </Button>
+          {accepting && teams.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {reviewedCount} of {teams.length} reviewed · 3 pts each
+            </span>
+          )}
+          {myTeamIsUp && accepting && <span className="text-xs text-muted-foreground">Your team is presenting. You can review the other teams.</span>}
+        </div>
+        {status}
       </div>
     );
   }
@@ -144,6 +186,8 @@ export default function PeerFeedbackForm({ camperTeamId, presenting }: Props) {
         </Button>
       </div>
 
+      {status}
+
       <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
         <span className="mt-px text-base">💙</span>
         <div>
@@ -154,12 +198,10 @@ export default function PeerFeedbackForm({ camperTeamId, presenting }: Props) {
 
       <FeedbackTargetPicker
         teams={teams}
-        presentations={presentations}
-        teamId={teamId}
         presentation={presentation}
+        teamId={teamId}
         autoFilled={autoFilled}
         onTeamChange={setTeamId}
-        onPresentationChange={setPresentation}
         onUnlock={() => setManual(true)}
       />
 

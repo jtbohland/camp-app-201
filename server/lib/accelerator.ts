@@ -18,7 +18,11 @@ export const BADGE_IDS = {
   QA_CONTRIBUTOR: 137,
 } as const;
 
-// Base points per badge type
+// Base points per badge type.
+// Peer feedback is a flat 3 per review (no accelerator), paid for up to 3 reviews per presentation;
+// see server/lib/feedback-window.ts.
+export const PEER_FEEDBACK_POINTS = 3;
+
 export const BASE_POINTS: Record<number, number> = {
   [BADGE_IDS.CHECK_IN]: 5,
   [BADGE_IDS.PEER_FEEDBACK]: 3,

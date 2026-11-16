@@ -7,6 +7,7 @@ import type { ApiRegistry } from "../../../server/apis/index.js";
 import PickedTeamsRow from "./PickedTeamsRow.js";
 import RoundCounselorControls from "./RoundCounselorControls.js";
 import UpNowCard from "./UpNowCard.js";
+import FeedbackWindowControls, { type FeedbackAction } from "./FeedbackWindowControls.js";
 
 export type PresentationRound = Awaited<ReturnType<ApiRegistry["GetPresentationRound"]["run"]>>;
 
@@ -42,7 +43,7 @@ export default function PresentationOrderStrip({ round, refetch }: Props) {
   }, [pickNext, refetch]);
 
   const handleAction = useCallback(
-    async (action: "start" | "undo_last" | "restart" | "end", presentationId: number | null) => {
+    async (action: "start" | "undo_last" | "restart" | "end" | FeedbackAction, presentationId: number | null) => {
       try {
         const res = await setRound({ action, presentation_id: presentationId });
         if (res?.success) toast.success(res.message);
@@ -90,6 +91,14 @@ export default function PresentationOrderStrip({ round, refetch }: Props) {
       <PickedTeamsRow picked={picked} hasRubric={hasRubric} judgesNeeded={round.judges_needed} />
 
       <RoundStatus round={round} hasRubric={hasRubric} picking={picking} onPick={handlePick} />
+
+      {isCounselor && (
+        <FeedbackWindowControls
+          feedback={round.feedback}
+          busy={updating}
+          onAction={(a) => handleAction(a, null)}
+        />
+      )}
 
       {isCounselor && (
         <RoundCounselorControls

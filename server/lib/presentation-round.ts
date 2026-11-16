@@ -1,29 +1,52 @@
 import { z } from "@superblocksteam/sdk-api";
 
+/** A counselor's manual choice for a presentation's feedback window (overrides auto-close). */
+export type FeedbackOverride = "closed" | "reopened";
+
 /** Round state for one cohort: which presentation is running, and the teams picked for each one (in order). */
 export type RoundState = {
   active_presentation_id: number | null;
   picks: Record<string, number[]>;
   last_pick_at: string | null;
+  /** When the last team was picked, per presentation id. */
+  all_picked_at: Record<string, string>;
+  /** Counselor close/reopen of cAMPfire feedback, per presentation id. */
+  feedback_override: Record<string, FeedbackOverride>;
 };
 
-export const EMPTY_ROUND: RoundState = { active_presentation_id: null, picks: {}, last_pick_at: null };
+export const EMPTY_ROUND: RoundState = {
+  active_presentation_id: null, picks: {}, last_pick_at: null, all_picked_at: {}, feedback_override: {},
+};
+
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 export const roundKey = (cohortId: number) => `presentation_round_cohort_${Math.trunc(cohortId)}`;
 
 export const TEAM_SESSION_TYPES = ["team_presentation", "team_workshop", "hackathon"];
 
+function emptyRound(): RoundState {
+  return { ...EMPTY_ROUND, picks: {}, all_picked_at: {}, feedback_override: {} };
+}
+
 function parseRound(raw: string | null | undefined): RoundState {
-  if (!raw) return { ...EMPTY_ROUND, picks: {} };
+  if (!raw) return emptyRound();
   try {
     const p = JSON.parse(raw) as Partial<RoundState>;
+    const overrides: Record<string, FeedbackOverride> = {};
+    if (isObject(p.feedback_override)) {
+      for (const [k, v] of Object.entries(p.feedback_override)) {
+        if (v === "closed" || v === "reopened") overrides[k] = v;
+      }
+    }
     return {
       active_presentation_id: typeof p.active_presentation_id === "number" ? p.active_presentation_id : null,
-      picks: p.picks && typeof p.picks === "object" ? (p.picks as Record<string, number[]>) : {},
+      picks: isObject(p.picks) ? (p.picks as Record<string, number[]>) : {},
       last_pick_at: typeof p.last_pick_at === "string" ? p.last_pick_at : null,
+      all_picked_at: isObject(p.all_picked_at) ? (p.all_picked_at as Record<string, string>) : {},
+      feedback_override: overrides,
     };
   } catch {
-    return { ...EMPTY_ROUND, picks: {} };
+    return emptyRound();
   }
 }
 
