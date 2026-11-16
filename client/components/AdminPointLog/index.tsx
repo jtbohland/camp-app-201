@@ -9,6 +9,7 @@ import { executeApi } from "@/lib/executeApi";
 import PointLogFilters, { EMPTY_POINT_LOG_FILTERS, type PointLogFilterValues } from "@/components/PointLogFilters/index.js";
 import PointLogTable, { awardedByLabel, ptDate, ptTime, type PointLogEntry } from "@/components/PointLogTable/index.js";
 import PointsAuditPanel from "@/components/PointsAuditPanel/index.js";
+import RemovePointsDialog, { type RemovableEntry } from "@/components/RemovePointsDialog/index.js";
 
 const PAGE_SIZE = 50;
 
@@ -40,6 +41,11 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
   const [filters, setFilters] = useState<PointLogFilterValues>(EMPTY_POINT_LOG_FILTERS);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [removing, setRemoving] = useState<RemovableEntry | null>(null);
+  const handleRemove = useCallback(
+    (e: PointLogEntry) => setRemoving({ id: e.id, points: e.points, reason: e.reason, camperName: e.camper_name }),
+    []
+  );
   const debounced = useDebounced(filters);
 
   useEffect(() => setPage(0), [debounced]);
@@ -94,7 +100,7 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
             </h2>
             <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
               Every time a cAMPer earns or loses points, newest first. "Total points" is the cAMPer's running total right
-              after that entry. Times are Pacific.
+              after that entry. Times are Pacific. Use Remove / Undo to cancel a wrong award or an unfair deduction.
             </p>
           </div>
           <div className="flex gap-2">
@@ -142,7 +148,7 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
             {fetching && <span>Updating…</span>}
           </div>
           <div className={fetching ? "opacity-70" : ""}>
-            <PointLogTable entries={(data?.entries ?? []) as PointLogEntry[]} onCamperClick={onCamperClick} />
+            <PointLogTable entries={(data?.entries ?? []) as PointLogEntry[]} onCamperClick={onCamperClick} onRemove={handleRemove} />
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">
@@ -159,6 +165,7 @@ export default function AdminPointLog({ onCamperClick }: { onCamperClick?: (id: 
           </div>
         </>
       )}
+      <RemovePointsDialog entry={removing} onClose={() => setRemoving(null)} />
     </div>
   );
 }

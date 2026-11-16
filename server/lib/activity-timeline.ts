@@ -119,6 +119,8 @@ export async function loadActivityTimeline(
          SELECT 'points:' || pl.id, 'points', 'missed', 'Lost ' || (-pl.points) || ' pts', NULLIF(pl.reason, ''),
                 pl.created_at::timestamptz, pl.points
          FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points < 0
+           AND pl.reverses_id IS NULL
+           AND NOT EXISTS (SELECT 1 FROM camp201_points_log r WHERE r.reverses_id = pl.id)
        ) e
        WHERE e.at IS NOT NULL
        ORDER BY e.at DESC

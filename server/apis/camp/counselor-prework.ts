@@ -239,7 +239,7 @@ export const CounselorCompletePrework = api({
     if (camper.penalty_given && !camper.penalty_reversed) {
       const rev = await db.query(
         `WITH pen AS (
-           SELECT points FROM camp201_points_log
+           SELECT id, points FROM camp201_points_log
            WHERE camper_id = $1 AND category = 'prework_penalty' LIMIT 1
          ),
          ok AS (
@@ -252,12 +252,12 @@ export const CounselorCompletePrework = api({
            ) AS all_on_time
          ),
          ins AS (
-           INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-           SELECT $1, -pen.points, 'Missed-deadline penalty reversed (pre-work marked complete by a counselor)', $2, 'prework_penalty_reversed'
+           INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category, reverses_id)
+           SELECT $1, -pen.points, 'Missed-deadline penalty reversed (pre-work marked complete by a counselor)', $2, 'prework_penalty_reversed', pen.id
            FROM pen, ok
            WHERE ok.all_on_time AND pen.points < 0
              AND NOT EXISTS (SELECT 1 FROM camp201_points_log
-                             WHERE camper_id = $1 AND category = 'prework_penalty_reversed')
+                             WHERE camper_id = $1 AND (category = 'prework_penalty_reversed' OR reverses_id = pen.id))
            RETURNING points
          )
          SELECT COALESCE((SELECT SUM(points) FROM ins), 0)::int AS pts`,

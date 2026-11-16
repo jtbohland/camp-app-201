@@ -7,13 +7,17 @@ import { dietaryLabel, isAllergy } from "@/lib/dietary.js";
 import { EmptyLine, ReportSection, ReportStat, fmtDate } from "./ReportSection.js";
 import type { ReportCardData } from "./types.js";
 import type { IconName } from "lucide-react/dynamic";
+import EntryStatus from "@/components/RemovePointsDialog/EntryStatus.js";
+import RemovePointsDialog, { type RemovableEntry } from "@/components/RemovePointsDialog/index.js";
 
 type Props = { data: ReportCardData };
 
-/** Gains and losses with the full history. */
-export function PointsSection({ data }: Props) {
+/** Gains and losses with the full history. Counselors can remove a wrong entry. */
+export function PointsSection({ data, canRemove = false }: Props & { canRemove?: boolean }) {
   const s = data.stats!;
   const [showAll, setShowAll] = useState(false);
+  const [removing, setRemoving] = useState<RemovableEntry | null>(null);
+  const camperName = `${data.profile!.first_name ?? ""} ${data.profile!.last_name ?? ""}`.trim();
   const rows = showAll ? data.points_log : data.points_log.slice(0, 10);
   return (
     <ReportSection icon="zap" iconClass="text-amber-500" title="Points" aside={`${data.points_log.length} entries`}>
@@ -26,15 +30,26 @@ export function PointsSection({ data }: Props) {
         <EmptyLine>No points recorded yet</EmptyLine>
       ) : (
         <div className="divide-y divide-border">
-          {rows.map((r, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 py-1.5">
+          {rows.map((r) => (
+            <div key={r.id} className={`flex items-center justify-between gap-3 py-1.5 ${r.reversed ? "opacity-60" : ""}`}>
               <div className="min-w-0">
-                <p className="truncate text-xs text-foreground">{r.reason || "Points"}</p>
+                <p className="truncate text-xs text-foreground" title={r.reason ?? undefined}>{r.reason || "Points"}</p>
                 <p className="text-[10px] text-muted-foreground">{fmtDate(r.created_at, true)}</p>
               </div>
-              <span className={`shrink-0 text-xs font-bold ${r.points < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                {r.points > 0 ? `+${r.points}` : r.points}
-              </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {(canRemove || r.reversed || r.is_reversal) && (
+                  <EntryStatus
+                    points={r.points}
+                    category={r.category}
+                    reversed={r.reversed}
+                    isReversal={r.is_reversal}
+                    onRemove={canRemove ? () => setRemoving({ id: r.id, points: r.points, reason: r.reason, camperName }) : undefined}
+                  />
+                )}
+                <span className={`text-xs font-bold ${r.reversed ? "line-through" : ""} ${r.points < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                  {r.points > 0 ? `+${r.points}` : r.points}
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -44,6 +59,7 @@ export function PointsSection({ data }: Props) {
           {showAll ? "Show less" : `Show all ${data.points_log.length}`}
         </button>
       )}
+      {canRemove && <RemovePointsDialog entry={removing} onClose={() => setRemoving(null)} />}
     </ReportSection>
   );
 }

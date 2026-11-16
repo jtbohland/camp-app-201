@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
+import { cohortIdSql, getCounselorAccess, resolveViewCohort } from "../../lib/cohort.js";
 import { buildFairCard, type BingoPerson } from "../../lib/bingo.js";
+import { getBingoGameState } from "../../lib/bingo-state.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -19,7 +20,19 @@ const CardOutputSchema = z.object({
   bingos_claimed: z.array(z.string()),
   penalty_count: z.number(),
   camper_names: z.array(z.object({ id: z.coerce.number(), first_name: z.string(), last_name: z.string() })),
+  /** Counselor ended the game: no more guesses or points. */
+  closed: z.boolean(),
+  closed_at: z.string().nullable(),
+  /** Counselor revealed the answers to everyone. */
+  revealed: z.boolean(),
+  /** Square owner names by camper id. Only sent to counselors or once answers are revealed. */
+  owner_names: z.record(z.string(), z.string()),
 });
+
+type Square = z.infer<typeof SquareSchema>;
+
+/** Squares tied to a real cAMPer (not FREE, not generic filler). */
+const realSquares = (card: Square[]) => card.filter((s) => !s.is_free && s.owner_camper_id > 0).length;
 
 export default api({
   name: "GetBingoCard",
@@ -32,9 +45,36 @@ export default api({
   }),
   output: CardOutputSchema,
   async run(ctx, { presentation_id, camper_id, is_admin }) {
+    const db = ctx.integrations.camp_201_db;
     // Viewing cohort (active, or a counselor's chosen past cohort). Past view never creates cards.
-    const view = await resolveViewCohort(ctx.integrations.camp_201_db, ctx.user.email);
+    const [view, game, access] = await Promise.all([
+      resolveViewCohort(db, ctx.user.email),
+      getBingoGameState(db, presentation_id),
+      getCounselorAccess(db, ctx.user.email),
+    ]);
     const VIEW = cohortIdSql(view.cohortId);
+    const showAnswers = game.revealed || (access.isAdmin && is_admin === true);
+
+    /** Names for every square owner on this card, when answers may be shown. */
+    const ownerNames = async (card: Square[]): Promise<Record<string, string>> => {
+      if (!showAnswers) return {};
+      const ids = Array.from(new Set(card.map((s) => s.owner_camper_id).filter((id) => id > 0)));
+      if (ids.length === 0) return {};
+      const rows = await db.query(
+        `SELECT id, TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) AS name
+         FROM camp201_campers WHERE id = ANY($1::int[]) LIMIT 50`,
+        z.object({ id: z.coerce.number(), name: z.string() }),
+        [ids],
+        { label: "Fireside Finder: answer names" }
+      );
+      return Object.fromEntries(rows.map((r) => [String(r.id), r.name]));
+    };
+    const extras = async (card: Square[]) => ({
+      closed: game.closed,
+      closed_at: game.closedAt,
+      revealed: game.revealed,
+      owner_names: await ownerNames(card),
+    });
     // Check for existing card
     const existing = await ctx.integrations.camp_201_db.query(
       `SELECT card, found_squares, last_wrong_guess_camper_id, score, bingos_claimed, penalty_count
@@ -61,9 +101,12 @@ export default api({
     if (existing.length > 0) {
       const e = existing[0];
       const card = typeof e.card === "string" ? JSON.parse(e.card) : e.card;
+      const found = (typeof e.found_squares === "string" ? JSON.parse(e.found_squares) : e.found_squares) ?? {};
+      // A card made before the cohort filled in their profiles is all generic filler: no square belongs
+      // to anyone, so nothing can ever be found or revealed. While the game is open, rebuild it.
+      const stale = Array.isArray(card) && card.length === 25 && realSquares(card) === 0 && !game.closed && !view.isPast;
       // If card has content (not reset), return it
-      if (Array.isArray(card) && card.length === 25) {
-        const found = typeof e.found_squares === "string" ? JSON.parse(e.found_squares) : e.found_squares;
+      if (Array.isArray(card) && card.length === 25 && !stale) {
         const bingos = typeof e.bingos_claimed === "string" ? JSON.parse(e.bingos_claimed) : e.bingos_claimed;
         return {
           card,
@@ -73,13 +116,14 @@ export default api({
           bingos_claimed: bingos as string[],
           penalty_count: e.penalty_count,
           camper_names: campers,
+          ...(await extras(card)),
         };
       }
-      // Card was reset — will regenerate below
+      // Card was reset (or stale) — will regenerate below
     }
 
-    // Read-only past view: show an empty card rather than generating and saving one.
-    if (view.isPast) {
+    // Read-only past view, or a game that's over: show an empty card rather than generating one.
+    if (view.isPast || game.closed) {
       return {
         card: [],
         found_squares: {} as Record<string, number>,
@@ -88,6 +132,7 @@ export default api({
         bingos_claimed: [],
         penalty_count: 0,
         camper_names: campers,
+        ...(await extras([])),
       };
     }
 
@@ -144,6 +189,7 @@ export default api({
       bingos_claimed: [],
       penalty_count: 0,
       camper_names: campers,
+      ...(await extras(card)),
     };
   },
 });
