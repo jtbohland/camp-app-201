@@ -202,6 +202,7 @@ import AddNewHire from './camp/add-new-hire.js';
 import GetCampSnapshot from './camp/get-camp-snapshot.js';
 import GetCamperReportCard, { GetManagerReportCard } from './camp/get-camper-report-card.js';
 import GetCamperActivity from './camp/get-camper-activity.js';
+import { GetCamperPreworkChecklist, CounselorCompletePrework } from './camp/counselor-prework.js';
 import { GetManagerTodayFeed, SendManagerBroadcast } from './camp/manager-tools.js';
 import { MarkSpeakerLinkCopied, AnswerExecQuestion } from './camp/speaker-access.js';
 import SetupCheckinTeamRace from './camp/setup-checkin-team-race.js';
@@ -455,6 +456,8 @@ const apis = {
   GetCamperReportCard,
   GetManagerReportCard,
   GetCamperActivity,
+  GetCamperPreworkChecklist,
+  CounselorCompletePrework,
   GetManagerTodayFeed,
   SendManagerBroadcast,
   MarkSpeakerLinkCopied,

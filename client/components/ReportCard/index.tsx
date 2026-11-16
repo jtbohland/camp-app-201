@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import ActivityTimeline from "@/components/ActivityTimeline/index.js";
+import CounselorPreworkDialog from "@/components/CounselorPreworkDialog/index.js";
 import ReportHeader from "./ReportHeader.js";
 import ManagerConversationsSection from "./ManagerConversationsSection.js";
 import {
@@ -34,6 +35,7 @@ export default function ReportCard({ camperId, viewer = "counselor", conversatio
   const counselorQuery = useApiData("GetCamperReportCard", { camper_id: camperId }, { enabled: !isManager });
   const managerQuery = useApiData("GetManagerReportCard", { camper_id: camperId }, { enabled: isManager });
   const { data, loading, fetching, isError, error, refetch } = isManager ? managerQuery : counselorQuery;
+  const [preworkOpen, setPreworkOpen] = useState(false);
 
   if (loading) {
     return (
@@ -62,6 +64,12 @@ export default function ReportCard({ camperId, viewer = "counselor", conversatio
     <div className={`space-y-4 print:space-y-3 ${fetching ? "opacity-70" : ""}`}>
       <div className="flex items-center justify-end gap-2 print:hidden">
         {fetching && <span className="text-xs text-muted-foreground">Updating…</span>}
+        {!isManager && data.stats.prework_open.length > 0 && (
+          <Button variant="outline" size="sm" onClick={() => setPreworkOpen(true)}>
+            <Icon icon="list-checks" className="mr-1 h-4 w-4" />
+            Mark pre-work complete
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => window.print()}>
           <Icon icon="printer" className="mr-1 h-4 w-4" />
           Print / save PDF
@@ -82,6 +90,7 @@ export default function ReportCard({ camperId, viewer = "counselor", conversatio
         <TeamSection data={data} />
         <ProfileSection data={data} showPin={!isManager} />
       </div>
+      {!isManager && <CounselorPreworkDialog camperId={camperId} open={preworkOpen} onOpenChange={setPreworkOpen} />}
     </div>
   );
 }

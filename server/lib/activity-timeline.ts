@@ -96,7 +96,8 @@ export async function loadActivityTimeline(
          FROM camp201_wheel_rounds w WHERE w.pitcher_id = $1
 
          UNION ALL
-         SELECT 'prework:' || pw.id, 'prework', 'done', 'Finished pre-work: ' || COALESCE(jc.title, pw.item), NULL,
+         SELECT 'prework:' || pw.id, 'prework', 'done', 'Finished pre-work: ' || COALESCE(jc.title, pw.item),
+                CASE WHEN pw.completed_by IS NOT NULL THEN 'Marked complete by a counselor' END,
                 COALESCE(pw.completed_at, pw.created_at)::timestamptz, NULL
          FROM camp201_prework pw
          LEFT JOIN LATERAL (
