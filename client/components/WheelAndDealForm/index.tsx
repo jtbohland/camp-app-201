@@ -34,8 +34,12 @@ function LockedAnswers({ submission, flagged }: { submission: Record<string, any
     ["AI Coach Score", submission?.ai_coach_score],
   ];
   return (
-    <PreworkDoneTile title="Wheel & Deal — Product Pitch Practice" subtitle="Your submitted results (locked)" flagged={flagged}>
-      {submission ? (
+    <PreworkDoneTile
+      title="Wheel & Deal — Product Pitch Practice"
+      subtitle={submission?.counselor_completed ? "Marked complete by a counselor" : "Your submitted results (locked)"}
+      flagged={flagged}
+    >
+      {submission && !submission.counselor_completed ? (
         <div className="grid grid-cols-2 gap-2">
           {rows.map(([label, value]) => (
             <div key={label} className="rounded-md border border-camp-green/20 bg-background px-3 py-2">

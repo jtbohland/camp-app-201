@@ -27,6 +27,9 @@ const ASCENT_SUBTITLE = "Already completed in cAMP Ascent onboarding · +5 pts";
 
 function CompletedChallenger({ submission, flagged, exempt }: { submission: Record<string, any> | null; flagged?: boolean; exempt: boolean }) {
   const hasShots = Array.isArray(submission?.screenshots) && submission!.screenshots.length > 0;
+  if (submission?.counselor_completed && !hasShots) {
+    return <PreworkDoneTile title="Challenger Sales Methodology" subtitle="Marked complete by a counselor" flagged={flagged} />;
+  }
   if (submission?.auto_completed || (exempt && !hasShots)) {
     return <PreworkDoneTile title="Challenger Sales Methodology" subtitle={ASCENT_SUBTITLE} flagged={flagged} />;
   }
