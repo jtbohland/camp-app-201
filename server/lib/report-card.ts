@@ -72,7 +72,17 @@ const CountsRow = z.object({
   points_lost: z.coerce.number(),
 });
 
-const PointsRow = z.object({ points: z.coerce.number(), reason: z.string().nullable(), created_at: z.string() });
+const PointsRow = z.object({
+  id: z.coerce.number(),
+  points: z.coerce.number(),
+  reason: z.string().nullable(),
+  created_at: z.string(),
+  category: z.string().nullable(),
+  /** Removed by a counselor (an offsetting entry exists). */
+  reversed: z.boolean(),
+  /** This entry is a counselor removal of another entry. */
+  is_reversal: z.boolean(),
+});
 const CheckinRow = z.object({ session_label: z.string().nullable(), timing: z.string().nullable(), points_awarded: z.coerce.number().nullable(), checked_in_at: z.string() });
 const BadgeRow = z.object({ id: z.coerce.number(), name: z.string(), description: z.string().nullable(), icon: z.string().nullable(), color: z.string().nullable(), earn_count: z.coerce.number().nullable(), earned: z.boolean() });
 const AbsenceRow = z.object({ id: z.coerce.number(), reason: z.string().nullable(), start_time: z.string().nullable(), end_time: z.string().nullable(), minutes: z.coerce.number(), approval_type: z.string(), status: z.string(), approved_by: z.string().nullable(), created_at: z.string() });
@@ -180,18 +190,22 @@ export async function loadReportCard(
               AND NOT EXISTS (SELECT 1 FROM camp201_prework pw WHERE pw.user_id = $1 AND pw.item = jc.item_key AND pw.completed = true)
             ORDER BY jc.item_key, jc.sort_order
           ) t) AS prework_open,
-         (SELECT COALESCE(SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points > 0) AS points_gained,
-         (SELECT COALESCE(-SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points < 0) AS points_lost
+         (SELECT COALESCE(SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points > 0
+            AND pl.reverses_id IS NULL AND NOT EXISTS (SELECT 1 FROM camp201_points_log r WHERE r.reverses_id = pl.id)) AS points_gained,
+         (SELECT COALESCE(-SUM(pl.points),0) FROM camp201_points_log pl WHERE pl.camper_id = $1 AND pl.points < 0
+            AND pl.reverses_id IS NULL AND NOT EXISTS (SELECT 1 FROM camp201_points_log r WHERE r.reverses_id = pl.id)) AS points_lost
        LIMIT 1`,
       CountsRow,
       [camperId, p.cohort_id, p.team_id, p.points],
       { label: "Report card: engagement counts" }
     ),
     db.query(
-      `SELECT points, reason,
-              to_char(created_at::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
-       FROM camp201_points_log
-       WHERE camper_id = $1 AND points <> 0 ORDER BY created_at DESC, id DESC LIMIT 100`,
+      `SELECT pl.id, pl.points, pl.reason, pl.category,
+              to_char(pl.created_at::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
+              EXISTS (SELECT 1 FROM camp201_points_log r WHERE r.reverses_id = pl.id) AS reversed,
+              (pl.reverses_id IS NOT NULL) AS is_reversal
+       FROM camp201_points_log pl
+       WHERE pl.camper_id = $1 AND pl.points <> 0 ORDER BY pl.created_at DESC, pl.id DESC LIMIT 100`,
       PointsRow, [camperId], { label: "Report card: points history" }
     ),
     db.query(

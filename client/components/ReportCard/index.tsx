@@ -80,7 +80,7 @@ export default function ReportCard({ camperId, viewer = "counselor", conversatio
       <div className="grid gap-4 lg:grid-cols-2">
         <ActivityTimeline camperId={camperId} viewer={viewer} canReact={isManager && canReact} camperFirstName={data.profile.first_name} />
         <div className="space-y-4">
-          <PointsSection data={data} />
+          <PointsSection data={data} canRemove={!isManager} />
           <AttendanceSection data={data} />
         </div>
         <EngagementSection data={data} />

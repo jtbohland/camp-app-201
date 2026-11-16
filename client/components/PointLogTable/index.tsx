@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import EntryStatus from "@/components/RemovePointsDialog/EntryStatus.js";
 
 export type PointLogEntry = {
   id: number;
@@ -10,6 +11,9 @@ export type PointLogEntry = {
   awarded_by: string | null;
   created_at: string;
   running_total: number;
+  category: string | null;
+  reversed: boolean;
+  is_reversal: boolean;
 };
 
 const PT = "America/Los_Angeles";
@@ -25,9 +29,15 @@ export function awardedByLabel(by: string | null): string {
   return by;
 }
 
-const Row = memo(function Row({ e, onCamperClick }: { e: PointLogEntry; onCamperClick?: (id: number) => void }) {
+type RowProps = {
+  e: PointLogEntry;
+  onCamperClick?: (id: number) => void;
+  onRemove?: (e: PointLogEntry) => void;
+};
+
+const Row = memo(function Row({ e, onCamperClick, onRemove }: RowProps) {
   return (
-    <TableRow>
+    <TableRow className={e.reversed ? "opacity-60" : ""}>
       <TableCell className="font-medium">
         {onCamperClick ? (
           <button className="hover:underline text-left" onClick={() => onCamperClick(e.camper_id)}>
@@ -37,7 +47,11 @@ const Row = memo(function Row({ e, onCamperClick }: { e: PointLogEntry; onCamper
           e.camper_name
         )}
       </TableCell>
-      <TableCell className={`text-right font-mono font-semibold ${e.points > 0 ? "text-camp-green" : e.points < 0 ? "text-red-600" : "text-muted-foreground"}`}>
+      <TableCell
+        className={`text-right font-mono font-semibold ${e.reversed ? "line-through" : ""} ${
+          e.points > 0 ? "text-camp-green" : e.points < 0 ? "text-red-600" : "text-muted-foreground"
+        }`}
+      >
         {e.points > 0 ? `+${e.points}` : e.points}
       </TableCell>
       <TableCell className="max-w-[340px]">
@@ -47,11 +61,30 @@ const Row = memo(function Row({ e, onCamperClick }: { e: PointLogEntry; onCamper
       <TableCell className="whitespace-nowrap">{ptDate(e.created_at)}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">{ptTime(e.created_at)}</TableCell>
       <TableCell className="text-right font-mono">{e.running_total}</TableCell>
+      {onRemove && (
+        <TableCell className="text-right">
+          <EntryStatus
+            points={e.points}
+            category={e.category}
+            reversed={e.reversed}
+            isReversal={e.is_reversal}
+            onRemove={() => onRemove(e)}
+          />
+        </TableCell>
+      )}
     </TableRow>
   );
 });
 
-export default function PointLogTable({ entries, onCamperClick }: { entries: PointLogEntry[]; onCamperClick?: (id: number) => void }) {
+type Props = {
+  entries: PointLogEntry[];
+  onCamperClick?: (id: number) => void;
+  /** When set, each entry gets a Remove / Undo button. */
+  onRemove?: (e: PointLogEntry) => void;
+};
+
+export default function PointLogTable({ entries, onCamperClick, onRemove }: Props) {
+  const cols = onRemove ? 7 : 6;
   return (
     <div className="rounded-lg border border-border bg-background overflow-x-auto">
       <Table>
@@ -63,17 +96,18 @@ export default function PointLogTable({ entries, onCamperClick }: { entries: Poi
             <TableHead>Date earned</TableHead>
             <TableHead>Time earned (PT)</TableHead>
             <TableHead className="text-right">Total points</TableHead>
+            {onRemove && <TableHead className="w-24" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {entries.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-10">
+              <TableCell colSpan={cols} className="text-center text-sm text-muted-foreground py-10">
                 No point entries match these filters.
               </TableCell>
             </TableRow>
           ) : (
-            entries.map((e) => <Row key={e.id} e={e} onCamperClick={onCamperClick} />)
+            entries.map((e) => <Row key={e.id} e={e} onCamperClick={onCamperClick} onRemove={onRemove} />)
           )}
         </TableBody>
       </Table>

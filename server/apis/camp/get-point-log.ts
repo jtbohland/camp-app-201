@@ -12,6 +12,11 @@ const EntrySchema = z.object({
   awarded_by: z.string().nullable(),
   created_at: z.string(),
   running_total: z.coerce.number(),
+  category: z.string().nullable(),
+  /** This entry was removed by a counselor (an offsetting entry exists). */
+  reversed: z.boolean(),
+  /** This entry IS a counselor removal of another entry. */
+  is_reversal: z.boolean(),
 });
 
 /** Optional filter: null = no filter. Dates are YYYY-MM-DD and times HH:MM, both Pacific. */
@@ -63,7 +68,9 @@ export default api({
     // Running total is computed over each cAMPer's whole history, before any filter.
     const base = `
       WITH logged AS (
-        SELECT pl.id, pl.camper_id, pl.points, pl.reason, pl.awarded_by, pl.created_at,
+        SELECT pl.id, pl.camper_id, pl.points, pl.reason, pl.awarded_by, pl.created_at, pl.category,
+               EXISTS (SELECT 1 FROM camp201_points_log r WHERE r.reverses_id = pl.id) AS reversed,
+               (pl.reverses_id IS NOT NULL) AS is_reversal,
                (pl.created_at AT TIME ZONE 'America/Los_Angeles') AS pt,
                SUM(pl.points) OVER (PARTITION BY pl.camper_id ORDER BY pl.created_at, pl.id) AS running_total
         FROM camp201_points_log pl
@@ -87,7 +94,7 @@ export default api({
         `${base}
          SELECT id, camper_id, camper_name, points, COALESCE(reason, '') AS reason, awarded_by,
                 to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
-                running_total
+                running_total, category, reversed, is_reversal
          FROM filtered
          ORDER BY created_at DESC, id DESC
          LIMIT $8 OFFSET $9`,

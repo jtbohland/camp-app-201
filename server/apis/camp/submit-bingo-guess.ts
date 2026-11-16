@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { getBingoGameState } from "../../lib/bingo-state.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -35,6 +36,12 @@ export default api({
     penalty: z.boolean(),
   }),
   async run(ctx, { presentation_id, camper_id, square_idx, guessed_camper_id }) {
+    // Game over: a counselor ended Fireside Finder, so no more guesses or points.
+    const game = await getBingoGameState(ctx.integrations.camp_201_db, presentation_id);
+    if (game.closed) {
+      return { success: false, correct: false, message: "Fireside Finder has ended. No more guesses.", points_delta: 0, new_bingos: [], is_blackout: false, penalty: false };
+    }
+
     // Get the card
     const cards = await ctx.integrations.camp_201_db.query(
       `SELECT card, found_squares, last_wrong_guess_camper_id, score, bingos_claimed, penalty_count
@@ -183,8 +190,8 @@ export default api({
         ? `Fireside Finder: correct guess + BINGO!`
         : `Fireside Finder: correct guess`;
       await ctx.integrations.camp_201_db.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
-         VALUES ($1, $2, $3, 'bingo', 4)`,
+        `INSERT INTO camp201_points_log (camper_id, points, reason, category)
+         VALUES ($1, $2, $3, 'bingo')`,
         [camper_id, pointsDelta, reason],
         { label: "Award bingo points" }
       );

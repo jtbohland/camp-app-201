@@ -145,6 +145,8 @@ import SavePresentationResponses from './camp/save-presentation-responses.js';
 import MigrateBingo from './camp/migrate-bingo.js';
 import GetBingoCard from './camp/get-bingo-card.js';
 import SubmitBingoGuess from './camp/submit-bingo-guess.js';
+import SetBingoGameState from './camp/set-bingo-game-state.js';
+import ReversePointEntry from './camp/reverse-point-entry.js';
 import ScoreTeamPresentation from './camp/score-team-presentation.js';
 import GetRubricTemplate from './camp/get-rubric-template.js';
 import GetPointsBreakdown from './camp/get-points-breakdown.js';
@@ -388,6 +390,8 @@ const apis = {
   MigrateBingo,
   GetBingoCard,
   SubmitBingoGuess,
+  SetBingoGameState,
+  ReversePointEntry,
   ScoreTeamPresentation,
   GetRubricTemplate,
   GetPointsBreakdown,

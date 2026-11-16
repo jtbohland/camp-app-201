@@ -90,7 +90,8 @@ export default api({
               ) AS eligible,
               COALESCE(c.profile_completed, false) AS profile_completed,
               EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'prework_early_bird') AS early_bird_given,
-              EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'prework_penalty') AS penalty_given,
+              (EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'prework_penalty')
+                AND NOT EXISTS (SELECT 1 FROM camp201_points_log WHERE camper_id = c.id AND category = 'prework_penalty_reversed')) AS penalty_given,
               camp201_config_int('deadline_penalty_incomplete', 10) AS penalty_points,
               camp201_config_int('early_bird_2day_bonus', 15) AS early_bird_2day,
               camp201_config_int('early_bird_1day_bonus', 10) AS early_bird_1day
