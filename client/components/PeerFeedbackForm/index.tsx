@@ -1,287 +1,204 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
-import { toast } from "sonner";
+import FeedbackLines from "./FeedbackLines.js";
+import FeedbackTargetPicker from "./FeedbackTargetPicker.js";
 
 type Props = {
-  camperId: number;
   camperTeamId: number;
+  /** The team the live round picked, and the presentation running. Pre-fills the form. */
+  presenting: { teamId: number; presentationTitle: string } | null;
 };
 
+const TEAM_TYPES = ["team_presentation", "team_workshop", "hackathon"];
+const GLOW_HINTS = ["Their opening hook was incredible...", "Data storytelling was clear and compelling...", "Great energy and confidence on stage..."];
+const GROW_HINTS = ["Could tighten the value prop section...", "More eye contact with the audience...", "Add a stronger closing CTA..."];
+
+function errorText(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
+  return "Request failed";
+}
+
 /**
- * Peer Feedback Form — "Campfire Review"
- *
- * Campers submit structured feedback for other teams' presentations:
- * ☀️ Sunshine = 3 things they loved
- * 🌧️ Rain = 3 areas for growth
- * 📝 Trail Notes = open comments
- *
- * One submission per team per presentation. +5 pts for submitting.
+ * cAMPfire Review: 3 Glows, 3 Grows, and optional Trail Notes for another team's presentation.
+ * One review per cAMPer per team per presentation, never for your own team.
  */
-export default function PeerFeedbackForm({ camperId, camperTeamId }: Props) {
+export default function PeerFeedbackForm({ camperTeamId, presenting }: Props) {
   const showPoints = usePointsBubble();
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [selectedPresentation, setSelectedPresentation] = useState("");
-  const [sunshine, setSunshine] = useState(["", "", ""]);
-  const [rain, setRain] = useState(["", "", ""]);
+  const [teamId, setTeamId] = useState<number | null>(null);
+  const [presentation, setPresentation] = useState("");
+  const [manual, setManual] = useState(false);
+  const [glow, setGlow] = useState(["", "", ""]);
+  const [grow, setGrow] = useState(["", "", ""]);
   const [trailNotes, setTrailNotes] = useState("");
 
   const { run: submitFeedback, loading: submitting } = useApi("SubmitPeerFeedback");
+  const { data: teamsData } = useApiData("GetTeams", {}, { staleTime: 30_000 });
+  const { data: presentationsData } = useApiData("GetPresentations", { status: null }, { staleTime: 30_000 });
+  const { data: feedbackData, refetch: refetchFeedback } = useApiData("GetPeerFeedback", { session_label: null, team_id: null });
 
-  // Get teams for dropdown (excluding your own team)
-  const { data: teamsData } = useApiData("GetTeams", {});
-  const teams = useMemo(() => {
-    const allTeams = (teamsData?.teams ?? []) as Array<{ id: number; name: string }>;
-    return allTeams.filter((t) => t.id !== camperTeamId);
-  }, [teamsData, camperTeamId]);
-
-  // Get presentations for dropdown
-  const { data: presentationsData } = useApiData("GetPresentations", { status: null });
-  const presentations = useMemo(() => {
-    const TEAM_TYPES = ["team_presentation", "team_workshop", "hackathon"];
-    return ((presentationsData?.presentations ?? []) as Array<{ id: number; title: string; presentation_type?: string }>)
+  // You can never review your own team (or the TEST team).
+  const teams = useMemo(
+    () => (teamsData?.teams ?? []).filter((t) => t.id !== camperTeamId && t.name.trim().toUpperCase() !== "TEST"),
+    [teamsData, camperTeamId]
+  );
+  const presentations = useMemo(
+    () => (presentationsData?.presentations ?? [])
       .filter((p) => TEAM_TYPES.includes(p.presentation_type ?? ""))
-      .map((p) => p.title);
-  }, [presentationsData]);
+      .map((p) => p.title),
+    [presentationsData]
+  );
 
-  // Get existing feedback to check for duplicates
-  const { data: existingFeedback, refetch: refetchFeedback } = useApiData("GetPeerFeedback", {
-    session_label: null,
-    team_id: null,
-  });
+  const myTeamIsUp = !!presenting && presenting.teamId === camperTeamId;
+  const canAutoFill = !!presenting && !myTeamIsUp && teams.some((t) => t.id === presenting.teamId);
+  const autoFilled = canAutoFill && !manual;
 
-  // Check if camper already submitted for this team+presentation combo
+  // Follow the live round: whenever a new team is picked, the form points at them.
+  useEffect(() => {
+    if (!canAutoFill || manual || !presenting) return;
+    setTeamId(presenting.teamId);
+    setPresentation(presenting.presentationTitle);
+  }, [canAutoFill, manual, presenting]);
+
   const alreadySubmitted = useMemo(() => {
-    if (!selectedTeamId || !selectedPresentation) return false;
-    const feedbacks = (existingFeedback?.feedback ?? []) as Array<{
-      team_name: string | null;
-      session_label: string;
-      author_name: string;
-    }>;
-    // Check if any feedback from this author exists for this session+team
-    return feedbacks.some(
-      (f) => f.session_label === selectedPresentation && f.team_name === teams.find(t => t.id === selectedTeamId)?.name
-    );
-  }, [selectedTeamId, selectedPresentation, existingFeedback, teams]);
+    if (!teamId || !presentation) return false;
+    return (feedbackData?.my_reviews ?? []).some((r) => r.team_id === teamId && r.session_label === presentation);
+  }, [teamId, presentation, feedbackData]);
 
-  const sunshineValid = sunshine.filter((s) => s.trim().length > 0).length >= 3;
-  const rainValid = rain.filter((r) => r.trim().length > 0).length >= 3;
-  const canSubmit = selectedTeamId && selectedPresentation && sunshineValid && rainValid && !alreadySubmitted && !submitting;
+  const glowValid = glow.every((s) => s.trim().length > 0);
+  const growValid = grow.every((s) => s.trim().length > 0);
+  const canSubmit = !!teamId && teamId !== camperTeamId && !!presentation && glowValid && growValid && !alreadySubmitted && !submitting;
+
+  const missing = !teamId || !presentation
+    ? "Pick a team and presentation"
+    : !glowValid || !growValid
+      ? `Fill in all 3 Glows and 3 Grows (${glow.filter((s) => s.trim()).length + grow.filter((s) => s.trim()).length}/6)`
+      : null;
 
   const handleSubmit = useCallback(async () => {
-    if (!canSubmit) return;
-
+    if (!canSubmit || !teamId) return;
+    const items = [
+      ...glow.map((content) => ({ category: "sunshine" as const, content: content.trim() })),
+      ...grow.map((content) => ({ category: "rain" as const, content: content.trim() })),
+      ...(trailNotes.trim() ? [{ category: "trail_notes" as const, content: trailNotes.trim() }] : []),
+    ];
     try {
-      // Submit each sunshine item
-      for (let i = 0; i < 3; i++) {
-        await submitFeedback({
-          session_label: selectedPresentation,
-          team_id: selectedTeamId,
-          author_id: camperId,
-          category: "sunshine",
-          content: sunshine[i].trim(),
-          points_to_award: i === 0 ? 5 : 0, // Only award points once
-        });
+      const res = await submitFeedback({ session_label: presentation, team_id: teamId, items });
+      if (res?.error === "already_submitted") {
+        toast.info("You've already reviewed this team for this presentation.");
+        await refetchFeedback();
+        return;
       }
-
-      // Submit each rain item
-      for (let i = 0; i < 3; i++) {
-        await submitFeedback({
-          session_label: selectedPresentation,
-          team_id: selectedTeamId,
-          author_id: camperId,
-          category: "rain",
-          content: rain[i].trim(),
-          points_to_award: 0,
-        });
+      if (res?.error === "own_team") {
+        toast.error("You can't review your own team.");
+        return;
       }
-
-      // Submit trail notes if provided
-      if (trailNotes.trim()) {
-        await submitFeedback({
-          session_label: selectedPresentation,
-          team_id: selectedTeamId,
-          author_id: camperId,
-          category: "trail_notes",
-          content: trailNotes.trim(),
-          points_to_award: 0,
-        });
-      }
-
       toast.success("🏕️ cAMPfire Feedback submitted!");
-      showPoints(5);
-
-      // Reset form
-      setSunshine(["", "", ""]);
-      setRain(["", "", ""]);
+      if (res?.points_awarded) showPoints(res.points_awarded);
+      setGlow(["", "", ""]);
+      setGrow(["", "", ""]);
       setTrailNotes("");
-      setSelectedTeamId(null);
-      setSelectedPresentation("");
+      setManual(false);
       setIsOpen(false);
-      refetchFeedback();
+      await refetchFeedback();
     } catch (err) {
-      const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
-      toast.error("Failed to submit: " + msg);
+      toast.error("Failed to submit: " + errorText(err));
     }
-  }, [canSubmit, selectedPresentation, selectedTeamId, camperId, sunshine, rain, trailNotes, submitFeedback, refetchFeedback]);
+  }, [canSubmit, teamId, glow, grow, trailNotes, presentation, submitFeedback, refetchFeedback, showPoints]);
 
-  const updateSunshine = useCallback((index: number, value: string) => {
-    setSunshine((prev) => { const n = [...prev]; n[index] = value; return n; });
-  }, []);
-  const updateRain = useCallback((index: number, value: string) => {
-    setRain((prev) => { const n = [...prev]; n[index] = value; return n; });
-  }, []);
+  const update = (setter: typeof setGlow) => (index: number, value: string) =>
+    setter((prev) => prev.map((v, i) => (i === index ? value : v)));
 
   if (!isOpen) {
     return (
-      <Button
-        onClick={() => setIsOpen(true)}
-        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md"
-      >
-        <Icon icon="message-circle" className="w-4 h-4 mr-2" />
-        🏕️ Give cAMPfire Feedback
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          onClick={() => setIsOpen(true)}
+          className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+        >
+          <Icon icon="message-circle" className="mr-2 h-4 w-4" />
+          🏕️ Give cAMPfire Feedback
+        </Button>
+        {myTeamIsUp && <span className="text-xs text-muted-foreground">Your team is presenting. You can review the other teams.</span>}
+      </div>
     );
   }
 
   return (
-    <Card className="p-6 border-2 border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30 space-y-5">
-      {/* Header */}
+    <Card className="space-y-5 border-2 border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            🏕️ cAMPfire Feedback
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Share thoughtful feedback to help your peers level up
-          </p>
+          <h3 className="flex items-center gap-2 text-lg font-bold">🏕️ cAMPfire Feedback</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Share thoughtful feedback to help your peers level up</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-            <Icon icon="x" className="w-4 h-4" />
-          </Button>
-        </div>
+        <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+          <Icon icon="x" className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Kindness reminder */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex items-start gap-2">
-        <span className="text-base mt-px">💙</span>
+      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+        <span className="mt-px text-base">💙</span>
         <div>
           <span className="font-semibold">Remember:</span> Feedback is a gift, not an attack. Be kind, thoughtful, and intentional.
-          Help your fellow cAMPers grow — the best feedback is specific and actionable.
+          The best feedback is specific and actionable.
         </div>
       </div>
 
-      {/* Team + Presentation Selectors */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Which team?</label>
-          <select
-            value={selectedTeamId ?? ""}
-            onChange={(e) => setSelectedTeamId(e.target.value ? Number(e.target.value) : null)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          >
-            <option value="">Select team...</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Which presentation?</label>
-          <select
-            value={selectedPresentation}
-            onChange={(e) => setSelectedPresentation(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          >
-            <option value="">Select presentation...</option>
-            {presentations.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FeedbackTargetPicker
+        teams={teams}
+        presentations={presentations}
+        teamId={teamId}
+        presentation={presentation}
+        autoFilled={autoFilled}
+        onTeamChange={setTeamId}
+        onPresentationChange={setPresentation}
+        onUnlock={() => setManual(true)}
+      />
 
       {alreadySubmitted && (
-        <div className="bg-amber-100 border border-amber-300 rounded-lg p-3 text-xs text-amber-800 flex items-center gap-2">
-          <Icon icon="check-circle" className="w-4 h-4" />
-          You've already submitted a review for this team's presentation!
+        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 p-3 text-xs text-amber-800">
+          <Icon icon="circle-check" className="h-4 w-4" />
+          You've already reviewed this team for this presentation.
         </div>
       )}
 
-      {/* Glow — 3 things that shined */}
-      <div>
-        <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
-          <span className="text-lg">☀️</span> Glow
-          <span className="text-xs font-normal text-muted-foreground">— 3 things that shined</span>
-        </h4>
-        <div className="space-y-2">
-          {sunshine.map((val, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-amber-400 text-xs font-bold w-4">{i + 1}.</span>
-              <input
-                type="text"
-                value={val}
-                onChange={(e) => updateSunshine(i, e.target.value)}
-                placeholder={i === 0 ? "Their opening hook was incredible..." : i === 1 ? "Data storytelling was clear and compelling..." : "Great energy and confidence on stage..."}
-                className="flex-1 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+      <FeedbackLines icon="☀️" title="Glow" hint="3 things that shined" values={glow} placeholders={GLOW_HINTS} tone="amber" onChange={update(setGlow)} />
+      <FeedbackLines icon="🌱" title="Grow" hint="3 growth opportunities" values={grow} placeholders={GROW_HINTS} tone="green" onChange={update(setGrow)} />
 
-      {/* Grow — 3 areas for growth */}
       <div>
-        <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
-          <span className="text-lg">🌱</span> Grow
-          <span className="text-xs font-normal text-muted-foreground">— 3 growth opportunities</span>
-        </h4>
-        <div className="space-y-2">
-          {rain.map((val, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-green-500 text-xs font-bold w-4">{i + 1}.</span>
-              <input
-                type="text"
-                value={val}
-                onChange={(e) => updateRain(i, e.target.value)}
-                placeholder={i === 0 ? "Could tighten the value prop section..." : i === 1 ? "More eye contact with the audience..." : "Add a stronger closing CTA..."}
-                className="flex-1 rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Trail Notes */}
-      <div>
-        <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
+        <h4 className="mb-2 flex items-center gap-2 text-sm font-bold">
           <span className="text-lg">📝</span> Trail Notes
           <span className="text-xs font-normal text-muted-foreground">— anything else (optional)</span>
         </h4>
         <textarea
           value={trailNotes}
+          maxLength={1000}
           onChange={(e) => setTrailNotes(e.target.value)}
           placeholder="Additional thoughts, shout-outs, or suggestions..."
           rows={2}
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-camp-green/30 resize-none"
+          className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-camp-green/30"
         />
       </div>
 
-      {/* Submit */}
-      <Button
-        onClick={handleSubmit}
-        disabled={!canSubmit}
-        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
-        size="lg"
-      >
-        {submitting ? "Sending..." : "🏕️ Submit cAMPfire Feedback"}
-      </Button>
+      <div className="space-y-1.5">
+        <Button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 font-semibold text-white hover:from-amber-600 hover:to-orange-600"
+          size="lg"
+        >
+          {submitting ? "Sending..." : "🏕️ Submit cAMPfire Feedback"}
+        </Button>
+        {missing && !alreadySubmitted && <p className="text-center text-xs text-muted-foreground">{missing}</p>}
+      </div>
     </Card>
   );
 }

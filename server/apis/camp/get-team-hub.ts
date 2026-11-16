@@ -1,6 +1,9 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { cohortIdSql, resolveViewCohort } from "../../lib/cohort.js";
 import { assertCanView, resolveHubViewer } from "../../lib/team-hub.js";
+import { countJudges } from "../../lib/rubric-judges.js";
+import { isFullyScored } from "../../lib/score-visibility.js";
+import { loadRound } from "../../lib/presentation-round.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -61,6 +64,8 @@ const ScoreRow = z.object({
   scores: z.any(),
   total_score: z.coerce.number(),
   max_score: z.coerce.number(),
+  notes: z.string().nullable(),
+  judge_name: z.string().nullable(),
 });
 
 const ScoreSummarySchema = z.object({
@@ -68,7 +73,13 @@ const ScoreSummarySchema = z.object({
   avg_total: z.number(),
   max: z.number(),
   judge_count: z.number(),
+  /** Judges on the cohort. Scores show to the team once judge_count reaches this. */
+  judges_needed: z.number(),
+  /** Every judge has scored this team (or counselors revealed scores), so the team can see it. */
+  visible_to_team: z.boolean(),
   criteria: z.array(z.object({ name: z.string(), avg: z.number() })),
+  /** Judges' written feedback for the team. */
+  judge_notes: z.array(z.object({ judge_name: z.string(), note: z.string() })),
 });
 
 type Question = { section?: string; questions?: unknown[] };
@@ -111,9 +122,10 @@ export default api({
     const db = ctx.integrations.camp_201_db;
     const viewer = await resolveHubViewer(db, ctx.user.email, team_id);
     assertCanView(viewer);
-    const VIEW = cohortIdSql((await resolveViewCohort(db, ctx.user.email)).cohortId);
+    const viewCohortId = (await resolveViewCohort(db, ctx.user.email)).cohortId;
+    const VIEW = cohortIdSql(viewCohortId);
 
-    const [items, presRows, feedback, scoreRows, orderRows] = await Promise.all([
+    const [items, presRows, feedback, scoreRows, round, judgesNeeded] = await Promise.all([
       db.query(
         `SELECT h.id, h.team_id, h.author_id,
                 (c.first_name || ' ' || c.last_name) AS author_name,
@@ -167,20 +179,19 @@ export default api({
         { label: "Fetch peer feedback for this team" }
       ),
       db.query(
-        `SELECT template_id, scores, total_score, max_score
-         FROM camp201_rubric_scores
-         WHERE team_id = $1 AND cohort_id = ${VIEW}
+        `SELECT rs.template_id, rs.scores, rs.total_score, rs.max_score, rs.notes,
+                COALESCE(rs.judge_name, NULLIF(trim(concat(c.first_name, ' ', c.last_name)), ''), 'Judge') AS judge_name
+         FROM camp201_rubric_scores rs
+         LEFT JOIN camp201_campers c ON c.id = rs.scored_by
+         WHERE rs.team_id = $1 AND rs.cohort_id = ${VIEW}
+         ORDER BY judge_name
          LIMIT 200`,
         ScoreRow,
         [team_id],
         { label: "Fetch rubric scores for this team" }
       ),
-      db.query(
-        `SELECT value FROM camp201_config WHERE key = 'active_presentation_order' LIMIT 1`,
-        z.object({ value: z.string() }),
-        undefined,
-        { label: "Fetch presenting order" }
-      ),
+      viewCohortId !== null ? loadRound(db, viewCohortId) : Promise.resolve(null),
+      viewCohortId !== null ? countJudges(db, viewCohortId) : Promise.resolve(0),
     ]);
 
     // cAMPers only see a presentation's brief (and its board) once counselors unlock it.
@@ -201,11 +212,13 @@ export default api({
       };
     });
 
-    // Rubric averages per presentation, only once revealed (judges' notes stay counselor-only).
+    // Rubric results per presentation. The team sees them (with judges' notes) once every judge has
+    // scored them, or once counselors reveal scores. Counselors always see them.
     const scores = presRows
-      .filter((p) => p.rubric_template_id !== null && (p.scores_revealed || viewer.isCounselor))
+      .filter((p) => p.rubric_template_id !== null)
       .map((p) => {
         const rows = scoreRows.filter((s) => s.template_id === p.rubric_template_id);
+        const visibleToTeam = p.scores_revealed || isFullyScored(rows.length, judgesNeeded);
         const perCriterion = new Map<string, number[]>();
         for (const r of rows) {
           const parsed = (typeof r.scores === "string" ? JSON.parse(r.scores) : r.scores) as Record<string, unknown> | null;
@@ -220,19 +233,29 @@ export default api({
           avg_total: round1(avg(rows.map((r) => r.total_score))),
           max: rows[0]?.max_score ?? 0,
           judge_count: rows.length,
+          judges_needed: judgesNeeded,
+          visible_to_team: visibleToTeam,
           criteria: [...perCriterion.entries()].map(([name, ns]) => ({ name, avg: round1(avg(ns)) })),
+          judge_notes: rows
+            .filter((r) => (r.notes ?? "").trim())
+            .map((r) => ({ judge_name: r.judge_name ?? "Judge", note: (r.notes ?? "").trim() })),
         };
       })
-      .filter((s) => s.judge_count > 0);
+      .filter((s) => s.judge_count > 0 && (s.visible_to_team || viewer.isCounselor));
 
+    // This team's slot in the live presenting round, if it has been picked.
     let presenting_slot: { label: string | null; position: number; total: number } | null = null;
-    try {
-      const parsed = orderRows[0] ? JSON.parse(orderRows[0].value) : null;
-      const order = (parsed?.order ?? []) as { position: number; team_id: number }[];
-      const mine = order.find((o) => Number(o.team_id) === team_id);
-      if (mine) presenting_slot = { label: parsed.label ?? null, position: Number(mine.position), total: order.length };
-    } catch {
-      presenting_slot = null;
+    const activeId = round?.state.active_presentation_id ?? null;
+    if (round && activeId !== null) {
+      const picks = round.state.picks[String(activeId)] ?? [];
+      const idx = picks.indexOf(team_id);
+      if (idx >= 0) {
+        presenting_slot = {
+          label: presRows.find((p) => p.id === activeId)?.title ?? null,
+          position: idx + 1,
+          total: picks.length,
+        };
+      }
     }
 
     return {

@@ -40,11 +40,12 @@ export default function HubPresentationTab(props: Props) {
   const tabs: { id: SubTab; label: string; icon: string; show: boolean }[] = [
     { id: "brief", label: "Brief", icon: "flag", show: true },
     { id: "tool", label: toolLabel ?? "", icon: "pencil-ruler", show: !!toolLabel && !locked },
-    { id: "board", label: `Team board${items.length ? ` (${items.length})` : ""}`, icon: "layout-list", show: true },
+    { id: "board", label: `Team board${items.length ? ` (${items.length})` : ""}`, icon: "layout-list", show: !locked },
     { id: "feedback", label: `Feedback${feedbackCount ? ` (${feedbackCount})` : ""}`, icon: "message-circle", show: isTeamWork(p.presentation_type) },
   ];
-  // Teams land on the tool when there is one (that's where the work happens).
-  const [tab, setTab] = useState<SubTab>(toolLabel && !locked ? "tool" : "brief");
+  // Teams land on the tool when there is one (that's where the work happens). A locked session only
+  // opens for cAMPers once feedback is in, so they land on Feedback.
+  const [tab, setTab] = useState<SubTab>(locked && feedbackCount > 0 ? "feedback" : toolLabel && !locked ? "tool" : "brief");
   const active = tabs.find((t) => t.id === tab && t.show) ? tab : "brief";
 
   return (
@@ -105,7 +106,7 @@ export default function HubPresentationTab(props: Props) {
         <HubFeedbackReceived
           feedback={feedback}
           score={score}
-          scoreHiddenFromTeam={isCounselor && !p.scores_revealed}
+          scoreHiddenFromTeam={isCounselor && !!score && !score.visible_to_team}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi.js";
 import LogoVoteTile, { type LogoVoteTeam } from "@/components/LogoVoteTile/index.js";
 import LogoVoteCounselorBar from "@/components/LogoVoteCounselorBar/index.js";
 import TeamLogoLightbox from "@/components/TeamLogoLightbox/index.js";
+import LogoTiebreaker from "@/components/LogoTiebreaker/index.js";
 import { errorMessage } from "@/lib/cohortRefresh";
 
 type LogoVotingProps = {
@@ -115,6 +116,8 @@ export default function LogoVoting({ teams, camperId, myTeamId, isCounselor }: L
           onChanged={refetch}
         />
       )}
+
+      {isCounselor && finalized && <LogoTiebreaker />}
 
       {fetching && <div className="text-xs text-amber-600">Updating…</div>}
 

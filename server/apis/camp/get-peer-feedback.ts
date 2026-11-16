@@ -26,6 +26,8 @@ export default api({
   output: z.object({
     feedback: z.array(FeedbackSchema),
     sessions: z.array(z.string()),
+    /** Team + presentation pairs the signed-in cAMPer has already reviewed (one review each). */
+    my_reviews: z.array(z.object({ team_id: z.number(), session_label: z.string() })),
   }),
   async run(ctx, { session_label, team_id }) {
     // Active cohort, or the counselor's chosen past cohort.
@@ -74,6 +76,17 @@ export default api({
       { label: "Get peer feedback" }
     );
 
-    return { feedback, sessions: sessions.map(s => s.session_label) };
+    const mine = await ctx.integrations.camp_201_db.query(
+      `SELECT DISTINCT pf.team_id, pf.session_label
+       FROM camp201_peer_feedback pf
+       JOIN camp201_campers c ON c.id = pf.author_id
+       WHERE lower(c.email) = lower($1) AND pf.team_id IS NOT NULL AND pf.cohort_id = ${VIEW}
+       LIMIT 200`,
+      z.object({ team_id: z.coerce.number(), session_label: z.string() }),
+      [ctx.user.email ?? ""],
+      { label: "My reviewed teams" }
+    );
+
+    return { feedback, sessions: sessions.map(s => s.session_label), my_reviews: mine };
   },
 });

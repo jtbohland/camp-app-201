@@ -5,7 +5,7 @@ import type { HubFeedback, HubScore } from "@/lib/teamHub";
 type Props = {
   feedback: HubFeedback[];
   score: HubScore | null;
-  /** Counselors see scores before they're revealed; cAMPers only after. */
+  /** Counselors see scores before every judge has scored; cAMPers only after. */
   scoreHiddenFromTeam: boolean;
 };
 
@@ -44,7 +44,8 @@ export default function HubFeedbackReceived({ feedback, score, scoreHiddenFromTe
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Average of {score.judge_count} judge{score.judge_count === 1 ? "" : "s"}
-            {scoreHiddenFromTeam && " · Only counselors can see this until scores are revealed"}
+            {scoreHiddenFromTeam &&
+              ` · Only counselors can see this until every judge scores (${score.judge_count}/${score.judges_needed})`}
           </p>
           {score.criteria.length > 0 && (
             <div className="mt-3 flex flex-col gap-1.5">
@@ -52,6 +53,17 @@ export default function HubFeedbackReceived({ feedback, score, scoreHiddenFromTe
                 <div key={c.name} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-1.5 text-sm">
                   <span className="text-foreground">{pretty(c.name)}</span>
                   <span className="font-medium text-foreground">{c.avg}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {score.judge_notes.length > 0 && (
+            <div className="mt-4 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-foreground">Judges' feedback</p>
+              {score.judge_notes.map((n, i) => (
+                <div key={i} className="rounded-md border border-primary/15 bg-primary/5 px-3 py-2">
+                  <p className="whitespace-pre-wrap text-sm text-foreground">{n.note}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{n.judge_name}</p>
                 </div>
               ))}
             </div>

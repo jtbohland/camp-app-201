@@ -137,6 +137,10 @@ import ToggleCounselorVisibility from './camp/toggle-counselor-visibility.js';
 import { RemoveCamper, RestoreCamper, GetRemovedCampers } from './camp/camper-removal.js';
 import { GetGuestJudges, AddGuestJudge, RemoveGuestJudge } from './camp/guest-judges.js';
 import UpdateTeamDesign from './camp/update-team-design.js';
+import RenameTeam from './camp/rename-team.js';
+import { UpdateAbsenceRequest, WithdrawAbsenceRequest } from './camp/absence-changes.js';
+import { GetPresentationRound, PickNextPresenter, SetPresentationRound } from './camp/presentation-round.js';
+import { GetLogoTiebreaker, SubmitLogoTiebreakerVote } from './camp/logo-tiebreaker.js';
 import MigratePresentationsV2 from './camp/migrate-presentations-v2.js';
 import UpdatePresentation from './camp/update-presentation.js';
 import MigratePresentationWorkspace from './camp/migrate-presentation-workspace.js';
@@ -165,9 +169,6 @@ import SaveEBRRoleAssignment from './camp/save-ebr-role-assignment.js';
 import ToggleScoresRevealed from './camp/toggle-scores-revealed.js';
 import ToggleAgendaDayLock from './camp/toggle-agenda-day-lock.js';
 import GetAgendaDayLocks from './camp/get-agenda-day-locks.js';
-import RandomizePresentationOrder from './camp/randomize-presentation-order.js';
-import GetPresentationOrder from './camp/get-presentation-order.js';
-import ClearPresentationOrder from './camp/clear-presentation-order.js';
 import QuickAwardPoints from './camp/quick-award-points.js';
 import MigratePreworkSubmissions from './camp/migrate-prework-submissions.js';
 import SubmitPreworkValidation from './camp/submit-prework-validation.js';
@@ -383,6 +384,14 @@ const apis = {
   RestoreCamper,
   GetRemovedCampers,
   UpdateTeamDesign,
+  RenameTeam,
+  UpdateAbsenceRequest,
+  WithdrawAbsenceRequest,
+  GetPresentationRound,
+  PickNextPresenter,
+  SetPresentationRound,
+  GetLogoTiebreaker,
+  SubmitLogoTiebreakerVote,
   MigratePresentationsV2,
   UpdatePresentation,
   MigratePresentationWorkspace,
@@ -411,9 +420,6 @@ const apis = {
   ToggleScoresRevealed,
   ToggleAgendaDayLock,
   GetAgendaDayLocks,
-  RandomizePresentationOrder,
-  GetPresentationOrder,
-  ClearPresentationOrder,
   QuickAwardPoints,
   MigratePreworkSubmissions,
   SubmitPreworkValidation,

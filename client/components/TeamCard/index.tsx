@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import TeamLogoBadge from "@/components/TeamLogoBadge/index.js";
 import TeamDesignEditor from "@/components/TeamDesignEditor/index.js";
 import TeamMemberPill from "@/components/TeamMemberPill/index.js";
+import TeamNameEditor from "./TeamNameEditor.js";
 
 type TeamMember = {
   id: number;
@@ -58,6 +59,9 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
   // Counselors (not on the team) get a no-save walkthrough on every tile, anytime.
   const canDemo = isAdmin && !isMyTeam;
   const [editor, setEditor] = useState<EditorMode>("none");
+  // Team members (and counselors) can fix the name anytime, even after the design is done.
+  const canRename = isMyTeam || isAdmin;
+  const [renaming, setRenaming] = useState(false);
 
   // Pills always run from most points to fewest (ties alphabetical).
   const rankedMembers = useMemo(
@@ -86,7 +90,28 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
         <div className="flex items-center gap-3 mb-3">
           <TeamLogoBadge src={team.logo_url} name={team.name} color={team.color} zoomable />
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-foreground text-lg">{team.name}</h3>
+            {renaming ? (
+              <TeamNameEditor
+                teamId={team.id}
+                currentName={team.name}
+                onSaved={() => { setRenaming(false); onRefresh?.(); }}
+                onCancel={() => setRenaming(false)}
+              />
+            ) : (
+              <div className="flex items-center gap-1 min-w-0">
+                <h3 className="font-bold text-foreground text-lg truncate">{team.name}</h3>
+                {canRename && editor === "none" && (
+                  <button
+                    onClick={() => setRenaming(true)}
+                    className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    title="Edit team name"
+                    aria-label="Edit team name"
+                  >
+                    <Icon icon="pencil" className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">{team.members.length} member{team.members.length !== 1 ? "s" : ""}</p>
             {team.assigned_company && (
               <div className="flex items-center gap-1.5 mt-1">

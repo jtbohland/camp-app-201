@@ -63,7 +63,9 @@ export default function HubHomeRoster({ members, myCamperId, company, rank, tota
           <div className="rounded-md bg-primary/10 px-3 py-2">
             <p className="text-xs text-muted-foreground">{presentingSlot.label ?? "Presenting order"}</p>
             <p className="text-sm font-semibold text-foreground">
-              You present {ordinal(presentingSlot.position)} of {presentingSlot.total}
+              {presentingSlot.position === presentingSlot.total
+                ? "🎤 Your team is up now!"
+                : `Your team presented ${ordinal(presentingSlot.position)}`}
             </p>
           </div>
         )}

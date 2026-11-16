@@ -12,6 +12,10 @@ import BlackoutBlockedDialog from "@/components/BlackoutBlockedDialog/index.js";
 import RequiredSessionsList from "@/components/RequiredSessionsList/index.js";
 import { formatDuration, toLocalInputValue } from "@/lib/absences.js";
 import { overlapping, type BlackoutSession } from "@/lib/blackouts.js";
+import { queryClient } from "@superblocksteam/library";
+import AbsenceRow, { type AbsenceRowData } from "./AbsenceRow.js";
+import EditAbsenceDialog from "./EditAbsenceDialog.js";
+import RemoveAbsenceDialog from "./RemoveAbsenceDialog.js";
 
 /** Attendance bonus tiers, with the cAMPer's current tier highlighted. */
 function AttendanceBonus({ used, limit }: { used: number; limit: number }) {
@@ -63,6 +67,9 @@ type Props = {
 export default function AbsenceRequestCard({ camperId, preview = false }: Props) {
   const { data, refetch } = useApiData("GetAbsenceRequests", { camper_id: camperId }, { enabled: camperId > 0 });
   const { run: requestAbsence, loading } = useApi("RequestAbsence");
+  const { run: withdrawAbsence, loading: removing } = useApi("WithdrawAbsenceRequest");
+  const [editing, setEditing] = useState<AbsenceRowData | null>(null);
+  const [removingRow, setRemovingRow] = useState<AbsenceRowData | null>(null);
   // Counselor preview has no cAMPer of its own, so it shows no required-session list.
   const { data: blackoutData } = useApiData("GetMyBlackouts", {}, { enabled: camperId > 0 && !preview, staleTime: 30_000 });
   const [blockedBy, setBlockedBy] = useState<BlackoutSession[]>([]);
@@ -133,6 +140,34 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
     },
     [camperId, start, end, reason, requestAbsence, refetch, used, limit]
   );
+
+  // Removed absences drop off the count right away; the refetch confirms it.
+  const handleRemove = useCallback(async () => {
+    const row = removingRow;
+    if (!row) return;
+    const cacheKey = queryClient.buildCacheKey("GetAbsenceRequests", { camper_id: camperId });
+    const previous = queryClient.getQueryData<typeof data>(cacheKey);
+    if (previous) {
+      const countsTowardLimit = row.approval_type === "standard";
+      queryClient.setQueryData(cacheKey, {
+        ...previous,
+        requests: previous.requests.map((r) => (r.id === row.id ? { ...r, status: "withdrawn" } : r)),
+        summaries: previous.summaries.map((s, i) =>
+          i === 0 && countsTowardLimit ? { ...s, standard_used: Math.max(0, s.standard_used - 1) } : s
+        ),
+      });
+    }
+    setRemovingRow(null);
+    try {
+      await withdrawAbsence({ absence_id: row.id });
+      toast.success("Absence removed. It no longer counts toward your 3.");
+      await refetch();
+    } catch (error) {
+      if (previous) queryClient.setQueryData(cacheKey, previous);
+      const message = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : String(error);
+      toast.error("Could not remove absence: " + message);
+    }
+  }, [removingRow, camperId, withdrawAbsence, refetch]);
 
   const handleSubmit = useCallback(() => {
     if (preview) return;
@@ -224,25 +259,24 @@ export default function AbsenceRequestCard({ camperId, preview = false }: Props)
           <p className="mb-2 text-xs font-semibold text-muted-foreground">Your absences{extras > 0 ? ` (incl. ${extras} counselor-approved extra)` : ""}</p>
           <ul className="space-y-1.5">
             {requests.slice(0, 10).map((r) => (
-              <li key={r.id} className={`flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-xs ${r.status === "withdrawn" ? "opacity-60" : ""}`}>
-                <span className={`truncate text-foreground ${r.status === "withdrawn" ? "line-through" : ""}`}>{r.reason ?? "No reason"}</span>
-                <span className="shrink-0 text-muted-foreground">
-                  {new Date(r.start_time).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · {formatDuration(r.minutes)}
-                  {r.status === "withdrawn" && (
-                    <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Withdrawn</span>
-                  )}
-                  {r.status !== "withdrawn" && r.approval_type !== "standard" && (
-                    <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.approval_type === "counselor_emergency" ? "bg-sky-100 text-sky-800" : "bg-red-100 text-red-700"}`}>
-                      {r.approval_type === "counselor_emergency" ? "Emergency" : "−1 pt"}
-                    </span>
-                  )}
-                </span>
-              </li>
+              <AbsenceRow key={r.id} row={r} canChange={!preview} onEdit={setEditing} onRemove={setRemovingRow} />
             ))}
           </ul>
         </div>
       )}
 
+      <EditAbsenceDialog
+        absence={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => { setEditing(null); void refetch(); }}
+      />
+      <RemoveAbsenceDialog
+        open={removingRow !== null}
+        reason={removingRow?.reason ?? null}
+        removing={removing}
+        onCancel={() => setRemovingRow(null)}
+        onConfirm={handleRemove}
+      />
       <BlackoutBlockedDialog sessions={blockedBy} onClose={() => setBlockedBy([])} />
       <AbsenceLimitDialog open={limitOpen} limit={limit} submitting={loading} onClose={() => setLimitOpen(false)} onCounselorApprove={submit} />
     </Card>

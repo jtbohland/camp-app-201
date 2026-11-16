@@ -66,16 +66,22 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
   const feedbackCounts = useMemo(() => {
     const m = new Map<number, number>();
     for (const p of presentations) {
-      const score = hub.scores.some((s) => s.presentation_id === p.id && (p.scores_revealed || viewer.is_counselor)) ? 1 : 0;
+      // The server only sends scores the viewer may see (every judge scored, or counselor).
+      const score = hub.scores.some((s) => s.presentation_id === p.id) ? 1 : 0;
       m.set(p.id, (feedbackByPres.get(p.id)?.length ?? 0) + score);
     }
     return m;
-  }, [presentations, feedbackByPres, hub.scores, viewer.is_counselor]);
+  }, [presentations, feedbackByPres, hub.scores]);
 
+  // Locked sessions still open once there's feedback or a score to read (the brief stays locked).
+  const openableIds = useMemo(
+    () => new Set(presentations.filter((p) => !p.is_locked || viewer.is_counselor || (feedbackCounts.get(p.id) ?? 0) > 0).map((p) => p.id)),
+    [presentations, viewer.is_counselor, feedbackCounts],
+  );
   // cAMPers can't open a locked session (if it gets locked while open, they drop back to Home).
   const canOpen = (key: string) => {
     const p = presentations.find((x) => presKey(x.id) === key);
-    return !p || !p.is_locked || viewer.is_counselor;
+    return !p || openableIds.has(p.id);
   };
   const openTab = (key: string) => setActive(canOpen(key) ? key : HOME_TAB);
   const activePres = presentations.find((p) => presKey(p.id) === active && canOpen(active)) ?? null;
@@ -98,6 +104,7 @@ export default function TeamHubView({ teamId, hub, members, company, rank, total
         postCounts={postCounts}
         boardCount={postCounts.get(BOARD_SECTION) ?? 0}
         isCounselor={viewer.is_counselor}
+        openableIds={openableIds}
         onSelect={openTab}
       />
 
