@@ -1,6 +1,8 @@
 import { memo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import EntryStatus from "@/components/RemovePointsDialog/EntryStatus.js";
+import { isRemovable } from "@/components/RemovePointsDialog/selection.js";
 
 export type PointLogEntry = {
   id: number;
@@ -33,11 +35,25 @@ type RowProps = {
   e: PointLogEntry;
   onCamperClick?: (id: number) => void;
   onRemove?: (e: PointLogEntry) => void;
+  selected: boolean;
+  onToggle?: (e: PointLogEntry) => void;
 };
 
-const Row = memo(function Row({ e, onCamperClick, onRemove }: RowProps) {
+const Row = memo(function Row({ e, onCamperClick, onRemove, selected, onToggle }: RowProps) {
+  const selectable = isRemovable(e);
   return (
-    <TableRow className={e.reversed ? "opacity-60" : ""}>
+    <TableRow className={`${e.reversed ? "opacity-60" : ""} ${selected ? "bg-muted/60" : ""}`}>
+      {onToggle && (
+        <TableCell className="w-8 pr-0">
+          {selectable && (
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggle(e)}
+              aria-label={`Select ${e.reason} for ${e.camper_name}`}
+            />
+          )}
+        </TableCell>
+      )}
       <TableCell className="font-medium">
         {onCamperClick ? (
           <button className="hover:underline text-left" onClick={() => onCamperClick(e.camper_id)}>
@@ -81,15 +97,33 @@ type Props = {
   onCamperClick?: (id: number) => void;
   /** When set, each entry gets a Remove / Undo button. */
   onRemove?: (e: PointLogEntry) => void;
+  /** When set, removable entries get a checkbox for bulk removal. */
+  isSelected?: (id: number) => boolean;
+  onToggle?: (e: PointLogEntry) => void;
+  onToggleAll?: (entries: PointLogEntry[]) => void;
 };
 
-export default function PointLogTable({ entries, onCamperClick, onRemove }: Props) {
-  const cols = onRemove ? 7 : 6;
+export default function PointLogTable({ entries, onCamperClick, onRemove, isSelected, onToggle, onToggleAll }: Props) {
+  const cols = 6 + (onRemove ? 1 : 0) + (onToggle ? 1 : 0);
+  const removable = onToggle ? entries.filter(isRemovable) : [];
+  const allChecked = removable.length > 0 && removable.every((e) => isSelected?.(e.id));
+  const someChecked = !allChecked && removable.some((e) => isSelected?.(e.id));
   return (
     <div className="rounded-lg border border-border bg-background overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
+            {onToggle && (
+              <TableHead className="w-8 pr-0">
+                {removable.length > 0 && onToggleAll && (
+                  <Checkbox
+                    checked={allChecked ? true : someChecked ? "indeterminate" : false}
+                    onCheckedChange={() => onToggleAll(removable)}
+                    aria-label="Select all removable entries on this page"
+                  />
+                )}
+              </TableHead>
+            )}
             <TableHead>cAMPer</TableHead>
             <TableHead className="text-right">Points</TableHead>
             <TableHead>Reason</TableHead>
@@ -107,7 +141,16 @@ export default function PointLogTable({ entries, onCamperClick, onRemove }: Prop
               </TableCell>
             </TableRow>
           ) : (
-            entries.map((e) => <Row key={e.id} e={e} onCamperClick={onCamperClick} onRemove={onRemove} />)
+            entries.map((e) => (
+              <Row
+                key={e.id}
+                e={e}
+                onCamperClick={onCamperClick}
+                onRemove={onRemove}
+                selected={isSelected?.(e.id) ?? false}
+                onToggle={onToggle}
+              />
+            ))
           )}
         </TableBody>
       </Table>
