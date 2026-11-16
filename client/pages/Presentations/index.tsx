@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { useApiData } from "@/hooks/useApiData";
@@ -41,6 +41,13 @@ export default function PresentationsPage() {
   }, [feedbackLocked, updateGate, refetchGates]);
   const camperId = camperData?.camper?.id ?? 0;
   const camperTeamId = camperData?.camper?.team_id ?? 0;
+
+  // Live presenting round (live cohort). Polls so everyone sees who's up.
+  const { data: round, refetch: refetchRound } = useApiData("GetPresentationRound", {}, { refetchInterval: 10_000 });
+  const presenting = useMemo(() => {
+    const up = round?.picked.find((p) => p.is_up_now);
+    return up && round?.active ? { teamId: up.id, presentationTitle: round.active.title } : null;
+  }, [round]);
 
   const { data, loading, fetching, refetch } = useApiData("GetPresentations", {
     status: null,
@@ -117,7 +124,7 @@ export default function PresentationsPage() {
         </div>
 
         {/* Presentation Order Strip */}
-        <PresentationOrderStrip isAdmin={isAdmin} cohortId={1} />
+        <PresentationOrderStrip round={round} refetch={refetchRound} />
 
         {/* Peer Feedback — only show when unlocked (or admin) */}
         {feedbackLocked && !isAdmin ? (
@@ -126,7 +133,7 @@ export default function PresentationsPage() {
             Peer feedback will open during presentations — your counselor will unlock it
           </div>
         ) : (
-          <PeerFeedbackForm camperId={camperId} camperTeamId={camperTeamId} />
+          <PeerFeedbackForm camperTeamId={camperTeamId} presenting={presenting} />
         )}
 
         {/* Presentation Cards */}

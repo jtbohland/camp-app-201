@@ -9,11 +9,13 @@ type Props = {
   boardCount: number;
   /** Counselors can open locked sessions; cAMPers can't until they're unlocked. */
   isCounselor: boolean;
+  /** Sessions this viewer can open (unlocked, counselor, or locked but with feedback to read). */
+  openableIds?: Set<number>;
   onSelect: (key: string) => void;
 };
 
 /** Home · Team Board · one tab per scheduled presentation (grouped by day). */
-export default function HubTabBar({ active, presentations, postCounts, boardCount, isCounselor, onSelect }: Props) {
+export default function HubTabBar({ active, presentations, postCounts, boardCount, isCounselor, openableIds, onSelect }: Props) {
   return (
     <div className="flex w-full min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-muted/20 px-6 py-3">
       <TabButton active={active === HOME_TAB} onClick={() => onSelect(HOME_TAB)} icon="house" label="Home" />
@@ -21,7 +23,7 @@ export default function HubTabBar({ active, presentations, postCounts, boardCoun
 
       {presentations.map((p, idx) => {
         const key = presKey(p.id);
-        const blocked = p.is_locked && !isCounselor;
+        const blocked = openableIds ? !openableIds.has(p.id) : p.is_locked && !isCounselor;
         const newDay = idx === 0 || presentations[idx - 1].day_number !== p.day_number;
         return (
           <div key={key} className="flex items-center gap-1">
