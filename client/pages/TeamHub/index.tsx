@@ -77,7 +77,7 @@ export default function TeamHubPage() {
         <button onClick={() => navigate("/teams")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
           ← Teams
         </button>
-        <TeamLogoBadge src={team.logo_url} name={team.name} color={team.color} />
+        <TeamLogoBadge src={team.logo_url} name={team.name} color={team.color} zoomable />
         <div className="min-w-0">
           <h1 className="truncate text-lg font-bold text-foreground">{team.name} Hub</h1>
           <p className="text-xs text-muted-foreground">

@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useApi } from "@/hooks/useApi.js";
 import LogoVoteTile, { type LogoVoteTeam } from "@/components/LogoVoteTile/index.js";
 import LogoVoteCounselorBar from "@/components/LogoVoteCounselorBar/index.js";
+import TeamLogoLightbox from "@/components/TeamLogoLightbox/index.js";
 import { errorMessage } from "@/lib/cohortRefresh";
 
 type LogoVotingProps = {
@@ -22,6 +23,7 @@ export default function LogoVoting({ teams, camperId, myTeamId, isCounselor }: L
     { enabled: camperId > 0, refetchInterval: 20_000 },
   );
   const { run: submitVote, loading: voting } = useApi("SubmitTeamVote");
+  const [zoomed, setZoomed] = useState<LogoVoteTeam | null>(null);
 
   const votingOpen = data?.votingOpen ?? false;
   const finalized = data?.finalized ?? false;
@@ -133,10 +135,18 @@ export default function LogoVoting({ teams, camperId, myTeamId, isCounselor }: L
               place={finalized ? places[team.id] ?? null : null}
               disabled={isCounselor || !!myVote || !votingOpen || isMyTeam || voting}
               onVote={() => handleVote(team.id)}
+              onZoom={() => setZoomed(team)}
             />
           );
         })}
       </div>
+
+      <p className="text-[11px] text-amber-700 text-center -mt-1">Tap a logo to see it full size</p>
+
+      <TeamLogoLightbox
+        logo={zoomed?.logo_url ? { src: zoomed.logo_url, name: zoomed.name, color: zoomed.color } : null}
+        onClose={() => setZoomed(null)}
+      />
 
       {finalized && (
         <p className="text-xs text-amber-700 text-center border-t border-amber-200 pt-3">

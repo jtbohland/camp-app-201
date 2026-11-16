@@ -84,7 +84,7 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
       {/* Team Identity */}
       <div className={`p-4 ${config.bg} flex-1 flex flex-col`}>
         <div className="flex items-center gap-3 mb-3">
-          <TeamLogoBadge src={team.logo_url} name={team.name} color={team.color} />
+          <TeamLogoBadge src={team.logo_url} name={team.name} color={team.color} zoomable />
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-foreground text-lg">{team.name}</h3>
             <p className="text-xs text-muted-foreground">{team.members.length} member{team.members.length !== 1 ? "s" : ""}</p>
