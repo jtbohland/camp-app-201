@@ -8,6 +8,8 @@ export type TeamRubricResult = {
   /** Average of every judge's total, one decimal. */
   avg_total: number;
   max: number;
+  /** When the most recent judge first scored this team. */
+  last_scored_at: string | null;
 };
 
 const Row = z.object({
@@ -16,6 +18,7 @@ const Row = z.object({
   judge_count: z.coerce.number(),
   avg_total: z.coerce.number(),
   max: z.coerce.number(),
+  last_scored_at: z.string().nullable(),
 });
 
 /**
@@ -32,7 +35,8 @@ export async function loadRubricResults(
   if (templateIds.length === 0) return { results, requiredJudges };
   const rows = await db.query(
     `SELECT team_id, template_id, COUNT(*)::int AS judge_count,
-            ROUND(AVG(total_score)::numeric, 1) AS avg_total, MAX(max_score) AS max
+            ROUND(AVG(total_score)::numeric, 1) AS avg_total, MAX(max_score) AS max,
+            to_char(MAX(COALESCE(created_at, updated_at)) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS last_scored_at
      FROM camp201_rubric_scores
      WHERE cohort_id = $1 AND template_id = ANY($2::int[])
      GROUP BY team_id, template_id
