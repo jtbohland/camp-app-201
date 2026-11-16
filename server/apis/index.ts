@@ -194,6 +194,7 @@ import SetupMemories from './camp/setup-memories.js';
 import GetMemories from './camp/get-memories.js';
 import AddMemory from './camp/add-memory.js';
 import ToggleMemoryReaction from './camp/toggle-memory-reaction.js';
+import DeleteMemory from './camp/delete-memory.js';
 import GetCloseCampStatus from './camp/get-close-camp-status.js';
 import CloseCamp from './camp/close-camp.js';
 import ArchiveCohortToLegacyWall from './camp/archive-cohort-to-legacy-wall.js';
@@ -439,6 +440,7 @@ const apis = {
   GetMemories,
   AddMemory,
   ToggleMemoryReaction,
+  DeleteMemory,
   GetCloseCampStatus,
   CloseCamp,
   SetupCheckinTeamRace,

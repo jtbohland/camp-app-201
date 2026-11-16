@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import ReactionBar from "@/components/ReactionBar";
+import DeleteMemoryButton from "./DeleteMemoryButton";
 
 type Memory = {
   id: number;
@@ -19,10 +20,13 @@ export default function MemoryCard({
   memory,
   camperId,
   onReacted,
+  canDelete = false,
 }: {
   memory: Memory;
   camperId: number;
   onReacted: () => void;
+  /** Counselors can delete any post. */
+  canDelete?: boolean;
 }) {
   const timeAgo = getTimeAgo(memory.created_at);
 
@@ -54,6 +58,7 @@ export default function MemoryCard({
             ✍️ Memory
           </span>
         )}
+        {canDelete && <DeleteMemoryButton memoryId={memory.id} authorName={memory.author_name} onDeleted={onReacted} />}
       </div>
 
       {/* Content */}
@@ -62,7 +67,7 @@ export default function MemoryCard({
           <img
             src={memory.image_url}
             alt={memory.content ?? "Camp photo"}
-            className="w-full max-h-80 object-cover"
+            className="w-full max-h-[32rem] object-contain bg-muted/30"
             loading="lazy"
           />
         </div>
