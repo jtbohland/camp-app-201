@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { requireCounselor } from "../../lib/cohort.js";
+import { recordTeamFinishIfComplete } from "../../lib/checkin-team-race.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -32,6 +33,21 @@ export default api({
       [session_id],
       { label: "Close check-in session" }
     );
+
+    // Final team race pass: a team can complete without a new check-in (e.g. an absence approved
+    // after their last member checked in). Safe to repeat; teams already placed are skipped.
+    const teams = await ctx.integrations.camp_201_db.query(
+      `SELECT t.id FROM camp201_teams t
+       WHERE t.cohort_id = (SELECT cohort_id FROM camp201_checkin_sessions WHERE id = $1)
+         AND NOT EXISTS (SELECT 1 FROM camp201_checkin_team_finishes f WHERE f.session_id = $1 AND f.team_id = t.id)
+       LIMIT 50`,
+      z.object({ id: z.coerce.number() }),
+      [session_id],
+      { label: "Teams not yet placed" }
+    );
+    for (const t of teams) {
+      await recordTeamFinishIfComplete(ctx.integrations.camp_201_db, session_id, t.id);
+    }
 
     // Get summary stats
     const StatsSchema = z.object({

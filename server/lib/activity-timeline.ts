@@ -48,7 +48,9 @@ export async function loadActivityTimeline(
          SELECT ('checkin:' || r.id)::text AS key, 'checkin'::text AS kind,
                 (CASE WHEN r.timing = 'late' THEN 'late' ELSE 'done' END)::text AS status,
                 ('Checked in: ' || COALESCE(s.label, 'Session'))::text AS title,
-                (CASE WHEN r.timing = 'late' THEN 'Late' WHEN r.timing = 'early' THEN 'Early' ELSE 'On time' END)::text AS detail,
+                (CASE WHEN r.timing = 'late' THEN 'Late' WHEN r.timing = 'early' THEN 'Early'
+                      WHEN r.timing = 'absent' THEN 'Excused absence' WHEN r.timing = 'backfilled' THEN 'Back-filled by a counselor'
+                      ELSE 'On time' END)::text AS detail,
                 r.checked_in_at::timestamptz AS at, r.points_awarded::int AS points
          FROM camp201_checkin_responses r JOIN camp201_checkin_sessions s ON s.id = r.session_id
          WHERE r.camper_id = $1

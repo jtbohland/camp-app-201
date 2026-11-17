@@ -5,6 +5,9 @@ export const TEAM_RACE_BONUSES = [5, 3, 1];
 
 export const ordinal = (n: number) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
+/** Check-ins a cAMPer actually made (not an excused or counselor back-filled spot). */
+export const REAL_TIMINGS_SQL = `('early', 'on_time', 'late')`;
+
 /**
  * Who has to check in for a team: active (not removed) cAMPers who aren't counselors or admins
  * (a cAMPer with no role set still counts). Same rule everywhere (race award, live progress, late
@@ -14,12 +17,16 @@ export const COUNTS_FOR_CHECKIN_SQL = `c.removed_at IS NULL
     AND COALESCE(c.role, '') NOT IN ('counselor', 'admin')
     AND NOT EXISTS (SELECT 1 FROM camp201_admins adm WHERE lower(adm.email) = lower(c.email))`;
 
-/** Excused for session $1: an approved absence covering the session. Use with alias "c". */
+/**
+ * Excused for session $1: an approved absence that overlaps the check-in (from when the timer
+ * started until the grace minute ends), so they'll miss it. Use with alias "c".
+ */
 export const EXCUSED_SQL = `EXISTS (
     SELECT 1 FROM camp201_absence_requests ar
+    JOIN camp201_checkin_sessions xs ON xs.id = $1
     WHERE ar.camper_id = c.id AND ar.status = 'approved'
-      AND ar.start_time <= NOW()
-      AND ar.end_time >= COALESCE((SELECT started_at FROM camp201_checkin_sessions WHERE id = $1), NOW())
+      AND ar.start_time <= COALESCE(xs.timer_ends_at, NOW()) + INTERVAL '1 minute'
+      AND ar.end_time >= COALESCE(xs.started_at, NOW())
   )`;
 
 const MEMBERS_SQL = `
@@ -30,9 +37,30 @@ const MEMBERS_SQL = `
   WHERE c.team_id = $2 AND ${COUNTS_FOR_CHECKIN_SQL}`;
 
 /**
- * Call after EVERY check-in (on time, late, or counselor-entered). When every member is checked in
- * or excused, the team places once per session. The finish row is unique per (session, team), so a
- * team can never be paid twice, and a late last check-in still completes the team.
+ * Records excused members of a team as present for 0 points (timing 'absent'), so they never show
+ * as missed and never earn solo points. Safe to repeat.
+ */
+export async function markExcusedPresent(db: any, sessionId: number, teamId: number): Promise<void> {
+  await db.execute(
+    `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
+     SELECT $1, m.id, $2, 'absent', 'ABSENT', 0
+     FROM (${MEMBERS_SQL}) m
+     WHERE m.excused AND NOT m.checked_in
+     ON CONFLICT (session_id, camper_id) DO NOTHING`,
+    [sessionId, teamId],
+    { label: "Mark excused members present (0 pts)" }
+  );
+}
+
+/**
+ * Call after EVERY check-in (on time, late, counselor back-fill) and when a check-in closes. When
+ * every member is checked in or excused (and at least one member really checked in), the team
+ * places once per session. The finish row is unique per (session, team), so a team can never be
+ * paid twice.
+ *
+ * Place is decided by when the team's last REAL check-in happened, not when the row was written.
+ * So when a counselor back-fills a missing member later, the team gets the place it actually
+ * earned, and no other team loses theirs.
  */
 export async function recordTeamFinishIfComplete(
   db: any,
@@ -51,11 +79,18 @@ export async function recordTeamFinishIfComplete(
     return { teamComplete: false, place: null };
   }
 
-  // Claim the finish (only one call per team per session wins this insert).
+  // Claim the finish (only one call per team per session wins this insert). A team where nobody
+  // actually checked in (everyone excused or back-filled) can't place.
   const claimed = await db.query(
-    `WITH ins AS (
-       INSERT INTO camp201_checkin_team_finishes (session_id, team_id)
-       VALUES ($1, $2)
+    `WITH eff AS (
+       SELECT MAX(r.checked_in_at) AS at
+       FROM camp201_checkin_responses r
+       JOIN camp201_campers c ON c.id = r.camper_id
+       WHERE r.session_id = $1 AND c.team_id = $2 AND r.timing IN ${REAL_TIMINGS_SQL}
+     ),
+     ins AS (
+       INSERT INTO camp201_checkin_team_finishes (session_id, team_id, finished_at)
+       SELECT $1, $2, LEAST(eff.at, NOW()) FROM eff WHERE eff.at IS NOT NULL
        ON CONFLICT (session_id, team_id) DO NOTHING
        RETURNING id
      ) SELECT id FROM ins LIMIT 1`,
@@ -63,13 +98,19 @@ export async function recordTeamFinishIfComplete(
     [sessionId, teamId],
     { label: "Claim team finish" }
   );
-  if (claimed.length === 0) return { teamComplete: true, place: null }; // already placed earlier
+  if (claimed.length === 0) {
+    // Already placed earlier, or nobody really checked in yet.
+    await markExcusedPresent(db, sessionId, teamId);
+    return { teamComplete: true, place: null };
+  }
 
-  // Place = order of finishing in this session.
+  // Place = 1 + teams that finished earlier in this session.
   const placed = await db.query(
     `WITH p AS (
        UPDATE camp201_checkin_team_finishes f
-       SET place = (SELECT COUNT(*) FROM camp201_checkin_team_finishes x WHERE x.session_id = $1 AND x.id <= f.id)
+       SET place = 1 + (SELECT COUNT(*) FROM camp201_checkin_team_finishes x
+                        WHERE x.session_id = $1 AND x.id <> f.id
+                          AND (x.finished_at, x.id) < (f.finished_at, f.id))
        WHERE f.id = $2
        RETURNING f.place
      ) SELECT place FROM p LIMIT 1`,
@@ -82,7 +123,7 @@ export async function recordTeamFinishIfComplete(
   await db.execute(
     `UPDATE camp201_checkin_sessions
      SET teams_finished = GREATEST(COALESCE(teams_finished, 0), $2),
-         first_team_id = CASE WHEN $2 = 1 THEN $3 ELSE first_team_id END
+         first_team_id = CASE WHEN $2 = 1 AND first_team_id IS NULL THEN $3 ELSE first_team_id END
      WHERE id = $1`,
     [sessionId, place, teamId],
     { label: "Update session race progress" }
@@ -103,16 +144,6 @@ export async function recordTeamFinishIfComplete(
     );
   }
 
-  // Excused members are marked present (0 pts) so they never show as missed.
-  await db.execute(
-    `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
-     SELECT $1, m.id, $2, 'absent', 'ABSENT', 0
-     FROM (${MEMBERS_SQL}) m
-     WHERE m.excused AND NOT m.checked_in
-     ON CONFLICT (session_id, camper_id) DO NOTHING`,
-    [sessionId, teamId],
-    { label: "Mark excused members present" }
-  );
-
+  await markExcusedPresent(db, sessionId, teamId);
   return { teamComplete: true, place };
 }
