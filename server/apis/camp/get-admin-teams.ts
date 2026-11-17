@@ -1,13 +1,19 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
 import { countedSessionSql } from "../../lib/checkin-sessions.js";
+import { scoreTeams } from "../../lib/team-score.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const TeamMetricSchema = z.object({
   id: z.coerce.number(),
   name: z.string(),
+  /** Size-fair team score (average member pts × standard team size + team pts). */
   total_points: z.coerce.number(),
+  /** Plain sum before the size adjustment. */
+  raw_points: z.coerce.number(),
+  size_adjusted: z.boolean(),
+  standard_size: z.coerce.number(),
   member_count: z.coerce.number(),
   avg_points: z.coerce.number(),
   checkin_rate: z.coerce.number(),
@@ -41,9 +47,10 @@ export default api({
     const cohortFilter = effectiveCohortId ? `AND t.cohort_id = $1` : ``;
     const params = effectiveCohortId ? [effectiveCohortId] : undefined;
 
-    const teams = await ctx.integrations.camp_201_db.query(
+    const rows = await ctx.integrations.camp_201_db.query(
       `SELECT t.id, t.name, t.assigned_company,
-              COALESCE(SUM(c.points), 0)::int + COALESCE(t.team_points, 0) as total_points,
+              COALESCE(SUM(c.points), 0)::int AS member_points,
+              COALESCE(t.team_points, 0)::int AS team_points,
               COUNT(c.id)::int as member_count,
               COALESCE(AVG(c.points), 0)::int as avg_points,
               CASE
@@ -59,15 +66,21 @@ export default api({
                 )::int
               END as checkin_rate
        FROM camp201_teams t
-       LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role != 'counselor'
+       LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
        WHERE 1=1 ${cohortFilter}
        GROUP BY t.id, t.team_points, t.cohort_id, t.assigned_company
-       ORDER BY total_points DESC
        LIMIT 50`,
-      TeamMetricSchema,
+      TeamMetricSchema.omit({ total_points: true, raw_points: true, size_adjusted: true, standard_size: true }).extend({
+        member_points: z.coerce.number(),
+        team_points: z.coerce.number(),
+      }),
       params,
       { label: "Get teams with metrics" }
     );
+
+    const teams = scoreTeams(rows)
+      .map(({ member_points: _mp, team_points: _tp, ...t }) => t)
+      .sort((a, b) => b.total_points - a.total_points || a.name.localeCompare(b.name));
 
     return { teams };
   },

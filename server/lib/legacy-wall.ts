@@ -1,4 +1,5 @@
 import { z } from "@superblocksteam/sdk-api";
+import { scoreTeams } from "./team-score.js";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -41,15 +42,16 @@ export async function archiveCohortToLegacyWall(
     };
   }
 
-  const teams = await db.query(
+  const rawTeams = await db.query(
     `SELECT t.id, t.name, COALESCE(t.logo_url, '') AS logo_url,
             t.assigned_company->>'name' AS company, t.best_logo,
-            COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
+            COALESCE(SUM(c.points), 0) AS member_points,
+            COUNT(c.id) AS member_count,
+            COALESCE(t.team_points, 0) AS team_points
      FROM camp201_teams t
      LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
      WHERE t.cohort_id = $1 AND t.name <> 'TEST'
      GROUP BY t.id, t.name, t.logo_url, t.assigned_company, t.team_points, t.best_logo
-     ORDER BY total DESC, t.name
      LIMIT 20`,
     z.object({
       id: z.coerce.number(),
@@ -57,11 +59,20 @@ export async function archiveCohortToLegacyWall(
       logo_url: z.string(),
       company: z.string().nullable(),
       best_logo: z.boolean(),
-      total: z.coerce.number(),
+      member_points: z.coerce.number(),
+      member_count: z.coerce.number(),
+      team_points: z.coerce.number(),
     }),
     [cohortId],
     { label: "Final team standings" }
   );
+  // Size-fair totals (average member pts × standard team size + team pts), highest first.
+  const teams = scoreTeams(rawTeams as {
+    id: number; name: string; logo_url: string; company: string | null; best_logo: boolean;
+    member_points: number; member_count: number; team_points: number;
+  }[])
+    .map((t) => ({ ...t, total: t.total_points }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   if (teams.length === 0) {
     return { archived: false, cohort_number: null, teams_archived: 0, members_archived: 0, message: "No teams to archive." };
   }

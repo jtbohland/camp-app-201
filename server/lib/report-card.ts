@@ -1,6 +1,7 @@
 import { z } from "@superblocksteam/sdk-api";
 import { ABSENCE_LIMIT, countsTowardLimit } from "./absences.js";
 import { countedSessionSql } from "./checkin-sessions.js";
+import { loadTeamTotals } from "./team-score.js";
 
 /** Shared report card loader used by the counselor and manager report card APIs. */
 
@@ -153,13 +154,7 @@ export async function loadReportCard(
               AND COALESCE(x.points,0) > $4) AS rank,
          (SELECT COUNT(*) FROM camp201_campers x, me
             WHERE x.cohort_id = me.cohort AND x.role NOT IN ('counselor','admin')) AS total_campers,
-         (SELECT r FROM (
-            SELECT t.id, DENSE_RANK() OVER (ORDER BY COALESCE(t.team_points,0) + COALESCE(SUM(x.points),0) DESC) AS r
-            FROM camp201_teams t
-            LEFT JOIN camp201_campers x ON x.team_id = t.id AND x.role NOT IN ('counselor','admin')
-            WHERE t.cohort_id = (SELECT cohort FROM me)
-            GROUP BY t.id
-          ) ranked WHERE ranked.id = (SELECT team FROM me)) AS team_rank,
+         NULL::int AS team_rank,
          (SELECT COUNT(*) FROM camp201_teams t, me WHERE t.cohort_id = me.cohort) AS total_teams,
          (SELECT COUNT(*) FROM camp201_checkin_responses r JOIN camp201_checkin_sessions s ON s.id = r.session_id, me
             WHERE r.camper_id = $1 AND r.timing <> 'late' AND s.cohort_id = me.cohort AND ${countedSessionSql("s")}) AS checkins_on_time,
@@ -252,6 +247,13 @@ export async function loadReportCard(
 
   const c: z.infer<typeof CountsRow> = counts[0];
   const { surveys_days, prework_open, ...rest } = c;
+
+  // Team rank uses the size-fair score (average member pts × standard team size + team pts).
+  if (p.team_id && p.cohort_id) {
+    const totals = await loadTeamTotals(db, p.cohort_id);
+    const mine = totals.find((t) => t.id === p.team_id);
+    rest.team_rank = mine ? new Set(totals.filter((t) => t.total_points > mine.total_points).map((t) => t.total_points)).size + 1 : null;
+  }
   const typedManager = p.manager?.trim() && !/^(other|n\/?a|none|-|tbd|unknown|\?)$/i.test(p.manager.trim()) ? p.manager.trim() : null;
   const managerDisplay =
     p.manager_name_csv ||

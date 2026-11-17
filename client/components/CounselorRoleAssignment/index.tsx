@@ -16,10 +16,12 @@ type Props = {
 };
 
 export default function CounselorRoleAssignment({ presentationId, teamId, camperId }: Props) {
-  const { data, loading, refetch } = useApiData("GetEBRRoleAssignments", {
-    presentation_id: presentationId,
-    team_id: teamId,
-  });
+  // Teammates' role assignments show up for everyone on their own.
+  const { data, loading, refetch } = useApiData(
+    "GetEBRRoleAssignments",
+    { presentation_id: presentationId, team_id: teamId },
+    { refetchInterval: 10_000, refetchOnWindowFocus: true }
+  );
 
   const { run: saveAssignment, loading: saving } = useApi("SaveEBRRoleAssignment");
   const [editing, setEditing] = useState<number | "new" | null>(null);

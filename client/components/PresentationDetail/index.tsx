@@ -47,7 +47,8 @@ type Props = {
 
 export default function PresentationDetail({ presentation, camperId, camperTeamId, isAdmin, onBack, onRefresh }: Props) {
   const initBingo = presentation.presentation_type === "bingo";
-  const initTeamWorkshop = presentation.presentation_type === "team_workshop";
+  // Team sessions (workshops and team presentations) answer their questions in one shared team workspace.
+  const initTeamWorkshop = presentation.presentation_type === "team_workshop" || presentation.presentation_type === "team_presentation";
   const initHackathon = presentation.presentation_type === "hackathon";
   const initQuestions = Array.isArray(presentation.questions) && presentation.questions.length > 0;
   const [activeSection, setActiveSection] = useState<string>(initBingo ? "bingo" : initTeamWorkshop ? "team_workspace" : initHackathon ? "showcase" : initQuestions ? "workspace" : "overview");
@@ -80,7 +81,7 @@ export default function PresentationDetail({ presentation, camperId, camperTeamI
   const hasRubric = scores.length > 0 || !!presentation.rubric_template_id;
   const hasFeedback = feedback.length > 0;
 
-  const isTeamWorkshop = presentation.presentation_type === "team_workshop";
+  const isTeamWorkshop = presentation.presentation_type === "team_workshop" || presentation.presentation_type === "team_presentation";
   const isHackathon = presentation.presentation_type === "hackathon";
   const isEBR = presentation.title.toLowerCase().includes("ebr");
 

@@ -1,8 +1,6 @@
 import TeamWorkspaceForm from "@/components/TeamWorkspaceForm/index.js";
 import HackathonShowcase from "@/components/HackathonShowcase/index.js";
 import CounselorRoleAssignment from "@/components/CounselorRoleAssignment/index.js";
-import PresentationWorkspace from "@/components/PresentationWorkspace/index.js";
-import FiresideFinder from "@/components/FiresideFinder/index.js";
 import type { HubPresentation } from "@/lib/teamHub";
 
 type Question = { section: string; questions: string[] };
@@ -12,10 +10,10 @@ const questionsOf = (p: HubPresentation) => (Array.isArray(p.questions) ? (p.que
 
 /** Name of the hands-on tool for this presentation, or null when it has none. */
 export function teamToolLabel(p: HubPresentation): string | null {
-  if (p.presentation_type === "team_workshop" && p.question_count > 0) return "Team workspace";
   if (p.presentation_type === "hackathon") return "Showcase";
   if (isEbr(p)) return "Role play";
-  if (p.question_count > 0) return "My answers";
+  // Every team session's questions are answered together in one shared workspace.
+  if (p.question_count > 0) return "Team workspace";
   return null;
 }
 
@@ -27,9 +25,18 @@ type Props = {
   companyName: string | null;
 };
 
-/** The same working tools as the Presentations page, scoped to this team (team sessions only). */
+/**
+ * The working tool for one team session. Everything here is shared: whatever one teammate saves,
+ * the whole team sees (it refreshes on its own).
+ */
 export default function HubTeamTool({ presentation: p, teamId, camperId, isCounselor, companyName }: Props) {
-  if (p.presentation_type === "team_workshop" && p.question_count > 0) {
+  if (p.presentation_type === "hackathon") {
+    return <HackathonShowcase presentationId={p.id} camperId={camperId} camperTeamId={teamId} isAdmin={isCounselor} />;
+  }
+  if (isEbr(p)) {
+    return <CounselorRoleAssignment presentationId={p.id} teamId={teamId} camperId={camperId} />;
+  }
+  if (p.question_count > 0) {
     return (
       <TeamWorkspaceForm
         presentationId={p.id}
@@ -39,15 +46,6 @@ export default function HubTeamTool({ presentation: p, teamId, camperId, isCouns
         companyName={companyName ?? undefined}
       />
     );
-  }
-  if (p.presentation_type === "hackathon") {
-    return <HackathonShowcase presentationId={p.id} camperId={camperId} camperTeamId={teamId} isAdmin={isCounselor} />;
-  }
-  if (isEbr(p)) {
-    return <CounselorRoleAssignment presentationId={p.id} teamId={teamId} camperId={camperId} />;
-  }
-  if (p.question_count > 0) {
-    return <PresentationWorkspace presentationId={p.id} camperId={camperId} questions={questionsOf(p)} />;
   }
   return null;
 }
