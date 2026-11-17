@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,17 +15,22 @@ import ScoringCard, { calcCompletionScore } from "@/components/ScoringCard/index
 import CamperSelector from "@/components/CamperSelector/index.js";
 import WheelResultsModal from "@/components/WheelResultsModal/index.js";
 import WheelLeaderboard from "@/components/WheelLeaderboard/index.js";
-import { generateChallenge, SCORING_CATEGORIES, COMPLETION_CATEGORY, SCORE_LABELS, type WheelProduct, type Challenge } from "@/lib/wheelData.js";
+import WheelScoringMonitor from "@/components/WheelScoringMonitor/index.js";
+import WheelVoteProgress from "@/components/WheelVoteProgress/index.js";
+import { queryClient } from "@superblocksteam/library";
+import { errorMessage } from "@/lib/cohortRefresh.js";
+import { generateChallenge, SCORING_CATEGORIES, COMPLETION_CATEGORY, type WheelProduct, type Challenge } from "@/lib/wheelData.js";
 
 // ── Types ────────────────────────────────────────────────
 type CamperPhase = "waiting" | "room_voting" | "self_eval" | "submitted";
-type CounselorPhase = "idle" | "selecting" | "challenge" | "monitoring" | "results";
+type CounselorPhase = "idle" | "challenge" | "results";
 
 type PickedCamper = { id: number; first_name: string; last_name: string };
 
 type ActiveRound = {
   id: number;
   pitcher_id: number;
+  pitcher_name: string;
   product_id: string;
   product_name: string;
   challenge_type: string;
@@ -35,6 +40,18 @@ type ActiveRound = {
   status: string;
   pitcher_submitted: boolean;
   vote_count: number;
+  expected_count: number;
+};
+
+type Results = {
+  pitcherName: string;
+  selfTotal: number;
+  selfScores: Record<string, number>;
+  roomAvg: Record<string, number>;
+  roomAvgTotal: number;
+  roomVoteCount: number;
+  completionScore: number;
+  pointsAwarded: number;
 };
 
 function formatPitchTime(s: number) {
@@ -62,52 +79,46 @@ export default function WheelAndDealPage() {
     (m: { role: string | null }) => m.role !== "counselor" && m.role !== "admin"
   );
 
-  // ── Active round polling (all campers) ───────────────
+  // ── Open round polling (everyone) ──────────────────
+  // The server works out who is signed in, so the pitcher always gets the self-eval
+  // on their own device and everyone else gets the room vote.
   const { data: roundData, refetch: refetchRound } = useApiData(
     "GetActiveWheelRound",
-    { camper_id: camperId },
-    { enabled: camperId > 0, refetchInterval: 4000 }
+    {},
+    { enabled: camperId > 0 || isAdmin, refetchInterval: 4000 }
   );
   const activeRound: ActiveRound | null = roundData?.round ?? null;
   const alreadyScored: boolean = roundData?.already_scored ?? false;
+  const isPitcher: boolean = roundData?.is_pitcher ?? false;
+  const waitingOn: string[] = roundData?.waiting_on ?? [];
 
   // ── Counselor state ───────────────────────────────────
   const [counselorPhase, setCounselorPhase] = useState<CounselorPhase>("idle");
   const [selectedCamper, setSelectedCamper] = useState<PickedCamper | null>(null);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [completionScore, setCompletionScore] = useState(0);
-  const [pitchTime, setPitchTime] = useState(0);
-  const [roundId, setRoundId] = useState<number | null>(null);
   const [showSelector, setShowSelector] = useState(false);
   const [autoSpin, setAutoSpin] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
-  const [resultsData, setResultsData] = useState<{ selfTotal: number; roomAvgTotal: number; roomVoteCount: number; roomAvg: Record<string, number>; selfScores: Record<string, number>; pointsAwarded: number } | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [resultsData, setResultsData] = useState<Results | null>(null);
 
-  // ── Camper state ──────────────────────────────────────
-  const [camperPhase, setCamperPhase] = useState<CamperPhase>("waiting");
+  // Counselor watches the open round from the server, so a refresh never loses it.
+  const monitoring = isAdmin && !!activeRound && counselorPhase !== "results";
+
+  // ── Camper state (derived from the server) ────────────
+  const camperPhase: CamperPhase = !activeRound
+    ? "waiting"
+    : alreadyScored
+      ? "submitted"
+      : isPitcher
+        ? "self_eval"
+        : "room_voting";
 
   // ── APIs ──────────────────────────────────────────────
   const { run: createRound } = useApi("CreateWheelRound");
   const { run: submitScore } = useApi("SubmitWheelScore");
   const { run: closeScoring } = useApi("CloseWheelScoring");
-
-  // ── Detect when a round opens for non-counselors ─────
-  useEffect(() => {
-    if (isAdmin || camperId === 0) return;
-    if (!activeRound) {
-      setCamperPhase("waiting");
-      return;
-    }
-    if (alreadyScored) {
-      setCamperPhase("submitted");
-      return;
-    }
-    if (activeRound.pitcher_id === camperId) {
-      setCamperPhase("self_eval");
-    } else {
-      setCamperPhase("room_voting");
-    }
-  }, [isAdmin, camperId, activeRound, alreadyScored]);
 
   // ── Counselor: cAMPer selected → auto-spin ────────────
   const handleCamperSelected = useCallback((camper: PickedCamper) => {
@@ -124,96 +135,84 @@ export default function WheelAndDealPage() {
     setChallenge(ch);
   }, []);
 
-  // ── Timer stops ───────────────────────────────────────
+  // ── Timer stops → open scoring ────────────────────────
   const handleTimerStop = useCallback(async (elapsed: number, timeRemaining: number) => {
-    const compScore = calcCompletionScore(timeRemaining);
-    setCompletionScore(compScore);
-    setPitchTime(elapsed);
-
-    if (!selectedCamper || !challenge) return;
+    if (!selectedCamper || !challenge || opening) return;
+    setOpening(true);
     try {
-      const result = await createRound({
+      await createRound({
         pitcher_id: selectedCamper.id,
         product_id: challenge.product.id,
         product_name: challenge.product.name,
         challenge_type: challenge.typeLabel,
         challenge_prompt: challenge.prompt,
-        completion_score: compScore,
+        completion_score: calcCompletionScore(timeRemaining),
         pitch_time_seconds: elapsed,
       });
-      const rid = (result as any)?.round_id;
-      setRoundId(rid);
-      setCounselorPhase("monitoring");
+      setCounselorPhase("idle");
+      setChallenge(null);
+      await refetchRound();
       toast.success("⏱️ Timer stopped — scoring is now open for everyone!");
     } catch (err) {
-      toast.error("Failed to open scoring");
+      toast.error("Couldn't open scoring: " + errorMessage(err));
+    } finally {
+      setOpening(false);
     }
-  }, [selectedCamper, challenge, createRound]);
+  }, [selectedCamper, challenge, opening, createRound, refetchRound]);
 
   // ── Close scoring (counselor) ─────────────────────────
   const handleCloseScoring = useCallback(async () => {
-    if (!roundId) return;
+    if (!activeRound || closing) return;
+    setClosing(true);
     try {
-      const result = await closeScoring({ round_id: roundId });
-      const r = result as any;
-
-      // Extract room avg scores from active round data
-      const roundAvg = {
-        clarity: roundData?.round?.completion_score ?? 0, // fallback, server has real data
-        tone: 0, credibility: 0, close: 0,
-      };
-
+      const r = await closeScoring({ round_id: activeRound.id });
+      if (!r) throw new Error("No response from the server");
       setResultsData({
+        pitcherName: activeRound.pitcher_name,
         selfTotal: r.self_total,
+        selfScores: r.self_scores,
+        roomAvg: r.room_avg,
         roomAvgTotal: r.room_avg_total,
         roomVoteCount: r.room_vote_count,
-        roomAvg: roundAvg,
-        selfScores: {},
+        completionScore: r.completion_score,
         pointsAwarded: r.points_awarded,
       });
       setCounselorPhase("results");
-      refetchRound();
+      await Promise.all([refetchRound(), queryClient.invalidateQueries("GetWheelLeaderboard")]);
     } catch (err) {
-      toast.error("Failed to close scoring");
+      toast.error("Couldn't close scoring: " + errorMessage(err));
+    } finally {
+      setClosing(false);
     }
-  }, [roundId, closeScoring, roundData, refetchRound]);
+  }, [activeRound, closing, closeScoring, refetchRound]);
 
-  // ── Submit score (any camper) ─────────────────────────
-  const handleSubmitScore = useCallback(async (scores: Record<string, number>, isSelf: boolean) => {
-    if (!activeRound && !roundId) return;
-    const rid = isSelf ? roundId : activeRound?.id;
-    if (!rid || camperId === 0) return;
-    const comp = isSelf ? completionScore : (activeRound?.completion_score ?? 1);
+  // ── Submit score (pitcher or room) ────────────────────
+  // Throws on failure so the scoring card keeps the answers for a retry.
+  const handleSubmitScore = useCallback(async (scores: Record<string, number>) => {
+    if (!activeRound) {
+      toast.error("Scoring for this pitch has closed.");
+      return;
+    }
     try {
-      await submitScore({
-        round_id: rid,
-        scorer_id: camperId,
-        is_self_eval: isSelf,
+      const res = await submitScore({
+        round_id: activeRound.id,
         clarity: scores.clarity ?? 0,
         tone: scores.tone ?? 0,
         credibility: scores.credibility ?? 0,
         close_score: scores.close ?? 0,
-        completion: comp,
       });
-      if (isSelf) {
-        toast.success("✅ Self-eval submitted!");
-      } else {
-        toast.success("✅ Your vote is in!");
-      }
-      setCamperPhase("submitted");
-      refetchRound();
+      toast.success(res?.is_self_eval ? "✅ Self-eval submitted!" : "✅ Your vote is in!");
+      await refetchRound();
     } catch (err) {
-      toast.error("Failed to submit score");
+      toast.error("Couldn't submit your score: " + errorMessage(err));
+      throw err;
     }
-  }, [activeRound, roundId, camperId, completionScore, submitScore, refetchRound]);
+  }, [activeRound, submitScore, refetchRound]);
 
   const handleNextRound = useCallback(() => {
     setCounselorPhase("idle");
     setSelectedCamper(null);
     setChallenge(null);
-    setCompletionScore(0);
-    setPitchTime(0);
-    setRoundId(null);
     setResultsData(null);
     setAutoSpin(false);
   }, []);
@@ -233,15 +232,15 @@ export default function WheelAndDealPage() {
       )}
 
       {/* Results modal */}
-      {counselorPhase === "results" && resultsData && selectedCamper && (
+      {counselorPhase === "results" && resultsData && (
         <WheelResultsModal
-          pitcherName={`${selectedCamper.first_name} ${selectedCamper.last_name}`}
+          pitcherName={resultsData.pitcherName}
           selfScores={resultsData.selfScores}
           selfTotal={resultsData.selfTotal}
           roomAvg={resultsData.roomAvg}
           roomAvgTotal={resultsData.roomAvgTotal}
           roomVoteCount={resultsData.roomVoteCount}
-          completionScore={completionScore}
+          completionScore={resultsData.completionScore}
           pointsAwarded={resultsData.pointsAwarded}
           onClose={handleNextRound}
         />
@@ -310,7 +309,7 @@ export default function WheelAndDealPage() {
         {/* LEFT: Wheel (always visible for counselors; campers see it too while waiting) */}
         <div className="flex flex-col items-center gap-4">
           {/* cAMPer Selector button — counselor only */}
-          {isAdmin && counselorPhase === "idle" && (
+          {isAdmin && counselorPhase === "idle" && !monitoring && (
             <Button
               onClick={() => setShowSelector(true)}
               size="lg"
@@ -321,7 +320,7 @@ export default function WheelAndDealPage() {
           )}
 
           {/* Selected pitcher pill */}
-          {isAdmin && selectedCamper && counselorPhase !== "idle" && (
+          {isAdmin && selectedCamper && counselorPhase === "challenge" && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-100 to-purple-100 border border-purple-300">
               <span className="text-lg">🎤</span>
               <span className="font-bold text-purple-900">{selectedCamper.first_name} {selectedCamper.last_name}</span>
@@ -332,8 +331,8 @@ export default function WheelAndDealPage() {
           <SpinWheel
             onLand={handleLand}
             autoSpin={autoSpin}
-            disabled={isAdmin ? (counselorPhase !== "challenge" || !!challenge) : true}
-            disabledLabel={isAdmin ? (counselorPhase === "monitoring" ? "⏳ Scoring in progress" : undefined) : "🎤 Watch the pitcher!"}
+            disabled={isAdmin ? (monitoring || counselorPhase !== "challenge" || !!challenge) : true}
+            disabledLabel={isAdmin ? (monitoring ? "⏳ Scoring in progress" : undefined) : "🎤 Watch the pitcher!"}
           />
         </div>
 
@@ -341,7 +340,7 @@ export default function WheelAndDealPage() {
         <div className="flex flex-col gap-4 min-h-[400px]">
 
           {/* ─── COUNSELOR: idle ────────────────────────── */}
-          {isAdmin && counselorPhase === "idle" && (
+          {isAdmin && counselorPhase === "idle" && !monitoring && (
             <Card className="p-8 flex flex-col items-center justify-center text-center h-full gap-4 border-dashed">
               <div className="text-5xl">🎡</div>
               <h2 className="text-xl font-bold">Ready to Start</h2>
@@ -352,61 +351,23 @@ export default function WheelAndDealPage() {
           )}
 
           {/* ─── COUNSELOR: challenge + timer ────────────── */}
-          {isAdmin && counselorPhase === "challenge" && challenge && (
+          {isAdmin && counselorPhase === "challenge" && challenge && !monitoring && (
             <div className="space-y-4">
               <ChallengeCard challenge={challenge} />
               <PitchTimer onStop={handleTimerStop} />
+              {opening && <p className="text-xs text-muted-foreground text-center">Opening scoring...</p>}
             </div>
           )}
 
           {/* ─── COUNSELOR: monitoring votes ─────────────── */}
-          {isAdmin && counselorPhase === "monitoring" && activeRound && (
-            <div className="space-y-4">
-              <ChallengeCard challenge={challenge!} />
-
-              {/* Pitch summary */}
-              <div className="flex items-center gap-3 text-sm text-muted-foreground px-1">
-                <Icon icon="clock" className="w-4 h-4" />
-                Pitch time: <strong className="text-foreground">{formatPitchTime(pitchTime)}</strong>
-                <span className="mx-1">·</span>
-                <span>Completion: <strong>{completionScore}/3</strong></span>
-              </div>
-
-              {/* Scoring status */}
-              <Card className={`p-5 border-2 ${activeRound.pitcher_submitted ? "border-green-400 bg-green-50/50" : "border-amber-300 bg-amber-50/30"}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Icon icon={activeRound.pitcher_submitted ? "check-circle" : "clock"} className={`w-5 h-5 ${activeRound.pitcher_submitted ? "text-green-600" : "text-amber-600"}`} />
-                    <span className="text-sm font-bold">
-                      {activeRound.pitcher_submitted ? "Pitcher has submitted ✅" : "Waiting for pitcher..."}
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="text-blue-700 border-blue-300">
-                    {activeRound.vote_count} room vote{activeRound.vote_count !== 1 ? "s" : ""}
-                  </Badge>
-                </div>
-
-                {activeRound.pitcher_submitted ? (
-                  <>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {activeRound.vote_count > 0
-                        ? `${activeRound.vote_count} cAMPer${activeRound.vote_count !== 1 ? "s" : ""} have voted. Only fully-submitted scores count.`
-                        : "No room votes yet. You can close scoring at any time."}
-                    </p>
-                    <Button
-                      onClick={handleCloseScoring}
-                      className="w-full bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white font-bold py-4 text-base rounded-xl"
-                    >
-                      🔒 Close Scoring
-                    </Button>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Scoring is open. {activeRound.vote_count} room vote{activeRound.vote_count !== 1 ? "s" : ""} in so far. Wait for the pitcher to submit their self-eval before closing.
-                  </p>
-                )}
-              </Card>
-            </div>
+          {monitoring && activeRound && (
+            <WheelScoringMonitor
+              key={activeRound.id}
+              round={activeRound}
+              waitingOn={waitingOn}
+              closing={closing}
+              onClose={handleCloseScoring}
+            />
           )}
 
           {/* ─── CAMPER: waiting for a round ─────────────── */}
@@ -429,12 +390,13 @@ export default function WheelAndDealPage() {
                   <span className="font-bold text-purple-900">Rate the pitch!</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  <strong>{activeRound.product_name}</strong> — {activeRound.challenge_type}
+                  <strong>{activeRound.pitcher_name}</strong> · {activeRound.product_name} — {activeRound.challenge_type}
                 </p>
               </Card>
               <ScoringCard
+                key={activeRound.id}
                 mode="coach"
-                onSubmit={(scores) => handleSubmitScore(scores, false)}
+                onSubmit={handleSubmitScore}
                 completionScore={activeRound.completion_score}
               />
             </div>
@@ -453,8 +415,9 @@ export default function WheelAndDealPage() {
                 </p>
               </Card>
               <ScoringCard
+                key={activeRound.id}
                 mode="self"
-                onSubmit={(scores) => handleSubmitScore(scores, true)}
+                onSubmit={handleSubmitScore}
                 completionScore={activeRound.completion_score}
               />
             </div>
@@ -470,6 +433,11 @@ export default function WheelAndDealPage() {
               <p className="text-sm text-muted-foreground">
                 Waiting for the counselor to close scoring and reveal results...
               </p>
+              {activeRound && (
+                <div className="w-full max-w-xs">
+                  <WheelVoteProgress compact submitted={activeRound.vote_count} expected={activeRound.expected_count} />
+                </div>
+              )}
             </Card>
           )}
         </div>

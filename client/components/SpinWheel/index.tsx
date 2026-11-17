@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import confetti from "canvas-confetti";
 import { PRODUCTS, type WheelProduct } from "@/lib/wheelData.js";
+import { Icon } from "@/components/ui/icon";
+import { isSoundOn, playClack, playLand, playSpinStart, setSoundOn, unlockSound } from "@/lib/wheelSounds.js";
 
 type Props = {
   onLand: (product: WheelProduct) => void;
@@ -20,26 +22,6 @@ const SIZE = 580;
 
 // ── Text position along the spoke ──
 const TEXT_R = R * 0.54; // center text at ~54% of radius
-
-// ── Tick sound via Web Audio API ──
-function playTick() {
-  try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "square";
-    osc.frequency.setValueAtTime(800, ctx.currentTime);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.03);
-    setTimeout(() => ctx.close(), 100);
-  } catch {
-    // Audio not available
-  }
-}
 
 // ── Emoji confetti burst ──
 function fireConfetti(emojis: string[]) {
@@ -71,6 +53,7 @@ function segPath(i: number): string {
 export default function SpinWheel({ onLand, disabled, disabledLabel, autoSpin }: Props) {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [soundOn, setSoundOnState] = useState(isSoundOn);
   const animRef = useRef<number>(0);
   const lastSegRef = useRef(-1);
 
@@ -80,6 +63,7 @@ export default function SpinWheel({ onLand, disabled, disabledLabel, autoSpin }:
     if (spinning || disabled) return;
     setSpinning(true);
     lastSegRef.current = -1;
+    playSpinStart();
 
     const extra = 1440 + Math.random() * 720;
     const total = rotation + extra;
@@ -93,7 +77,7 @@ export default function SpinWheel({ onLand, disabled, disabledLabel, autoSpin }:
       setRotation(cur);
 
       const seg = Math.floor((((cur % 360) + 360) % 360) / SEG_DEG);
-      if (seg !== lastSegRef.current && lastSegRef.current !== -1) playTick();
+      if (seg !== lastSegRef.current && lastSegRef.current !== -1) playClack(1 - p);
       lastSegRef.current = seg;
 
       if (p < 1) {
@@ -104,7 +88,7 @@ export default function SpinWheel({ onLand, disabled, disabledLabel, autoSpin }:
         const pa = (((360 - fa) % 360) + 360) % 360;
         const idx = Math.floor(pa / SEG_DEG) % NUM;
         const prod = PRODUCTS[idx];
-        playTick();
+        playLand();
         fireConfetti(prod.confettiEmojis);
         setTimeout(() => { setSpinning(false); onLand(prod); }, 600);
       }
@@ -202,14 +186,31 @@ export default function SpinWheel({ onLand, disabled, disabledLabel, autoSpin }:
       </div>
 
       {/* Spin button */}
+      <div className="flex items-center gap-3">
       <Button
-        onClick={spin}
+        onClick={() => { unlockSound(); spin(); }}
         disabled={spinning || disabled}
         size="lg"
         className="text-xl font-extrabold px-14 py-7 rounded-2xl shadow-xl bg-[#2962FF] hover:bg-[#1e50d4] text-white disabled:opacity-50 transition-all"
       >
         {label}
       </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label={soundOn ? "Mute wheel sounds" : "Turn wheel sounds on"}
+        title={soundOn ? "Sound on" : "Sound off"}
+        onClick={() => {
+          const next = !soundOn;
+          setSoundOn(next);
+          setSoundOnState(next);
+          if (next) { unlockSound(); playLand(); }
+        }}
+      >
+        <Icon icon={soundOn ? "volume-2" : "volume-x"} className="w-5 h-5" />
+      </Button>
+      </div>
     </div>
   );
 }

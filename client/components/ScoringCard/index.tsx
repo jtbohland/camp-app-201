@@ -5,7 +5,8 @@ import { SCORING_CATEGORIES, SCORE_LABELS } from "@/lib/wheelData.js";
 
 type Props = {
   mode: "self" | "coach";
-  onSubmit: (scores: Record<string, number>) => void;
+  /** Resolves once saved; throw (or reject) to keep the answers on screen so they can retry. */
+  onSubmit: (scores: Record<string, number>) => Promise<void> | void;
   /** Auto-filled completion score (1-3) for self-eval only */
   completionScore?: number;
 };
@@ -33,6 +34,19 @@ export function calcCompletionScore(timeRemaining: number): number {
 
 export default function ScoringCard({ mode, onSubmit, completionScore }: Props) {
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(scores);
+    } catch {
+      // The caller shows the error; answers stay so they can try again.
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const manualTotal = useMemo(() => Object.values(scores).reduce((s, v) => s + v, 0), [scores]);
   const allRated = SCORING_CATEGORIES.every((c) => scores[c.key] > 0);
@@ -111,12 +125,15 @@ export default function ScoringCard({ mode, onSubmit, completionScore }: Props) 
       {/* Submit */}
       <div className="mt-5">
         <Button
-          onClick={() => onSubmit(scores)}
-          disabled={!allRated}
+          type="button"
+          onClick={handleSubmit}
+          disabled={!allRated || submitting}
           className="w-full font-bold"
           size="lg"
         >
-          {allRated
+          {submitting
+            ? "Submitting..."
+            : allRated
             ? `Score: ${displayTotal}/${maxScore} — Submit ${mode === "self" ? "Self-Evaluation" : "Coach Scores"}`
             : `Rate all ${SCORING_CATEGORIES.length} categories to submit`}
         </Button>
