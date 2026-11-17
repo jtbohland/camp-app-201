@@ -2,6 +2,7 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { getSurveyPoints, BADGE_IDS } from "../../lib/accelerator.js";
 import { awardRepeatableBadge } from "../../lib/award-badge.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
+import { getSurveyDayState } from "../../lib/survey-days.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const LATE_PENALTY = -3;
@@ -72,36 +73,14 @@ export default api({
       return { success: false, points_awarded: 0, on_time: false, late: false, locked: false, team_race_bonus: 0 };
     }
 
-    // Compute deadline + grace
-    const startDateRows = await ctx.integrations.camp_201_db.query(
-      `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
-      ConfigSchema, undefined, { label: "Get camp start date" }
-    );
-
-    let onTime = true;
-    let late = false;
-    let locked = false;
-    const now = new Date();
-
-    if (startDateRows.length > 0 && startDateRows[0].value) {
-      const startDate = new Date(startDateRows[0].value + "T00:00:00-07:00");
-      const deadline = new Date(startDate);
-      deadline.setDate(deadline.getDate() + input.day_number);
-      deadline.setHours(9, 0, 0, 0);
-
-      const grace = new Date(deadline);
-      grace.setHours(10, 0, 0, 0);
-
-      if (now > grace) {
-        // Past grace period — locked, can't submit
-        return { success: false, points_awarded: 0, on_time: false, late: true, locked: true, team_race_bonus: 0 };
-      }
-
-      if (now > deadline) {
-        onTime = false;
-        late = true;
-      }
+    // Counselor-locked days take no submissions. Automatic days are late after 9:00 AM Pacific the
+    // morning after; a day a counselor reopened stays on time until it's locked again.
+    const dayState = await getSurveyDayState(ctx.integrations.camp_201_db, input.day_number);
+    if (dayState.locked && !isFinalSurvey) {
+      throw new Error(`The Day ${input.day_number} survey isn't open right now.`);
     }
+    const late = dayState.late;
+    const onTime = !late;
 
     const pointsAwarded = onTime ? getSurveyPoints(input.day_number) : 0;
     const latePenalty = late ? LATE_PENALTY : 0;

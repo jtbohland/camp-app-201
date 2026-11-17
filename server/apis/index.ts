@@ -139,6 +139,8 @@ import { GetGuestJudges, AddGuestJudge, RemoveGuestJudge } from './camp/guest-ju
 import UpdateTeamDesign from './camp/update-team-design.js';
 import RenameTeam from './camp/rename-team.js';
 import { UpdateAbsenceRequest, WithdrawAbsenceRequest } from './camp/absence-changes.js';
+import { UpdateAnnouncement, DeleteAnnouncement } from './camp/announcement-changes.js';
+import GetMyPointsHistory from './camp/get-my-points-history.js';
 import { GetPresentationRound, PickNextPresenter, SetPresentationRound } from './camp/presentation-round.js';
 import { GetLogoTiebreaker, SubmitLogoTiebreakerVote } from './camp/logo-tiebreaker.js';
 import MigratePresentationsV2 from './camp/migrate-presentations-v2.js';
@@ -387,6 +389,9 @@ const apis = {
   RenameTeam,
   UpdateAbsenceRequest,
   WithdrawAbsenceRequest,
+  UpdateAnnouncement,
+  DeleteAnnouncement,
+  GetMyPointsHistory,
   GetPresentationRound,
   PickNextPresenter,
   SetPresentationRound,

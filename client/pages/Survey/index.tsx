@@ -27,7 +27,7 @@ const USEFULNESS_SCALE = [
 type SessionRating = { rating: number; usefulness: number; comment: string };
 type OverallRating = Record<string, number>;
 type OpenResponses = Record<string, string>;
-type DayStatus = { day_number: number; submitted: boolean; locked: boolean };
+type DayStatus = { day_number: number; submitted: boolean; locked: boolean; late: boolean; reopened: boolean };
 type TeamProgress = { team_id: number; team_name: string; team_color: string | null; total_members: number; submitted_count: number };
 
 function CountdownTimer({ deadlineIso }: { deadlineIso: string }) {
@@ -98,7 +98,6 @@ function TeamRaceBoard({ teams, dayNumber }: { teams: TeamProgress[]; dayNumber:
 export default function SurveyPage() {
   const user = useSuperblocksUser();
   const [searchParams, setSearchParams] = useSearchParams();
-  const lateMode = searchParams.get("late") === "true";
   const lateDayParam = searchParams.get("day");
   const [selectedDay, setSelectedDay] = useState(lateDayParam ? parseInt(lateDayParam) : 1);
   const [submitted, setSubmitted] = useState(false);
@@ -120,7 +119,9 @@ export default function SurveyPage() {
   const isFinalDay = surveyData?.is_final_day ?? false;
   const isSpiritVoteDay = selectedDay === numDays - 1;
   const alreadySubmitted = surveyData?.already_submitted ?? false;
-  const isLocked = surveyData?.locked ?? false;
+  // Closed by a counselor: no submissions. Late: past its 9 AM deadline but still open (late penalty).
+  const isClosed = surveyData?.manually_locked ?? false;
+  const isLate = (surveyData?.locked ?? false) && !isClosed;
   const sessions = surveyData?.sessions ?? [];
   const dayStatuses: DayStatus[] = surveyData?.day_statuses ?? [];
   const teamProgress: TeamProgress[] = surveyData?.team_progress ?? [];
@@ -145,8 +146,12 @@ export default function SurveyPage() {
 
   const handleToggleDayLock = useCallback(async (day: number, lock: boolean) => {
     try {
-      await toggleDayLock({ day_number: day, locked: lock });
-      toast.success(`Day ${day} survey ${lock ? "locked" : "unlocked"}`);
+      const res = await toggleDayLock({ day_number: day, locked: lock });
+      toast.success(
+        lock ? `Day ${day} survey locked`
+          : res?.reopened ? `Day ${day} survey reopened. Submissions count as on time until you lock it.`
+          : `Day ${day} survey unlocked`
+      );
       refetch();
     } catch (err) {
       const msg = err && typeof err === "object" && "message" in err ? String((err as any).message) : String(err);
@@ -202,6 +207,11 @@ export default function SurveyPage() {
         overall_open_responses: isFinalDay ? Object.entries(overallOpen).map(([key, response]) => ({ key, response })) : null,
       });
       const r = result as any;
+      if (r?.success === false) {
+        toast.info(`You've already submitted the Day ${selectedDay} survey.`);
+        refetch();
+        return;
+      }
       setSubmitResult({ points: r?.points_awarded ?? 0, late: r?.late ?? false, teamBonus: r?.team_race_bonus ?? 0 });
       setSubmitted(true);
       refetch();
@@ -299,16 +309,15 @@ export default function SurveyPage() {
             </div>
           )}
         </Card>
-      ) : (isLocked && !isAdmin && !lateMode) ? (
+      ) : (isClosed && !isAdmin) ? (
         <Card className="p-8 text-center border-red-200">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-red-50 mb-4">
             <Icon icon="lock" className="w-8 h-8 text-red-400" />
           </div>
-          <h2 className="text-lg font-bold mb-2">Survey Locked</h2>
+          <h2 className="text-lg font-bold mb-2">Survey Not Open</h2>
           <p className="text-sm text-muted-foreground">
-            The Day {selectedDay} survey deadline has passed. Submissions are no longer accepted.
+            The Day {selectedDay} survey isn&apos;t open right now. Your counselors will open it when it&apos;s time.
           </p>
-          <p className="text-xs text-red-500 mt-2">-5 points deducted for missed survey</p>
         </Card>
       ) : sessions.length === 0 ? (
         <Card className="p-8 text-center">
@@ -319,7 +328,7 @@ export default function SurveyPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {/* Late submission banner */}
-          {lateMode && isLocked && (
+          {isLate && (
             <Card className="p-4 border-amber-300 bg-amber-50/50">
               <div className="flex items-center gap-3">
                 <Icon icon="alert-triangle" className="w-5 h-5 text-amber-600 shrink-0" />
