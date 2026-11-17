@@ -96,11 +96,13 @@ const categories: PointCategory[] = [
   },
   {
     icon: "help-circle",
-    title: "Executive Q&A",
-    subtitle: "🚀 Accelerated — ask more questions, earn more!",
+    title: "Speaker Q&A",
+    subtitle: "Good questions get upvoted, and upvotes earn points",
     color: "bg-blue-500/10 text-blue-600",
     items: [
-      { label: "Submit a question during exec session", points: "2 base", positive: true, note: "Earns a Q&A Contributor badge + accelerator bonus" },
+      { label: "Ask a question before the speaker's session ends", points: "+2", positive: true, note: "Up to 5 questions per speaker" },
+      { label: "Each upvote your question gets", points: "+1", positive: true, note: "While the session is live" },
+      { label: "Questions asked after the session", points: "0", positive: false, note: "Still saved for the speaker to review" },
     ],
   },
   {
@@ -214,7 +216,7 @@ export default function XPlanationTab() {
           How Accelerators Work
         </h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Check-Ins, Hub Posts, and Exec Q&A all use the accelerator system.
+          Check-Ins and Hub Posts use the accelerator system.
           The more you earn a badge, the more each action is worth. Keep going!
         </p>
         <div className="overflow-x-auto">

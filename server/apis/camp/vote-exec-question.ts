@@ -61,7 +61,9 @@ export default api({
       `WITH up AS (
          INSERT INTO camp201_exec_votes (question_id, voter_id, vote)
          VALUES ($1, $2, $3)
-         ON CONFLICT (question_id, voter_id) DO UPDATE SET vote = EXCLUDED.vote
+         ON CONFLICT (question_id, voter_id) DO UPDATE SET vote = EXCLUDED.vote,
+           created_at = CASE WHEN camp201_exec_votes.vote IS DISTINCT FROM EXCLUDED.vote THEN NOW()
+                             ELSE camp201_exec_votes.created_at END
          RETURNING vote
        ),
        recount AS (
@@ -80,6 +82,16 @@ export default api({
       { label: "Save vote + recount" }
     );
     const result = saved[0];
+
+    // The question's author gets +1 per upvote while the session is live (kept in sync, so
+    // toggling a vote can't add points twice).
+    await db.query(
+      `SELECT camp201_sync_qa_question_points($1)::int AS pts`,
+      z.object({ pts: z.coerce.number() }),
+      [question_id],
+      { label: "Sync author's Q&A points" }
+    );
+
     return { success: true, vote_count: result.vote_count, user_vote: result.user_vote };
   },
 });
