@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { usePointsBubble } from "@/components/PointsBubble/index.js";
 import { useApi } from "@/hooks/useApi";
 import { useApiData } from "@/hooks/useApiData";
+import { useSessionState } from "@/lib/useSessionState.js";
 import FeedbackLines from "./FeedbackLines.js";
 import FeedbackTargetPicker from "./FeedbackTargetPicker.js";
 import FeedbackStatusNote from "./FeedbackStatusNote.js";
@@ -30,6 +31,9 @@ type Props = {
 const GLOW_HINTS = ["Their opening hook was incredible...", "Data storytelling was clear and compelling...", "Great energy and confidence on stage..."];
 const GROW_HINTS = ["Could tighten the value prop section...", "More eye contact with the audience...", "Add a stronger closing CTA..."];
 
+type Draft = { teamId: number | null; glow: string[]; grow: string[]; trailNotes: string };
+const EMPTY_DRAFT: Draft = { teamId: null, glow: ["", "", ""], grow: ["", "", ""], trailNotes: "" };
+
 function errorText(err: unknown): string {
   if (typeof err === "string") return err;
   if (err instanceof Error) return err.message;
@@ -44,18 +48,21 @@ function errorText(err: unknown): string {
  */
 export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: Props) {
   const showPoints = usePointsBubble();
-  const [isOpen, setIsOpen] = useState(false);
-  const [teamId, setTeamId] = useState<number | null>(null);
+  const presentation = round.presentationTitle ?? "";
+  const accepting = round.status === "open" || round.status === "closing";
+
+  // The review in progress is kept for this browser tab, so a refresh or a quick trip to another
+  // page never wipes what someone has typed.
+  const [draft, setDraft] = useSessionState<Draft>(`camp-feedback-draft:${presentation}`, EMPTY_DRAFT);
+  const { teamId, glow, grow, trailNotes } = draft;
+  const hasDraft = [...glow, ...grow, trailNotes].some((s) => s.trim().length > 0);
+  const [isOpen, setIsOpen] = useState(hasDraft);
   const [manual, setManual] = useState(false);
-  const [glow, setGlow] = useState(["", "", ""]);
-  const [grow, setGrow] = useState(["", "", ""]);
-  const [trailNotes, setTrailNotes] = useState("");
+  const setTeamId = useCallback((id: number | null) => setDraft((d) => ({ ...d, teamId: id })), [setDraft]);
+  const setTrailNotes = (value: string) => setDraft((d) => ({ ...d, trailNotes: value }));
 
   const { run: submitFeedback, loading: submitting } = useApi("SubmitPeerFeedback");
   const { data: feedbackData, refetch: refetchFeedback } = useApiData("GetPeerFeedback", { session_label: null, team_id: null });
-
-  const presentation = round.presentationTitle ?? "";
-  const accepting = round.status === "open" || round.status === "closing";
 
   const reviewedIds = useMemo(
     () => new Set((feedbackData?.my_reviews ?? []).filter((r) => r.session_label === presentation).map((r) => r.team_id)),
@@ -75,15 +82,19 @@ export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: 
   const canAutoFill = round.upNowId !== null && teams.some((t) => t.id === round.upNowId);
   const autoFilled = canAutoFill && !manual;
 
-  // Follow the live round: whenever a new team is picked, the form points at them.
+  // Follow the live round: whenever a new team is picked, the form points at them. Once someone
+  // has started writing, the team stays put, so a review never jumps to the next team mid-sentence.
   useEffect(() => {
-    if (canAutoFill && !manual) setTeamId(round.upNowId);
-  }, [canAutoFill, manual, round.upNowId]);
+    if (canAutoFill && !manual && (!hasDraft || teamId === null)) setTeamId(round.upNowId);
+  }, [canAutoFill, manual, hasDraft, teamId, round.upNowId, setTeamId]);
+  const nextTeamWaiting = hasDraft && teamId !== null && canAutoFill && round.upNowId !== teamId
+    ? teams.find((t) => t.id === round.upNowId) ?? null
+    : null;
 
   // If the chosen team is no longer reviewable (round changed), clear it.
   useEffect(() => {
     if (teamId !== null && !teams.some((t) => t.id === teamId)) setTeamId(null);
-  }, [teamId, teams]);
+  }, [teamId, teams, setTeamId]);
 
   const alreadySubmitted = teamId !== null && reviewedIds.has(teamId);
   const glowValid = glow.every((s) => s.trim().length > 0);
@@ -106,7 +117,10 @@ export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: 
     try {
       const res = await submitFeedback({ session_label: presentation, team_id: teamId, items });
       if (res?.error === "already_submitted") {
+        // Usually a retry after a slow connection: the first send already went through.
         toast.info("You've already reviewed this team for this presentation.");
+        setDraft(EMPTY_DRAFT);
+        setManual(false);
         await refetchFeedback();
         return;
       }
@@ -126,19 +140,17 @@ export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: 
       }
       toast.success("🏕️ cAMPfire Feedback submitted!");
       if (res?.points_awarded) showPoints(res.points_awarded);
-      setGlow(["", "", ""]);
-      setGrow(["", "", ""]);
-      setTrailNotes("");
+      setDraft(EMPTY_DRAFT);
       setManual(false);
       setIsOpen(false);
       await refetchFeedback();
     } catch (err) {
       toast.error("Failed to submit: " + errorText(err));
     }
-  }, [canSubmit, teamId, glow, grow, trailNotes, presentation, submitFeedback, refetchFeedback, showPoints, onRoundStale]);
+  }, [canSubmit, teamId, glow, grow, trailNotes, presentation, submitFeedback, refetchFeedback, showPoints, onRoundStale, setDraft]);
 
-  const update = (setter: typeof setGlow) => (index: number, value: string) =>
-    setter((prev) => prev.map((v, i) => (i === index ? value : v)));
+  const update = (field: "glow" | "grow") => (index: number, value: string) =>
+    setDraft((d) => ({ ...d, [field]: d[field].map((v, i) => (i === index ? value : v)) }));
 
   const status = (
     <FeedbackStatusNote
@@ -205,6 +217,13 @@ export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: 
         onUnlock={() => setManual(true)}
       />
 
+      {nextTeamWaiting && (
+        <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-800">
+          <Icon icon="mic" className="h-4 w-4 shrink-0" />
+          <span><b>{nextTeamWaiting.name}</b> is up now. Finish and submit this review first, then you can review them.</span>
+        </div>
+      )}
+
       {alreadySubmitted && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 p-3 text-xs text-amber-800">
           <Icon icon="circle-check" className="h-4 w-4" />
@@ -212,8 +231,8 @@ export default function PeerFeedbackForm({ camperTeamId, round, onRoundStale }: 
         </div>
       )}
 
-      <FeedbackLines icon="☀️" title="Glow" hint="3 things that shined" values={glow} placeholders={GLOW_HINTS} tone="amber" onChange={update(setGlow)} />
-      <FeedbackLines icon="🌱" title="Grow" hint="3 growth opportunities" values={grow} placeholders={GROW_HINTS} tone="green" onChange={update(setGrow)} />
+      <FeedbackLines icon="☀️" title="Glow" hint="3 things that shined" values={glow} placeholders={GLOW_HINTS} tone="amber" onChange={update("glow")} />
+      <FeedbackLines icon="🌱" title="Grow" hint="3 growth opportunities" values={grow} placeholders={GROW_HINTS} tone="green" onChange={update("grow")} />
 
       <div>
         <h4 className="mb-2 flex items-center gap-2 text-sm font-bold">

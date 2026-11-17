@@ -50,21 +50,28 @@ export default api({
     const completion = Math.min(3, Math.max(1, Math.round(round.completion_score ?? 1)));
     const total = input.clarity + input.tone + input.credibility + input.close_score + completion;
 
-    const saved = await db.execute(
-      `INSERT INTO camp201_wheel_scores
-         (round_id, scorer_id, is_self_eval, clarity, tone, credibility, close_score, completion, total)
-       SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
-        WHERE EXISTS (SELECT 1 FROM camp201_wheel_rounds WHERE id = $1 AND status = 'scoring')
-       ON CONFLICT (round_id, scorer_id) DO UPDATE SET
-         is_self_eval = EXCLUDED.is_self_eval,
-         clarity = EXCLUDED.clarity, tone = EXCLUDED.tone,
-         credibility = EXCLUDED.credibility, close_score = EXCLUDED.close_score,
-         completion = EXCLUDED.completion, total = EXCLUDED.total,
-         submitted_at = NOW()`,
+    // RETURNING (not rowCount) tells us whether the row was saved: rowCount is unreliable
+    // for INSERT ... ON CONFLICT on this database.
+    const saved = await db.query(
+      `WITH up AS (
+         INSERT INTO camp201_wheel_scores
+           (round_id, scorer_id, is_self_eval, clarity, tone, credibility, close_score, completion, total)
+         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9
+          WHERE EXISTS (SELECT 1 FROM camp201_wheel_rounds WHERE id = $1 AND status = 'scoring')
+         ON CONFLICT (round_id, scorer_id) DO UPDATE SET
+           is_self_eval = EXCLUDED.is_self_eval,
+           clarity = EXCLUDED.clarity, tone = EXCLUDED.tone,
+           credibility = EXCLUDED.credibility, close_score = EXCLUDED.close_score,
+           completion = EXCLUDED.completion, total = EXCLUDED.total,
+           submitted_at = NOW()
+         RETURNING id
+       )
+       SELECT id FROM up LIMIT 1`,
+      z.object({ id: z.coerce.number() }),
       [input.round_id, scorer.camperId, isSelf, input.clarity, input.tone, input.credibility, input.close_score, completion, total],
       { label: isSelf ? "Save pitcher self-eval" : "Save room vote" }
     );
-    if (!saved.rowCount) throw new Error("Scoring for this pitch just closed.");
+    if (saved.length === 0) throw new Error("Scoring for this pitch just closed.");
 
     return { success: true, total, is_self_eval: isSelf };
   },

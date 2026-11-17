@@ -9,6 +9,7 @@ const LeaderSchema = z.object({
   last_name: z.string(),
   team_name: z.string().nullable(),
   team_color: z.string().nullable(),
+  team_logo: z.string().nullable(),
   pitch_count: z.coerce.number(),
   avg_self_score: z.coerce.number(),
   avg_room_score: z.coerce.number(),
@@ -30,7 +31,7 @@ export default api({
       `SELECT
          r.pitcher_id as camper_id,
          c.first_name, c.last_name,
-         t.name as team_name, t.color as team_color,
+         t.name as team_name, t.color as team_color, NULLIF(t.logo_url, '') as team_logo,
          COUNT(*) as pitch_count,
          COALESCE(ROUND(AVG((r.self_scores->>'total')::numeric), 1), 0) as avg_self_score,
          COALESCE(ROUND(AVG(CASE WHEN COALESCE(r.room_vote_count, 0) > 0 THEN (r.room_avg_scores->>'total')::numeric END), 1), 0) as avg_room_score,
@@ -39,7 +40,7 @@ export default api({
        JOIN camp201_campers c ON c.id = r.pitcher_id
        LEFT JOIN camp201_teams t ON t.id = c.team_id
        WHERE r.status = 'closed' AND c.cohort_id = ${cohortIdSql(view.cohortId)}
-       GROUP BY r.pitcher_id, c.first_name, c.last_name, t.name, t.color
+       GROUP BY r.pitcher_id, c.first_name, c.last_name, t.name, t.color, t.logo_url
        ORDER BY total_points DESC, pitch_count DESC
        LIMIT 50`,
       LeaderSchema,

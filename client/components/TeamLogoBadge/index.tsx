@@ -6,12 +6,12 @@ type Props = {
   src: string | null;
   name: string;
   color: string | null;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
   /** Click the logo to see it full size. */
   zoomable?: boolean;
 };
 
-const SIZES = { md: "w-12 h-12 text-base", lg: "w-16 h-16 text-lg" };
+const SIZES = { sm: "w-7 h-7 text-[10px]", md: "w-12 h-12 text-base", lg: "w-16 h-16 text-lg" };
 
 /** Round team badge. Logos use object-contain on white so they show in full, never cropped. */
 export default function TeamLogoBadge({ src, name, color, size = "md", zoomable = false }: Props) {

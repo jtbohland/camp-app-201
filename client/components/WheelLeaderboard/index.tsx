@@ -3,6 +3,7 @@ import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiData } from "@/hooks/useApiData";
 import { denseRanks } from "@/lib/rank.js";
+import TeamLogoBadge from "@/components/TeamLogoBadge/index.js";
 
 type Leader = {
   camper_id: number;
@@ -10,6 +11,7 @@ type Leader = {
   last_name: string;
   team_name: string | null;
   team_color: string | null;
+  team_logo: string | null;
   pitch_count: number;
   avg_self_score: number;
   avg_room_score: number;
@@ -113,12 +115,7 @@ export default function WheelLeaderboard() {
                   <td className="px-3 py-3">
                     {l.team_name ? (
                       <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                          style={{ backgroundColor: l.team_color || "#6b7280" }}
-                        >
-                          {l.team_name.slice(0, 2).toUpperCase()}
-                        </div>
+                        <TeamLogoBadge src={l.team_logo} name={l.team_name} color={l.team_color} size="sm" zoomable />
                         <span className="text-muted-foreground text-xs">{l.team_name}</span>
                       </div>
                     ) : (
