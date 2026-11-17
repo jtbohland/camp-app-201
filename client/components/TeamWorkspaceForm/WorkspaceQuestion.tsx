@@ -39,10 +39,11 @@ function WorkspaceQuestion({ questionKey, label, state, onChange, onSave, onUseT
   const hasText = state.draft.trim().length > 0;
 
   return (
-    <div className="p-4">
-      <label className="mb-2 block text-sm font-medium text-foreground">{label}</label>
+    <div className="min-w-0 p-4">
+      <label htmlFor={`ws-${questionKey}`} className="mb-2 block text-sm font-medium text-foreground">{label}</label>
       <textarea
-        className={`min-h-[80px] w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+        id={`ws-${questionKey}`}
+        className={`box-border block min-h-[80px] w-full max-w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 ${
           dirty ? "border-amber-300" : "border-input"
         }`}
         placeholder="Type your team's answer here…"

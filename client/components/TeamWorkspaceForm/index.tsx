@@ -150,7 +150,7 @@ export default function TeamWorkspaceForm({ presentationId, teamId, questions, c
   const answeredQs = keys.filter((k) => (qs[k]?.saved ?? "").trim().length > 0).length;
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Icon icon="users" className="h-5 w-5 text-emerald-600" />
@@ -178,7 +178,7 @@ export default function TeamWorkspaceForm({ presentationId, teamId, questions, c
       </div>
 
       {questions.map((section, si) => (
-        <Card key={si} className="overflow-hidden">
+        <Card key={si} className="min-w-0 overflow-hidden">
           <div className="border-b bg-gradient-to-r from-stone-100 to-stone-50 p-3">
             <h4 className="text-sm font-bold">{section.section}</h4>
           </div>
