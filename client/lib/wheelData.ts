@@ -200,29 +200,6 @@ export const PRODUCTS: WheelProduct[] = [
     challengerHint: "The story is about speed and signal — a pattern hiding in thousands of tickets that almost became a churn crisis.",
   },
   {
-    id: "aiassistant",
-    name: "AI Assistant",
-    icon: "🤖",
-    color: "#00C853",
-    confettiEmojis: ["🤖", "🗣️"],
-    objections: [
-      {
-        text: "We have a data team for this.",
-        reframe: "Your data team is probably overwhelmed with ad-hoc requests. AI Assistant handles the routine questions so they can focus on the analysis that actually requires human judgment.",
-      },
-      {
-        text: "Our team already uses ChatGPT for data questions.",
-        reframe: "ChatGPT doesn't know your data. Amplitude AI Assistant is trained on your actual behavioral data — real answers about your real users.",
-      },
-      {
-        text: "We already have a BI tool.",
-        reframe: "BI tools are great for dashboards. AI Assistant is conversational — you ask in plain English and get an answer. No building a report, no waiting for a data pull.",
-      },
-    ],
-    challengerPrompt: "Don't describe AI Assistant. Tell me what a company loses every time someone has to file a ticket to get a data question answered.",
-    challengerHint: "The insight is about access and speed — the cost of the gap between having data and being able to act on it.",
-  },
-  {
     id: "wave",
     name: "Wave",
     icon: "🌊",
