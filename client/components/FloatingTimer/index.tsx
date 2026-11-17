@@ -17,6 +17,8 @@ export default function FloatingTimer() {
   const onTimerPage = location.pathname === "/timer";
 
   const [position, setPosition] = useState({ x: 24, y: 24 });
+  // Hidden on this screen only. The timer itself keeps running for everyone.
+  const [dismissed, setDismissed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -47,7 +49,17 @@ export default function FloatingTimer() {
 
   // Show while running or paused mid-way. Counselors also see "Time's up"; cAMPers don't need it.
   const midway = state.remaining > 0 && state.remaining < state.totalSeconds;
-  const showWidget = !onTimerPage && (state.running || midway || (canControl && state.finished));
+  const timerActive = state.running || midway || (canControl && state.finished);
+
+  // Bring the widget back for the next timer: once this one is reset, or a new one is set up.
+  useEffect(() => {
+    if (!timerActive) setDismissed(false);
+  }, [timerActive]);
+  useEffect(() => {
+    setDismissed(false);
+  }, [state.label, state.totalSeconds]);
+
+  const showWidget = !onTimerPage && timerActive && !dismissed;
   if (!showWidget) return null;
 
   const progress = state.totalSeconds > 0 ? ((state.totalSeconds - state.remaining) / state.totalSeconds) * 100 : 0;
@@ -105,6 +117,16 @@ export default function FloatingTimer() {
         </div>
 
         {state.label && <span className="text-[10px] text-muted-foreground max-w-[80px] truncate">{state.label}</span>}
+
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+          className="p-1 -mr-1 rounded hover:bg-muted text-muted-foreground"
+          title="Hide (timer keeps running)"
+          aria-label="Hide timer"
+        >
+          <Icon icon="x" className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
