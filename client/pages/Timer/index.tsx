@@ -9,6 +9,7 @@ import { useTimerContext } from "@/components/TimerContext/index.js";
 import TimerDisplay from "@/components/TimerDisplay/index.js";
 import TimerControls, { TIMER_MODES } from "@/components/TimerControls/index.js";
 import TeamCheckInRace from "@/components/TeamCheckInRace/index.js";
+import CheckInBackfill from "@/components/CheckInBackfill/index.js";
 
 const errText = (e: unknown) =>
   e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : String(e);
@@ -157,6 +158,8 @@ export default function TimerPage() {
       )}
 
       {activeSession && <TeamCheckInRace teams={checkinData?.teams_progress ?? []} />}
+
+      {isAdmin && <CheckInBackfill onChanged={() => void refetchCheckin()} />}
     </div>
   );
 }

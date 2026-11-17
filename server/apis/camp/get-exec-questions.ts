@@ -28,7 +28,12 @@ export default api({
     executive_id: z.coerce.number(),
     camper_id: z.coerce.number(),
   }),
-  output: z.object({ questions: z.array(QuestionSchema) }),
+  output: z.object({
+    questions: z.array(QuestionSchema),
+    /** True once the speaker's session has ended: questions still save, but earn no points. */
+    session_ended: z.boolean(),
+    session_ends_at: z.string().nullable(),
+  }),
   async run(ctx, { executive_id, camper_id }) {
     const db = ctx.integrations.camp_db;
     // Only questions from the viewed cohort (active for cAMPers, chosen past cohort for counselors).
@@ -38,7 +43,9 @@ export default api({
     const counselor = await getCounselorAccess(db, ctx.user.email);
     if (!counselor.isAdmin) {
       const speaker = await getSpeakerAccess(db, ctx.user.email);
-      if (speaker && speaker.executiveId !== executive_id) return { questions: [] };
+      if (speaker && speaker.executiveId !== executive_id) {
+        return { questions: [], session_ended: false, session_ends_at: null };
+      }
     }
     const questions = await db.query(
       `SELECT q.id, q.executive_id, q.submitted_by,
@@ -57,6 +64,14 @@ export default api({
       [executive_id, camper_id],
       { label: "Get exec questions" }
     );
-    return { questions };
+    const [ends] = await db.query(
+      `SELECT to_char(e AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ends_at,
+              COALESCE(e <= NOW(), false) AS ended
+       FROM (SELECT camp201_qa_session_end($1) AS e) x`,
+      z.object({ ends_at: z.string().nullable(), ended: z.boolean() }),
+      [executive_id],
+      { label: "When the speaker's session ends" }
+    );
+    return { questions, session_ended: ends?.ended ?? false, session_ends_at: ends?.ends_at ?? null };
   },
 });

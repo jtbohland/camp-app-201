@@ -186,7 +186,7 @@ export function AttendanceSection({ data }: Props) {
                   c.timing === "late" ? "bg-amber-100 text-amber-700" : c.timing === "early" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
                 }`}
               >
-                {c.timing ?? "on time"}
+                {c.timing === "absent" ? "excused" : c.timing === "backfilled" ? "back-filled" : c.timing === "on_time" ? "on time" : c.timing ?? "on time"}
               </span>
             </div>
           ))}

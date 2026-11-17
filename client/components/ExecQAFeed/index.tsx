@@ -42,6 +42,8 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
   const [newQuestion, setNewQuestion] = useState("");
 
   const questions: ExecQuestion[] = (data?.questions ?? []) as ExecQuestion[];
+  // Past the speaker's session: questions still save for the speaker, but earn no points.
+  const sessionEnded = data?.session_ended ?? false;
 
   /** Change the cached feed right away; returns a function that puts the old feed back. */
   const patchFeed = useCallback((change: (list: ExecQuestion[]) => ExecQuestion[]) => {
@@ -67,7 +69,12 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
         return;
       }
       setNewQuestion("");
-      toast.success("Question submitted! +2 pts");
+      const r = result as { points?: number; session_ended?: boolean } | undefined;
+      if (r?.session_ended) {
+        toast.success("Question submitted for the speaker to review. No points: this Q&A is no longer live.");
+      } else {
+        toast.success(`Question submitted! +${r?.points ?? 2} pts`);
+      }
       refetch();
     } catch (err) {
       const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
@@ -155,6 +162,16 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
         )}
       </div>
 
+      {canAsk && sessionEnded && (
+        <Card className="p-4 border-amber-300 bg-amber-50/60 flex items-start gap-3">
+          <Icon icon="clock" className="w-4 h-4 text-amber-700 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-900">
+            <span className="font-semibold">This Q&A feed is no longer live.</span> You can still submit a question for the
+            speaker to possibly review, but you won't receive points for it.
+          </p>
+        </Card>
+      )}
+
       {canAsk && (
         <Card className="p-4 border-camp-green/30 bg-camp-green/5">
           <div className="flex gap-2">
@@ -171,7 +188,9 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">
-            {myQuestionCount}/5 questions used · Vote on as many questions as you like · Tap the pencil to edit yours
+            {myQuestionCount}/5 questions used ·{" "}
+            {sessionEnded ? "No points after the session" : "+2 pts per question, +1 per upvote it gets"} · Vote on as many
+            questions as you like · Tap the pencil to edit yours
           </p>
         </Card>
       )}

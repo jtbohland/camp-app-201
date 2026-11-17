@@ -1,6 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { getCounselorAccess } from "../../lib/cohort.js";
-import { COUNTS_FOR_CHECKIN_SQL, EXCUSED_SQL } from "../../lib/checkin-team-race.js";
+import { COUNTS_FOR_CHECKIN_SQL, EXCUSED_SQL, REAL_TIMINGS_SQL } from "../../lib/checkin-team-race.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -32,6 +32,8 @@ export default api({
       total_members: z.number(),
       all_in: z.boolean(),
       completed_at: z.string().nullable(),
+      /** Members out on an approved absence for this check-in (count as in, 0 solo points). */
+      excused_members: z.array(z.string()),
     })),
     /** The signed-in cAMPer: true only when they still owe a check-in (not in, not excused, counts for check-in). */
     my_needs_checkin: z.boolean(),
@@ -128,15 +130,21 @@ export default api({
       total_members: z.coerce.number(),
       all_in: z.boolean(),
       completed_at: z.string().nullable(),
+      excused_members: z.array(z.string()).nullable(),
     });
 
     // Same membership rule as the team race: active cAMPers only; excused members count as in.
     const teamsProgress = await ctx.integrations.camp_201_db.query(
       `WITH members AS (
          SELECT c.team_id, c.id,
+                NULLIF(TRIM(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')), '') AS name,
                 (EXISTS (SELECT 1 FROM camp201_checkin_responses r WHERE r.session_id = $1 AND r.camper_id = c.id)
                  OR ${EXCUSED_SQL}) AS is_in,
-                (SELECT MAX(r.checked_in_at) FROM camp201_checkin_responses r WHERE r.session_id = $1 AND r.camper_id = c.id) AS at
+                (${EXCUSED_SQL}
+                 AND NOT EXISTS (SELECT 1 FROM camp201_checkin_responses r
+                                 WHERE r.session_id = $1 AND r.camper_id = c.id AND r.timing IN ${REAL_TIMINGS_SQL})) AS excused,
+                (SELECT MAX(r.checked_in_at) FROM camp201_checkin_responses r
+                 WHERE r.session_id = $1 AND r.camper_id = c.id AND r.timing IN ${REAL_TIMINGS_SQL}) AS at
          FROM camp201_campers c
          WHERE c.team_id IS NOT NULL AND ${COUNTS_FOR_CHECKIN_SQL}
        )
@@ -144,7 +152,8 @@ export default api({
               COUNT(*) FILTER (WHERE m.is_in) AS checked_in,
               COUNT(*) AS total_members,
               (COUNT(*) FILTER (WHERE m.is_in) = COUNT(*)) AS all_in,
-              MAX(m.at)::text AS completed_at
+              MAX(m.at)::text AS completed_at,
+              array_agg(COALESCE(m.name, 'cAMPer') ORDER BY m.name) FILTER (WHERE m.excused) AS excused_members
        FROM camp201_teams t JOIN members m ON m.team_id = t.id
        GROUP BY t.id, t.name
        ORDER BY (COUNT(*) FILTER (WHERE m.is_in))::float / COUNT(*) DESC, MAX(m.at) ASC NULLS LAST
@@ -178,7 +187,7 @@ export default api({
       current_word: currentWord,
       previous_word: previousWord,
       checkin_open: checkinOpen,
-      teams_progress: teamsProgress,
+      teams_progress: teamsProgress.map((t) => ({ ...t, excused_members: t.excused_members ?? [] })),
       my_needs_checkin: myNeedsCheckin,
       my_is_late: myNeedsCheckin && now.getTime() > new Date(session.timer_ends_at).getTime() + 60_000,
     };

@@ -41,6 +41,7 @@ import StartCheckIn from './camp/start-checkin.js';
 import GetActiveCheckIn from './camp/get-active-checkin.js';
 import SubmitCheckIn from './camp/submit-checkin.js';
 import CloseCheckIn from './camp/close-checkin.js';
+import { GetCheckInBackfill, BackfillCheckIn } from './camp/checkin-backfill.js';
 import GetCheckInHistory from './camp/get-checkin-history.js';
 import RequestAbsence from './camp/request-absence.js';
 import GetAbsenceRequests from './camp/get-absence-requests.js';
@@ -272,6 +273,8 @@ const apis = {
   GetActiveCheckIn,
   SubmitCheckIn,
   CloseCheckIn,
+  GetCheckInBackfill,
+  BackfillCheckIn,
   GetCheckInHistory,
   RequestAbsence,
   GetAbsenceRequests,
