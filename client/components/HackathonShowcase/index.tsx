@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Card } from "@/components/ui/card";
@@ -13,21 +13,31 @@ type Props = {
   isAdmin: boolean;
 };
 
+type SubmissionForm = {
+  app_name: string; description: string; use_case: string; how_it_works: string; who_uses_it: string; app_link: string;
+};
+const EMPTY_FORM: SubmissionForm = { app_name: "", description: "", use_case: "", how_it_works: "", who_uses_it: "", app_link: "" };
+const FIELDS = Object.keys(EMPTY_FORM) as (keyof SubmissionForm)[];
+const toForm = (s: Record<string, unknown>): SubmissionForm =>
+  Object.fromEntries(FIELDS.map((k) => [k, typeof s[k] === "string" ? (s[k] as string) : ""])) as SubmissionForm;
+const sameForm = (a: SubmissionForm, b: SubmissionForm) => FIELDS.every((k) => a[k] === b[k]);
+
 export default function HackathonShowcase({ presentationId, camperId, camperTeamId, isAdmin }: Props) {
-  const { data, loading, refetch } = useApiData("GetHackathonResults", {
-    presentation_id: presentationId,
-    camper_id: camperId,
-  });
+  // Teammates' saves and everyone's votes show up on their own.
+  const { data, loading, refetch } = useApiData(
+    "GetHackathonResults",
+    { presentation_id: presentationId, camper_id: camperId },
+    { refetchInterval: 10_000, refetchOnWindowFocus: true }
+  );
   const { run: saveSubmission, loading: saving } = useApi("SaveHackathonSubmission");
   const { run: castVote, loading: voting } = useApi("SubmitHackathonVote");
   const { run: closeHackathon, loading: closing } = useApi("CloseHackathon");
   const [hackathonClosed, setHackathonClosed] = useState(false);
 
   const [tab, setTab] = useState<"submit" | "vote">("submit");
-  const [form, setForm] = useState({
-    app_name: "", description: "", use_case: "", how_it_works: "", who_uses_it: "", app_link: "",
-  });
-  const [formLoaded, setFormLoaded] = useState(false);
+  const [form, setForm] = useState<SubmissionForm>(EMPTY_FORM);
+  // Last version saved by the team. While the form still matches it, a teammate's newer save replaces it.
+  const [savedForm, setSavedForm] = useState<SubmissionForm>(EMPTY_FORM);
 
   const submissions = (data?.submissions ?? []) as any[];
   const myVote = data?.my_vote_team_id ?? null;
@@ -35,15 +45,17 @@ export default function HackathonShowcase({ presentationId, camperId, camperTeam
   const totalCampers = data?.total_campers ?? 1;
   const mySubmission = submissions.find((s: any) => s.team_id === camperTeamId);
 
-  // Load existing submission into form
-  if (mySubmission && !formLoaded) {
-    setForm({
-      app_name: mySubmission.app_name, description: mySubmission.description,
-      use_case: mySubmission.use_case, how_it_works: mySubmission.how_it_works,
-      who_uses_it: mySubmission.who_uses_it, app_link: mySubmission.app_link,
-    });
-    setFormLoaded(true);
-  }
+  // Pull in the team's latest saved project. Keeps your own unsaved edits.
+  const serverForm = mySubmission ? toForm(mySubmission) : null;
+  const serverKey = serverForm ? JSON.stringify(serverForm) : "";
+  useEffect(() => {
+    if (!serverForm) return;
+    if (sameForm(serverForm, savedForm)) return;
+    if (sameForm(form, savedForm)) setForm(serverForm);
+    setSavedForm(serverForm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverKey]);
+  const hasUnsaved = !sameForm(form, savedForm);
 
   const handleSave = useCallback(async () => {
     if (!form.app_name.trim()) { toast.error("Give your app a name!"); return; }
@@ -52,7 +64,8 @@ export default function HackathonShowcase({ presentationId, camperId, camperTeam
         presentation_id: presentationId, team_id: camperTeamId, camper_id: camperId, ...form,
         app_link: form.app_link || null,
       });
-      toast.success("Submission saved!");
+      setSavedForm(form);
+      toast.success("Submission saved! Your whole team can see it.");
       refetch();
     } catch (err) { toast.error(String(err)); }
   }, [form, presentationId, camperTeamId, camperId, saveSubmission, refetch]);
@@ -100,6 +113,10 @@ export default function HackathonShowcase({ presentationId, camperId, camperTeam
             <Icon icon="rocket" className="w-5 h-5 text-emerald-600" />
             <h3 className="font-bold text-base">Your Team's Project</h3>
           </div>
+          <p className="text-xs text-emerald-700">
+            Shared with your whole team. When a teammate saves, it shows up here automatically.
+            {hasUnsaved && <span className="ml-1 font-semibold text-amber-700">You have unsaved changes.</span>}
+          </p>
           <div className="grid gap-3">
             <div>
               <label className="text-sm font-medium mb-1 block">🤖 App / Agent Name</label>

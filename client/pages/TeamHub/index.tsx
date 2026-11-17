@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useApiData } from "@/hooks/useApiData.js";
 import { useSuperblocksUser } from "@superblocksteam/library";
@@ -21,8 +21,20 @@ export default function TeamHubPage() {
   const { data: hub, loading: hubLoading, fetching, isError, error, refetch } = useApiData(
     "GetTeamHub",
     { team_id: teamIdNum },
-    { enabled: Number.isFinite(teamIdNum) && teamIdNum > 0, retry: false },
+    // Teammates' posts, edits, and uploads show up for everyone on their own.
+    { enabled: Number.isFinite(teamIdNum) && teamIdNum > 0, retry: false, refetchInterval: 10_000, refetchOnWindowFocus: true },
   );
+
+  // Only show "Updating…" after someone's own action, not on the quiet 10-second refresh.
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshNow = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      return await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   // Today's session decks for the Home tab (server hides locked days from cAMPers).
   const { data: resourceData } = useApiData("GetAgendaResources", {}, { staleTime: 60_000 });
@@ -97,8 +109,8 @@ export default function TeamHubPage() {
         totalTeams={teams.length}
         totalPoints={team.total_points}
         myName={myName}
-        fetching={fetching}
-        refetch={refetch}
+        fetching={fetching && refreshing}
+        refetch={refreshNow}
         resources={(resourceData?.resources ?? []) as AgendaResource[]}
         today={today}
       />

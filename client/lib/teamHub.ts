@@ -59,7 +59,7 @@ export function prepStatus(p: HubPresentation, postCount: number): { label: stri
   if (p.presentation_type === "hackathon") {
     return p.has_submission ? { label: "Submitted", done: true } : { label: "Not submitted", done: false };
   }
-  if (p.presentation_type === "team_workshop" && p.question_count > 0) {
+  if ((p.presentation_type === "team_workshop" || p.presentation_type === "team_presentation") && p.question_count > 0) {
     const done = p.answered_count >= p.question_count;
     return { label: `${Math.min(p.answered_count, p.question_count)}/${p.question_count} answered`, done };
   }
