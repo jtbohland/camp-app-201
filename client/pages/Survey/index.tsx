@@ -11,6 +11,7 @@ import { useSuperblocksUser } from "@superblocksteam/library";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { useSessionState } from "@/lib/useSessionState";
 import SessionScorecard from "@/components/SessionScorecard/index.js";
 import CampSpiritVote from "@/components/CampSpiritVote/index.js";
 
@@ -126,8 +127,11 @@ export default function SurveyPage() {
   const dayStatuses: DayStatus[] = surveyData?.day_statuses ?? [];
   const teamProgress: TeamProgress[] = surveyData?.team_progress ?? [];
 
-  const [sessionRatings, setSessionRatings] = useState<Record<number, SessionRating>>({});
-  const [openResponses, setOpenResponses] = useState<OpenResponses>({});
+  // In-progress answers are kept for this browser tab, so a refresh or a pop-up never wipes them.
+  const draftKey = `camp201-survey-draft-${camperId}-${selectedDay}`;
+  const [sessionRatings, setSessionRatings] = useSessionState<Record<number, SessionRating>>(`${draftKey}-ratings`, {});
+  const [openResponses, setOpenResponses] = useSessionState<OpenResponses>(`${draftKey}-open`, {});
+  const [showMissing, setShowMissing] = useState(false);
   const [overallRatings, setOverallRatings] = useState<OverallRating>({});
   const [overallOpen, setOverallOpen] = useState<OpenResponses>({});
 
@@ -136,8 +140,7 @@ export default function SurveyPage() {
 
   const handleDayChange = useCallback((day: number) => {
     setSelectedDay(day);
-    setSessionRatings({});
-    setOpenResponses({});
+    setShowMissing(false);
     setOverallRatings({});
     setOverallOpen({});
     setSubmitted(false);
@@ -161,13 +164,15 @@ export default function SurveyPage() {
 
   const updateSessionRating = useCallback((sessionId: number, val: SessionRating) => {
     setSessionRatings(prev => ({ ...prev, [sessionId]: val }));
-  }, []);
+  }, [setSessionRatings]);
 
-  const allSessionsRated = useMemo(() =>
-    sessions.every((s: { id: number }) => {
+  // Sessions that still need a rating or a usefulness answer (by title, for the hint under the button)
+  const missingSessions = useMemo(() =>
+    sessions.filter((s: { id: number }) => {
       const r = sessionRatings[s.id];
-      return r && r.rating > 0 && r.usefulness > 0;
-    }), [sessions, sessionRatings]);
+      return !(r && r.rating > 0 && r.usefulness > 0);
+    }) as { id: number; title: string }[], [sessions, sessionRatings]);
+  const allSessionsRated = missingSessions.length === 0;
 
   const allOverallRated = useMemo(() => {
     if (!isFinalDay) return true;
@@ -193,7 +198,16 @@ export default function SurveyPage() {
   const canSubmit = allSessionsRated && allOverallRated && requiredOpenFilled;
 
   const handleSubmit = useCallback(async () => {
-    if (!canSubmit) { toast.error("Please rate all sessions before submitting"); return; }
+    if (!canSubmit) {
+      setShowMissing(true);
+      if (missingSessions.length > 0) {
+        document.getElementById(`survey-session-${missingSessions[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        toast.error(`${missingSessions.length} session${missingSessions.length === 1 ? "" : "s"} still need an answer (outlined in red)`);
+      } else {
+        toast.error("Please answer the required overall questions");
+      }
+      return;
+    }
     try {
       const result = await submitSurvey({
         camper_id: camperId, day_number: selectedDay,
@@ -214,13 +228,15 @@ export default function SurveyPage() {
       }
       setSubmitResult({ points: r?.points_awarded ?? 0, late: r?.late ?? false, teamBonus: r?.team_race_bonus ?? 0 });
       setSubmitted(true);
+      setSessionRatings({});
+      setOpenResponses({});
       refetch();
     } catch (error) {
       const message = error && typeof error === "object" && "message" in error
         ? String((error as { message: unknown }).message) : String(error);
       toast.error("Failed: " + message);
     }
-  }, [canSubmit, camperId, selectedDay, sessions, sessionRatings, openResponses, overallRatings, overallOpen, isFinalDay, submitSurvey, refetch]);
+  }, [canSubmit, missingSessions, camperId, selectedDay, sessions, sessionRatings, openResponses, overallRatings, overallOpen, isFinalDay, submitSurvey, refetch, setSessionRatings, setOpenResponses]);
 
   if (loadingCamper || loadingSurvey) {
     return <div className="max-w-2xl mx-auto p-6 space-y-4"><Skeleton className="h-12 w-48" /><Skeleton className="h-32 rounded-xl" /></div>;
@@ -354,6 +370,7 @@ export default function SurveyPage() {
               session={session}
               value={sessionRatings[session.id] ?? { rating: 0, usefulness: 0, comment: "" }}
               onChange={(val) => updateSessionRating(session.id, val)}
+              showMissing={showMissing}
             />
           ))}
 
@@ -419,11 +436,17 @@ export default function SurveyPage() {
 
           {/* Submit */}
           <div className="mt-4 flex flex-col items-center gap-2">
-            <Button onClick={handleSubmit} disabled={submitting || !canSubmit} size="lg" className="w-full max-w-sm">
+            <Button onClick={handleSubmit} disabled={submitting} size="lg" className={`w-full max-w-sm ${canSubmit ? "" : "opacity-60"}`}>
               {submitting ? <><Icon icon="loader-2" className="w-4 h-4 animate-spin mr-2" />Submitting...</>
                 : <><Icon icon="send" className="w-4 h-4 mr-2" />Submit Day {selectedDay} Survey</>}
             </Button>
-            {!canSubmit && <p className="text-xs text-muted-foreground">Please rate all sessions{isFinalDay ? " and overall aspects" : ""} to submit</p>}
+            {!canSubmit && (
+              <p className="text-xs text-muted-foreground text-center">
+                {missingSessions.length > 0
+                  ? <>Still needed: <span className="font-medium text-foreground">{missingSessions.map((s) => s.title).join(", ")}</span>. Each session needs a rating and a usefulness answer.</>
+                  : "Please answer the required overall questions to submit"}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">Earn <span className="font-semibold text-camp-amber">+5 points</span> for completing on time</p>
           </div>
         </div>

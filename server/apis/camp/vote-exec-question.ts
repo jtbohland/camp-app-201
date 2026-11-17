@@ -1,76 +1,85 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { isCampClosed } from "../../lib/camp-closed-guard.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
-const POINTS_PER_VOTE_RECEIVED = 1;
 
+/**
+ * Up/down vote a speaker Q&A question. cAMPers can vote on as many questions as they like (one vote
+ * per question). Clicking the same vote again takes it back. The voter is always the signed-in user,
+ * so a stale or missing camper id on the page can never make a vote fail.
+ */
 export default api({
   name: "VoteExecQuestion",
-  description: "Upvote or downvote a question with team/self restrictions.",
+  description: "Toggle a vote on any number of Q&A questions",
   integrations: { camp_db: postgres(APPS_DB) },
   input: z.object({
-    question_id: z.coerce.number(),
-    voter_id: z.coerce.number(),
-    vote: z.number().min(-1).max(1),
+    question_id: z.coerce.number().int().positive(),
+    /** 1 = upvote, -1 = downvote, 0 = take my vote back */
+    vote: z.number().int().min(-1).max(1),
   }),
-  output: z.object({ success: z.boolean(), message: z.string().optional() }),
-  async run(ctx, { question_id, voter_id, vote }) {
-    // Get question + submitter info
-    const QSchema = z.object({ submitted_by: z.coerce.number(), submitter_team_id: z.coerce.number().nullable() });
-    const questions = await ctx.integrations.camp_db.query(
-      `SELECT q.submitted_by, c.team_id AS submitter_team_id
-       FROM camp201_exec_questions q JOIN camp201_campers c ON c.id = q.submitted_by
-       WHERE q.id = $1 LIMIT 1`,
-      QSchema, [question_id],
-      { label: "Get question submitter" }
+  output: z.object({
+    success: z.boolean(),
+    message: z.string().optional(),
+    vote_count: z.number(),
+    user_vote: z.number(),
+  }),
+  async run(ctx, { question_id, vote }) {
+    const db = ctx.integrations.camp_db;
+    const email = (ctx.user.email ?? "").trim().toLowerCase();
+    if (!email) throw new Error("You must be signed in to vote.");
+    if (await isCampClosed(db)) throw new Error("cAMP is closed. Voting is over.");
+
+    const info = await db.query(
+      `SELECT me.id AS voter_id, me.team_id AS voter_team,
+              q.submitted_by, author.team_id AS author_team,
+              COALESCE((SELECT g.is_locked FROM camp201_feature_gates g WHERE g.feature_key = 'exec_qa' LIMIT 1), false) AS qa_locked
+       FROM camp201_campers me
+       CROSS JOIN camp201_exec_questions q
+       JOIN camp201_campers author ON author.id = q.submitted_by
+       WHERE lower(me.email) = $1 AND q.id = $2
+       LIMIT 1`,
+      z.object({
+        voter_id: z.coerce.number(),
+        voter_team: z.coerce.number().nullable(),
+        submitted_by: z.coerce.number(),
+        author_team: z.coerce.number().nullable(),
+        qa_locked: z.boolean(),
+      }),
+      [email, question_id],
+      { label: "Load voter and question" }
     );
-    if (questions.length === 0) return { success: false, message: "Question not found" };
-
-    const { submitted_by, submitter_team_id } = questions[0];
-
-    // Can't vote your own
-    if (submitted_by === voter_id) return { success: false, message: "Can't vote on your own question" };
-
-    // Can't vote if same team
-    const VoterSchema = z.object({ team_id: z.coerce.number().nullable() });
-    const [voter] = await ctx.integrations.camp_db.query(
-      `SELECT team_id FROM camp201_campers WHERE id = $1 LIMIT 1`,
-      VoterSchema, [voter_id],
-      { label: "Get voter team" }
-    );
-    if (voter.team_id && voter.team_id === submitter_team_id) {
-      return { success: false, message: "Can't vote for a teammate's question" };
+    const row = info[0];
+    if (!row) throw new Error("That question no longer exists.");
+    if (row.qa_locked) throw new Error("Q&A is closed right now.");
+    if (row.submitted_by === row.voter_id) throw new Error("You can't vote on your own question.");
+    if (row.voter_team !== null && row.voter_team === row.author_team) {
+      throw new Error("You can't vote on a teammate's question.");
     }
 
-    // Upsert vote
-    await ctx.integrations.camp_db.execute(
-      `INSERT INTO camp201_exec_votes (question_id, voter_id, vote) VALUES ($1, $2, $3)
-       ON CONFLICT (question_id, voter_id) DO UPDATE SET vote = $3`,
-      [question_id, voter_id, vote],
-      { label: "Upsert vote" }
+    // Save the vote and recount in one statement (a vote of 0 = taken back).
+    const saved = await db.query(
+      `WITH up AS (
+         INSERT INTO camp201_exec_votes (question_id, voter_id, vote)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (question_id, voter_id) DO UPDATE SET vote = EXCLUDED.vote
+         RETURNING vote
+       ),
+       recount AS (
+         UPDATE camp201_exec_questions q
+         SET vote_count = (
+           SELECT COALESCE(SUM(v.vote), 0) FROM camp201_exec_votes v
+           WHERE v.question_id = $1 AND v.voter_id <> $2
+         ) + (SELECT vote FROM up)
+         WHERE q.id = $1
+         RETURNING q.vote_count
+       )
+       SELECT (SELECT vote FROM up) AS user_vote,
+              (SELECT vote_count FROM recount) AS vote_count`,
+      z.object({ user_vote: z.coerce.number(), vote_count: z.coerce.number() }),
+      [question_id, row.voter_id, vote],
+      { label: "Save vote + recount" }
     );
-
-    // Recalculate vote_count
-    const SumSchema = z.object({ total: z.coerce.number() });
-    const [{ total }] = await ctx.integrations.camp_db.query(
-      `SELECT COALESCE(SUM(vote), 0)::int AS total FROM camp201_exec_votes WHERE question_id = $1`,
-      SumSchema, [question_id],
-      { label: "Sum votes" }
-    );
-    await ctx.integrations.camp_db.execute(
-      `UPDATE camp201_exec_questions SET vote_count = $1 WHERE id = $2`,
-      [total, question_id],
-      { label: "Update vote count" }
-    );
-
-    // Award point to question submitter for positive votes
-    if (vote === 1) {
-      await ctx.integrations.camp_db.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by) VALUES ($1, $2, $3, $4)`,
-        [submitted_by, POINTS_PER_VOTE_RECEIVED, `Vote received on Q&A question`, voter_id],
-        { label: "Award vote points" }
-      );
-    }
-
-    return { success: true };
+    const result = saved[0];
+    return { success: true, vote_count: result.vote_count, user_vote: result.user_vote };
   },
 });

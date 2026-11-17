@@ -1,9 +1,12 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
+import { recordTeamFinishIfComplete } from "../../lib/checkin-team-race.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const LATE_POINTS = -2;
+const ON_TIME_POINTS = 3;
+const GRACE_MS = 60_000;
 
 export default api({
   name: "SubmitLateCheckIn",
@@ -44,10 +47,10 @@ export default api({
 
     const teamId = campers[0].team_id;
 
-    // Verify session exists and is closed
-    const SessionSchema = z.object({ status: z.string() });
+    // Verify session exists
+    const SessionSchema = z.object({ status: z.string(), timer_ends_at: z.string() });
     const sessions = await ctx.integrations.camp_201_db.query(
-      `SELECT status FROM camp201_checkin_sessions WHERE id = $1 LIMIT 1`,
+      `SELECT status, timer_ends_at::text AS timer_ends_at FROM camp201_checkin_sessions WHERE id = $1 LIMIT 1`,
       SessionSchema,
       [session_id],
       { label: "Check session status" }
@@ -73,21 +76,37 @@ export default api({
       return { success: false, points: 0, error: "Already checked in" };
     }
 
-    // Deduct points (the point-log entry updates the total)
+    // Late is decided by the server clock, never the cAMPer's device: still inside the grace minute = on time.
+    const graceEnd = new Date(sessions[0].timer_ends_at).getTime() + GRACE_MS;
+    const isLate = Date.now() > graceEnd;
+    const timing = isLate ? "late" : "on_time";
+    const points = isLate ? LATE_POINTS : ON_TIME_POINTS;
+
+    // Record the check-in first (unique per session + cAMPer), so a double tap can't log points twice.
+    const recorded = await ctx.integrations.camp_201_db.query(
+      `WITH ins AS (
+         INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
+         VALUES ($1, $2, $3, $4, 'PIN', $5)
+         ON CONFLICT (session_id, camper_id) DO NOTHING
+         RETURNING id
+       ) SELECT id FROM ins LIMIT 1`,
+      z.object({ id: z.coerce.number() }),
+      [session_id, camper_id, teamId, timing, points],
+      { label: "Record check-in" }
+    );
+    if (recorded.length === 0) {
+      return { success: false, points: 0, error: "Already checked in" };
+    }
+
     await ctx.integrations.camp_201_db.execute(
       `INSERT INTO camp201_points_log (camper_id, points, reason) VALUES ($1, $2, $3)`,
-      [camper_id, LATE_POINTS, `Check-in: late (session ${session_id})`],
-      { label: "Log late penalty" }
+      [camper_id, points, `Check-in: ${timing} (session ${session_id})`],
+      { label: isLate ? "Log late penalty" : "Log on-time points" }
     );
 
-    // Record the late check-in
-    await ctx.integrations.camp_201_db.execute(
-      `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
-       VALUES ($1, $2, $3, 'late', 'LATE', $4)`,
-      [session_id, camper_id, teamId, LATE_POINTS],
-      { label: "Record late check-in" }
-    );
+    // This check-in can be the one that completes the team, so it always counts for the team race.
+    await recordTeamFinishIfComplete(ctx.integrations.camp_201_db, session_id, teamId);
 
-    return { success: true, points: LATE_POINTS, error: null };
+    return { success: true, points, error: null };
   },
 });

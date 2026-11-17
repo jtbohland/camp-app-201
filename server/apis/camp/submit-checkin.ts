@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
+import { recordTeamFinishIfComplete } from "../../lib/checkin-team-race.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -7,9 +8,6 @@ const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const EARLY_POINTS = 5;
 const ON_TIME_POINTS = 3;
 const LATE_POINTS = -2;
-
-// Team race bonuses (flat, to team_points)
-const TEAM_RACE_BONUSES = [5, 3, 1]; // 1st, 2nd, 3rd
 
 // Badge IDs
 const EARLY_BIRD_BADGE_ID = 5;   // 3 consecutive early check-ins
@@ -188,96 +186,10 @@ export default api({
       { label: "Record check-in" }
     );
 
-    // ─── Team race: check if team is complete, award 1st/2nd/3rd ───
-    let teamComplete = false;
-    let teamPlace: number | null = null;
-
-    if (teamId) {
-      // Excused = an approved absence overlapping this session (from when it started until now).
-      // Excused members who haven't checked in don't hold the team back.
-      const EXCUSED_WHERE = `c.team_id = $2
-             AND c.role NOT IN ('counselor', 'admin')
-             AND c.removed_at IS NULL
-             AND c.id NOT IN (SELECT camper_id FROM camp201_checkin_responses WHERE session_id = $1)
-             AND EXISTS (
-               SELECT 1 FROM camp201_absence_requests ar
-               WHERE ar.camper_id = c.id
-                 AND ar.status = 'approved'
-                 AND ar.start_time <= NOW()
-                 AND ar.end_time >= COALESCE((SELECT started_at FROM camp201_checkin_sessions WHERE id = $1), NOW())
-             )`;
-      const TeamStatusSchema = z.object({ checked_in: z.coerce.number(), total: z.coerce.number(), excused: z.coerce.number() });
-      const teamStatus = await ctx.integrations.camp_201_db.query(
-        `SELECT
-          (SELECT COUNT(*) FROM camp201_checkin_responses r
-             JOIN camp201_campers c ON c.id = r.camper_id
-           WHERE r.session_id = $1 AND r.team_id = $2 AND c.removed_at IS NULL) as checked_in,
-          (SELECT COUNT(*) FROM camp201_campers c
-           WHERE c.team_id = $2 AND c.role NOT IN ('counselor', 'admin') AND c.removed_at IS NULL) as total,
-          (SELECT COUNT(*) FROM camp201_campers c WHERE ${EXCUSED_WHERE}) as excused`,
-        TeamStatusSchema,
-        [session_id, teamId],
-        { label: "Check team completion" }
-      );
-
-      const status = teamStatus[0];
-      const accountedFor = status ? status.checked_in + status.excused : 0;
-      // Only the check-in that completes the team counts, so a team can't place twice.
-      const justCompleted = !!status && status.total > 0 && accountedFor >= status.total && accountedFor - 1 < status.total;
-      if (justCompleted) {
-        teamComplete = true;
-
-        // Atomically increment teams_finished counter and get the new value
-        const PlaceSchema = z.object({ teams_finished: z.coerce.number() });
-        const placeResult = await ctx.integrations.camp_201_db.query(
-          `UPDATE camp201_checkin_sessions
-           SET teams_finished = COALESCE(teams_finished, 0) + 1
-           WHERE id = $1
-           RETURNING teams_finished`,
-          PlaceSchema,
-          [session_id],
-          { label: "Increment teams_finished" }
-        );
-
-        const place = placeResult[0]?.teams_finished ?? 0;
-        teamPlace = place;
-
-        // Award team race bonus (1st=+5, 2nd=+3, 3rd=+1, 4th+=0)
-        const bonus = place <= TEAM_RACE_BONUSES.length ? TEAM_RACE_BONUSES[place - 1] : 0;
-        if (bonus > 0) {
-          await ctx.integrations.camp_201_db.execute(
-            `UPDATE camp201_teams SET team_points = team_points + $1 WHERE id = $2`,
-            [bonus, teamId],
-            { label: `Award team race bonus (place ${place}: +${bonus})` }
-          );
-          await ctx.integrations.camp_201_db.execute(
-            `INSERT INTO camp201_team_points_log (team_id, points, reason)
-             VALUES ($1, $2, $3)`,
-            [teamId, bonus, `Check-in race: ${place === 1 ? '1st' : place === 2 ? '2nd' : '3rd'} team (session ${session_id})`],
-            { label: "Log team race bonus" }
-          );
-        }
-
-        // Auto-check-in absent members (0 pts, timing='absent')
-        const AbsentSchema = z.object({ id: z.number() });
-        const absentMembers = await ctx.integrations.camp_201_db.query(
-          `SELECT c.id FROM camp201_campers c WHERE ${EXCUSED_WHERE} LIMIT 20`,
-          AbsentSchema,
-          [session_id, teamId],
-          { label: "Find excused team members" }
-        );
-
-        for (const absent of absentMembers) {
-          await ctx.integrations.camp_201_db.execute(
-            `INSERT INTO camp201_checkin_responses (session_id, camper_id, team_id, timing, word_used, points_awarded)
-             VALUES ($1, $2, $3, 'absent', 'ABSENT', 0)
-             ON CONFLICT DO NOTHING`,
-            [session_id, absent.id, teamId],
-            { label: `Auto-check-in absent member ${absent.id}` }
-          );
-        }
-      }
-    }
+    // ─── Team race: once everyone on the team is in (or excused), place once and award 1st/2nd/3rd ───
+    const race = await recordTeamFinishIfComplete(ctx.integrations.camp_201_db, session_id, teamId);
+    const teamComplete = race.teamComplete;
+    const teamPlace = race.place;
 
     // ─── Early Bird & Iron Camper badge evaluation ───
     if (timing === "early") {

@@ -44,13 +44,14 @@ export default api({
       `SELECT q.id, q.executive_id, q.submitted_by,
               (c.first_name || ' ' || c.last_name) AS submitter_name,
               c.team_id AS submitter_team_id,
-              q.question_text, q.vote_count, q.is_asked, q.is_locked, q.created_at,
-              v.vote AS user_vote, q.answer_text, q.answered_at::text AS answered_at
+              q.question_text, COALESCE(tally.total, 0) AS vote_count, q.is_asked, q.is_locked, q.created_at,
+              NULLIF(v.vote, 0) AS user_vote, q.answer_text, q.answered_at::text AS answered_at
        FROM camp201_exec_questions q
        JOIN camp201_campers c ON c.id = q.submitted_by
+       LEFT JOIN LATERAL (SELECT SUM(ev.vote)::int AS total FROM camp201_exec_votes ev WHERE ev.question_id = q.id) tally ON true
        LEFT JOIN camp201_exec_votes v ON v.question_id = q.id AND v.voter_id = $2
        WHERE q.executive_id = $1 AND c.cohort_id = ${VIEW}
-       ORDER BY q.vote_count DESC, q.created_at ASC
+       ORDER BY COALESCE(tally.total, 0) DESC, q.created_at ASC
        LIMIT 50`,
       QuestionSchema,
       [executive_id, camper_id],

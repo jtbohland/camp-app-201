@@ -105,6 +105,7 @@ import MigrateQAFeed from './camp/migrate-qa-feed.js';
 import GetExecQuestions from './camp/get-exec-questions.js';
 import SubmitExecQuestion from './camp/submit-exec-question.js';
 import VoteExecQuestion from './camp/vote-exec-question.js';
+import UpdateExecQuestion from './camp/update-exec-question.js';
 import MigrateManagers from './camp/migrate-managers.js';
 import RegisterManager from './camp/register-manager.js';
 import GetCurrentManager from './camp/get-current-manager.js';
@@ -336,6 +337,7 @@ const apis = {
   GetExecQuestions,
   SubmitExecQuestion,
   VoteExecQuestion,
+  UpdateExecQuestion,
   MigrateManagers,
   RegisterManager,
   GetCurrentManager,
