@@ -1,5 +1,6 @@
 import { z } from "@superblocksteam/sdk-api";
 import { countedSessionSql } from "./checkin-sessions.js";
+import { getSurveyDayStates } from "./survey-days.js";
 
 /**
  * One cAMPer's activity timeline: everything they did, plus everything they missed.
@@ -41,7 +42,7 @@ export async function loadActivityTimeline(
   const camper: z.infer<typeof CamperRow> | undefined = campers[0];
   if (!camper) return { events: [], summary: { done: 0, missed: 0, excused: 0 } };
 
-  const [rows, startRows, surveyDays, missingPrework] = await Promise.all([
+  const [rows, startRows, surveyDays, missingPrework, dayStates] = await Promise.all([
     db.query(
       `SELECT e.key, e.kind, e.status, e.title, e.detail, e.at::text AS at, e.points FROM (
          SELECT ('checkin:' || r.id)::text AS key, 'checkin'::text AS kind,
@@ -144,6 +145,7 @@ export async function loadActivityTimeline(
        ORDER BY j.sort_order LIMIT 20`,
       z.object({ title: z.string().nullable() }), [camperId], { label: "Timeline: unfinished pre-work" }
     ),
+    getSurveyDayStates(db, SURVEY_DAY_COUNT),
   ]);
 
   const events: TimelineEvent[] = [...rows];
@@ -156,10 +158,11 @@ export async function loadActivityTimeline(
     if (!Number.isNaN(start.getTime())) {
       // Daily surveys lock at 9am the next morning (same rule as GetDailySurvey).
       const submitted = new Set(surveyDays.map((d: { day_number: number }) => d.day_number));
-      for (let day = 1; day <= SURVEY_DAY_COUNT; day++) {
-        const deadline = new Date(start);
-        deadline.setDate(deadline.getDate() + day);
-        deadline.setHours(9, 0, 0, 0);
+      // A day a counselor reopened isn't missed while it's open.
+      for (const ds of dayStates) {
+        const day = ds.day_number;
+        const deadline = ds.deadline;
+        if (!deadline || ds.mode === "open") continue;
         if (deadline < now && deadline > registered && !submitted.has(day)) {
           events.push({
             key: `survey_missed:${day}`,

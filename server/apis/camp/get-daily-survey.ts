@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { getSurveyDayStates } from "../../lib/survey-days.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -45,7 +46,8 @@ export default api({
     manually_locked: z.boolean(),
     deadline_iso: z.string().nullable(),
     grace_deadline_iso: z.string().nullable(),
-    day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean(), locked: z.boolean() })),
+    // locked = counselor closed it (no submissions, no reminder). late = past its deadline, still open.
+    day_statuses: z.array(z.object({ day_number: z.number(), submitted: z.boolean(), locked: z.boolean(), late: z.boolean(), reopened: z.boolean() })),
     team_progress: z.array(z.object({
       team_id: z.number(), team_name: z.string(), team_color: z.string().nullable(),
       total_members: z.number(), submitted_count: z.number(),
@@ -82,40 +84,15 @@ export default api({
       { label: "Check submission" }
     );
 
-    // Compute deadlines based on camp_start_date
-    const startDateRows = await ctx.integrations.camp_201_db.query(
-      `SELECT value FROM camp201_config WHERE key = 'camp_start_date' LIMIT 1`,
-      ConfigSchema, undefined, { label: "Get camp start date" }
-    );
-
-    let deadlineIso: string | null = null;
-    let graceDeadlineIso: string | null = null;
-    let locked = false;
-
-    // Check manual per-day lock
-    const LockSchema = z.object({ value: z.string() });
-    const manualLock = await ctx.integrations.camp_201_db.query(
-      `SELECT value FROM camp201_config WHERE key = $1 LIMIT 1`,
-      LockSchema,
-      [`survey_day_${input.day_number}_locked`],
-      { label: "Check manual day lock" }
-    );
-    const manuallyLocked = manualLock.length > 0 && manualLock[0].value === "true";
-
-    if (startDateRows.length > 0 && startDateRows[0].value) {
-      const startDate = new Date(startDateRows[0].value + "T00:00:00-07:00");
-      // Deadline: 9am PT the day after this day_number
-      const deadline = new Date(startDate);
-      deadline.setDate(deadline.getDate() + input.day_number);
-      deadline.setHours(9, 0, 0, 0);
-      deadlineIso = deadline.toISOString();
-
-      // Grace deadline removed — auto-lock at 9am sharp, no buffer
-      graceDeadlineIso = deadlineIso;
-
-      // Auto-lock at 9am PT OR manually locked by counselor (whichever first)
-      locked = new Date() > deadline || manuallyLocked;
-    }
+    // Deadlines (9:00 AM Pacific the morning after) and counselor locks/reopens for every day
+    const dayStates = await getSurveyDayStates(ctx.integrations.camp_201_db, Math.max(numDays, input.day_number));
+    const thisDay = dayStates[input.day_number - 1];
+    const manuallyLocked = thisDay?.locked ?? false;
+    // A reopened day has no deadline; an automatic day shows its 9 AM deadline.
+    const deadlineIso = thisDay && thisDay.mode !== "open" && thisDay.deadline ? thisDay.deadline.toISOString() : null;
+    const graceDeadlineIso = deadlineIso;
+    // Past the deadline (late) or closed by a counselor
+    const locked = manuallyLocked || (thisDay?.late ?? false);
 
     // Get day statuses (which days has this camper submitted)
     const dayStatuses = await ctx.integrations.camp_201_db.query(
@@ -128,23 +105,12 @@ export default api({
     // Fill in missing days
     const statusMap = new Map(dayStatuses.map(d => [d.day_number, true]));
 
-    // Get all per-day lock statuses
-    const DayLockSchema = z.object({ key: z.string(), value: z.string() });
-    const dayLocks = await ctx.integrations.camp_201_db.query(
-      `SELECT key, value FROM camp201_config WHERE key LIKE 'survey_day_%_locked' LIMIT 10`,
-      DayLockSchema, [],
-      { label: "Get all day lock statuses" }
-    );
-    const lockMap = new Map<number, boolean>();
-    for (const dl of dayLocks) {
-      const match = dl.key.match(/survey_day_(\d+)_locked/);
-      if (match) lockMap.set(parseInt(match[1]), dl.value === "true");
-    }
-
-    const allDayStatuses = Array.from({ length: numDays }, (_, i) => ({
-      day_number: i + 1,
-      submitted: statusMap.get(i + 1) ?? false,
-      locked: lockMap.get(i + 1) ?? false,
+    const allDayStatuses = dayStates.slice(0, numDays).map((d) => ({
+      day_number: d.day_number,
+      submitted: statusMap.get(d.day_number) ?? false,
+      locked: d.locked,
+      late: d.late,
+      reopened: d.mode === "open",
     }));
 
     // Team race progress for this day

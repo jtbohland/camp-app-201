@@ -25,10 +25,11 @@ export default function LateSurveyModal({ camperId, isAdmin }: Props) {
     enabled: camperId > 0 && !isAdmin && !onSurveyPage,
   });
 
-  // Find first locked + incomplete day that hasn't been dismissed
-  const dayStatuses: Array<{ day_number: number; submitted: boolean; locked: boolean }> = (data as any)?.day_statuses ?? [];
+  // Only nag for a day that's past its deadline and still open. Counselor-locked days (not open
+  // yet, or closed) and reopened days never trigger this.
+  const dayStatuses = data?.day_statuses ?? [];
   const missedDay = dayStatuses.find(
-    (ds) => ds.locked && !ds.submitted
+    (ds) => ds.late && !ds.locked && !ds.submitted
   );
 
   const handleGoToSurvey = useCallback(() => {

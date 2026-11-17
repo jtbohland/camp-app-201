@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MyPointsHistory from "@/components/MyPointsHistory/index.js";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,15 @@ function errorText(err: unknown): string {
 export default function ProfilePage() {
   const user = useSuperblocksUser();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "points" ? "points" : "profile";
+  const setTab = useCallback((t: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (t === "points") next.set("tab", "points"); else next.delete("tab");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const { data, loading, refetch } = useApiData("GetCurrentCamper", {
     email: user?.email ?? "",
@@ -327,6 +338,27 @@ export default function ProfilePage() {
         <span>· Your counselors and manager can see this.</span>
       </p>
 
+      <Tabs value={tab} onValueChange={setTab} className="gap-6">
+        <TabsList>
+          <TabsTrigger value="profile" className="px-4">
+            <Icon icon="user" className="h-4 w-4" /> Profile
+            {dirty && tab === "points" && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-amber-500" />}
+          </TabsTrigger>
+          <TabsTrigger value="points" className="px-4">
+            <Icon icon="zap" className="h-4 w-4" /> My Points
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="points">
+          {dirty && (
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-amber-700">
+              <Icon icon="circle-alert" className="h-3.5 w-3.5" /> You have unsaved profile changes. Go back to the Profile tab to save them.
+            </p>
+          )}
+          <MyPointsHistory />
+        </TabsContent>
+
+        <TabsContent value="profile" className="flex flex-col gap-6">
       {/* Notes shared by their manager (reply / acknowledge only) */}
       <FromYourManagerCard />
 
@@ -563,6 +595,8 @@ export default function ProfilePage() {
           )}
         </Button>
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
