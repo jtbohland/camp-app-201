@@ -79,10 +79,22 @@ export default api({
     if (dayState.locked && !isFinalSurvey) {
       throw new Error(`The Day ${input.day_number} survey isn't open right now.`);
     }
-    const late = dayState.late;
+    // A counselor may already have credited this day's on-time points (e.g. the submit button failed).
+    // Then submitting still saves the answers, but never pays twice or charges a late penalty.
+    const credited = await ctx.integrations.camp_201_db.query(
+      `SELECT id FROM camp201_points_log WHERE camper_id = $1 AND reason = $2 AND reverses_id IS NULL
+         AND NOT EXISTS (SELECT 1 FROM camp201_points_log r WHERE r.reverses_id = camp201_points_log.id)
+       LIMIT 1`,
+      z.object({ id: z.coerce.number() }),
+      [input.camper_id, `Day ${input.day_number} survey completed (on time)`],
+      { label: "Check already credited" }
+    );
+    const alreadyCredited = credited.length > 0;
+
+    const late = dayState.late && !alreadyCredited;
     const onTime = !late;
 
-    const pointsAwarded = onTime ? getSurveyPoints(input.day_number) : 0;
+    const pointsAwarded = onTime && !alreadyCredited ? getSurveyPoints(input.day_number) : 0;
     const latePenalty = late ? LATE_PENALTY : 0;
 
     // Insert submission

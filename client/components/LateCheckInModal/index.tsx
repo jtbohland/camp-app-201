@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,34 +15,19 @@ export default function LateCheckInModal({ camperId, isAdmin }: Props) {
   const [pin, setPin] = useState("");
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
-  // Poll for active session
-  const { data } = useApiData("GetActiveCheckIn", {}, {
+  // Poll for the active session. The server says whether THIS cAMPer still owes a check-in
+  // (already in, excused, or a counselor = never), so a slow load can't show the pop-up by mistake.
+  const { data, isError } = useApiData("GetActiveCheckIn", {}, {
     refetchInterval: 10000,
     enabled: camperId > 0 && !isAdmin,
   });
 
-  // Check if this camper has already checked in
-  const { data: historyData } = useApiData("GetCheckInHistory" as any, {
-    camper_id: camperId,
-  }, {
-    enabled: camperId > 0 && !isAdmin && !!data?.session,
-    staleTime: 5000,
-    refetchInterval: 10000,
-  });
-
   const { run: submitLate, loading } = useApi("SubmitLateCheckIn");
 
+  // Late is decided by the server clock (a fast device clock can't trigger the pop-up early).
   const session = data?.session;
-  const graceExpired = session?.timer_ends_at
-    ? new Date().getTime() > new Date(session.timer_ends_at).getTime() + 60000
-    : false;
-
-  // Check if camper has a response for this session
-  const checkedIn = session
-    ? ((historyData as any)?.history ?? []).some((h: any) => h.session_id === session.id)
-    : true;
-
-  const showModal = session && !checkedIn && graceExpired && !dismissed.has(session.id) && session.status === 'active';
+  const showModal = !!session && !isError && data?.my_is_late === true
+    && !dismissed.has(session.id) && session.status === "active";
 
   const handleSubmit = useCallback(async () => {
     if (!session || !pin.trim()) return;
@@ -53,7 +38,8 @@ export default function LateCheckInModal({ camperId, isAdmin }: Props) {
         pin: pin.trim(),
       });
       if (result && result.success) {
-        toast.warning(`Late check-in recorded (${result.points} pts)`);
+        if (result.points < 0) toast.warning(`Late check-in recorded (${result.points} pts)`);
+        else toast.success(`You made it in time! Checked in (+${result.points} pts)`);
         setDismissed((prev) => new Set(prev).add(session.id));
         setPin("");
       } else if (result) {

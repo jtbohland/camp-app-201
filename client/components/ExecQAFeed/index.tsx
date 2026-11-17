@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { queryClient } from "@superblocksteam/library";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,13 @@ import { useApiData } from "@/hooks/useApiData";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "sonner";
 import SpeakerHeader, { type Speaker } from "@/components/SpeakerHeader/index.js";
-import ExecQuestionAnswer from "@/components/ExecQuestionAnswer/index.js";
+import ExecQuestionCard, { type ExecQuestion } from "./ExecQuestionCard";
+
+type FeedData = { questions: ExecQuestion[] };
+
+function errorMessage(err: unknown): string {
+  return err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
+}
 
 type ExecQAFeedProps = {
   speaker: Speaker;
@@ -25,18 +32,24 @@ type ExecQAFeedProps = {
 
 export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, onBack, mode }: ExecQAFeedProps) {
   const executiveId = speaker.id;
-  const { data, loading, fetching, refetch } = useApiData(
-    "GetExecQuestions",
-    { executive_id: executiveId, camper_id: camperId },
-    { refetchInterval: 10_000 }
-  );
+  const feedInputs = useMemo(() => ({ executive_id: executiveId, camper_id: camperId }), [executiveId, camperId]);
+  const { data, loading, fetching, refetch } = useApiData("GetExecQuestions", feedInputs, { refetchInterval: 10_000 });
 
   const { run: submitQuestion, loading: submitting } = useApi("SubmitExecQuestion");
   const { run: voteQuestion } = useApi("VoteExecQuestion");
+  const { run: updateQuestion } = useApi("UpdateExecQuestion");
 
   const [newQuestion, setNewQuestion] = useState("");
 
-  const questions = (data?.questions ?? []) as any[];
+  const questions: ExecQuestion[] = (data?.questions ?? []) as ExecQuestion[];
+
+  /** Change the cached feed right away; returns a function that puts the old feed back. */
+  const patchFeed = useCallback((change: (list: ExecQuestion[]) => ExecQuestion[]) => {
+    const key = queryClient.buildCacheKey("GetExecQuestions", feedInputs);
+    const previous = queryClient.getQueryData<FeedData>(key);
+    if (previous) queryClient.setQueryData<FeedData>(key, { ...previous, questions: change(previous.questions) });
+    return () => { if (previous) queryClient.setQueryData<FeedData>(key, previous); };
+  }, [feedInputs]);
   const canAnswer = mode !== "camper";
   // Counselors can ask too (for moderating / seeding questions). Speakers only answer.
   const canAsk = mode !== "speaker" && camperId > 0 && !isLocked;
@@ -62,25 +75,46 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
     }
   }, [newQuestion, executiveId, camperId, submitQuestion, refetch]);
 
+  // Vote on as many questions as you like. Clicking your current vote again takes it back.
   const handleVote = useCallback(
-    async (questionId: number, vote: number) => {
+    async (q: ExecQuestion, clicked: 1 | -1) => {
+      const current = q.user_vote ?? 0;
+      const next = current === clicked ? 0 : clicked;
+      const restore = patchFeed((list) =>
+        list.map((x) => (x.id === q.id ? { ...x, user_vote: next, vote_count: x.vote_count - current + next } : x))
+      );
       try {
-        const result = await voteQuestion({ question_id: questionId, voter_id: camperId, vote });
-        if (result && typeof result === "object" && "success" in result && !(result as any).success) {
-          toast.error((result as any).message || "Can't vote");
-          return;
+        const res = await voteQuestion({ question_id: q.id, vote: next });
+        if (res) {
+          patchFeed((list) => list.map((x) => (x.id === q.id ? { ...x, user_vote: res.user_vote, vote_count: res.vote_count } : x)));
         }
-        refetch();
       } catch (err) {
-        const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : String(err);
-        toast.error(message);
+        restore();
+        toast.error(errorMessage(err));
       }
     },
-    [camperId, voteQuestion, refetch]
+    [patchFeed, voteQuestion]
   );
 
-  const myQuestionCount = questions.filter((q: any) => q.submitted_by === camperId).length;
-  const answeredCount = questions.filter((q: any) => q.is_asked).length;
+  const handleEdit = useCallback(
+    async (q: ExecQuestion, text: string): Promise<boolean> => {
+      const restore = patchFeed((list) => list.map((x) => (x.id === q.id ? { ...x, question_text: text } : x)));
+      try {
+        await updateQuestion({ question_id: q.id, question_text: text });
+        toast.success("Question updated");
+        refetch();
+        return true;
+      } catch (err) {
+        restore();
+        toast.error(errorMessage(err));
+        return false;
+      }
+    },
+    [patchFeed, updateQuestion, refetch]
+  );
+
+  const myQuestionCount = questions.filter((q) => q.submitted_by === camperId).length;
+  const answeredCount = questions.filter((q) => q.is_asked).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,7 +170,9 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
               {submitting ? "..." : "Submit"}
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">{myQuestionCount}/5 questions used</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {myQuestionCount}/5 questions used · Vote on as many questions as you like · Tap the pencil to edit yours
+          </p>
         </Card>
       )}
 
@@ -163,59 +199,25 @@ export default function ExecQAFeed({ speaker, camperId, camperTeamId, isLocked, 
                 : "No questions yet."}
           </p>
         )}
-        {questions.map((q: any, idx: number) => {
-          const isOwn = q.submitted_by === camperId;
-          const isSameTeam = camperTeamId && q.submitter_team_id === camperTeamId;
-          const canVote = mode === "camper" && !isOwn && !isSameTeam && !isLocked;
-
+        {questions.map((q, idx) => {
+          const isOwn = camperId > 0 && q.submitted_by === camperId;
+          const isSameTeam = !!camperTeamId && q.submitter_team_id === camperTeamId;
+          const canVote = mode === "camper" && camperId > 0 && !isOwn && !isSameTeam && !isLocked;
+          const canEdit = isOwn && mode !== "speaker" && !isLocked && !q.is_asked;
           return (
-            <Card
+            <ExecQuestionCard
               key={q.id}
-              className={`p-3 flex gap-3 ${idx === 0 && q.vote_count > 0 ? "border-amber-400 bg-amber-50/50" : ""} ${q.is_asked ? "border-green-400 bg-green-50/50" : ""}`}
-            >
-              <div className="flex flex-col items-center gap-0.5">
-                {mode === "speaker" ? (
-                  <>
-                    <Icon icon="thumbs-up" className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className={`text-sm font-bold ${q.vote_count > 0 ? "text-camp-green" : "text-muted-foreground"}`}>{q.vote_count}</span>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => canVote && handleVote(q.id, 1)}
-                      disabled={!canVote}
-                      className={`p-0.5 rounded transition-colors ${q.user_vote === 1 ? "text-camp-green" : "text-muted-foreground"} ${canVote ? "hover:text-camp-green" : "opacity-40"}`}
-                    >
-                      <Icon icon="chevron-up" className="w-4 h-4" />
-                    </button>
-                    <span className={`text-sm font-bold ${q.vote_count > 0 ? "text-camp-green" : q.vote_count < 0 ? "text-red-500" : "text-muted-foreground"}`}>
-                      {q.vote_count}
-                    </span>
-                    <button
-                      onClick={() => canVote && handleVote(q.id, -1)}
-                      disabled={!canVote}
-                      className={`p-0.5 rounded transition-colors ${q.user_vote === -1 ? "text-red-500" : "text-muted-foreground"} ${canVote ? "hover:text-red-500" : "opacity-40"}`}
-                    >
-                      <Icon icon="chevron-down" className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm">{q.question_text}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {q.submitter_name} {isOwn && mode === "camper" && "(you)"} {q.is_asked && "✅ Answered"}
-                  {idx === 0 && q.vote_count > 0 && " 🏆 Top Question"}
-                </p>
-                <ExecQuestionAnswer
-                  questionId={q.id}
-                  answerText={q.answer_text ?? null}
-                  isAnswered={!!q.is_asked}
-                  canAnswer={canAnswer}
-                  onSaved={refetch}
-                />
-              </div>
-            </Card>
+              q={q}
+              isTop={idx === 0 && q.vote_count > 0}
+              mode={mode}
+              isOwn={isOwn}
+              canVote={canVote}
+              canEdit={canEdit}
+              canAnswer={canAnswer}
+              onVote={handleVote}
+              onEdit={handleEdit}
+              onAnswered={refetch}
+            />
           );
         })}
       </div>

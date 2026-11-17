@@ -21,6 +21,8 @@ type SessionScorecardProps = {
   session: Session;
   value: SessionRating;
   onChange: (val: SessionRating) => void;
+  /** Show a red outline + note when this session still needs an answer. */
+  showMissing?: boolean;
 };
 
 const EMOJIS = [
@@ -58,11 +60,19 @@ function formatTime(t: string): string {
   return `${dh}:${m} ${ampm}`;
 }
 
-function SessionScorecard({ session, value, onChange }: SessionScorecardProps) {
+function SessionScorecard({ session, value, onChange, showMissing }: SessionScorecardProps) {
   const badgeClass = TYPE_BADGES[session.session_type] ?? TYPE_BADGES.session;
+  const needsRating = !(value.rating > 0);
+  const needsUsefulness = !(value.usefulness > 0);
+  const highlight = showMissing && (needsRating || needsUsefulness);
 
   return (
-    <Card className="p-4">
+    <Card id={`survey-session-${session.id}`} className={`p-4 scroll-mt-24 ${highlight ? "border-2 border-red-400" : ""}`}>
+      {highlight && (
+        <p className="mb-3 text-xs font-medium text-red-600">
+          Still needed: {[needsRating && "session rating", needsUsefulness && "how useful"].filter(Boolean).join(" and ")}
+        </p>
+      )}
       {/* Session header */}
       <div className="flex items-start justify-between gap-2 mb-4">
         <div>
