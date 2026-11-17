@@ -2,6 +2,7 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { resolveViewCohort } from "../../lib/cohort.js";
 import { getStandings } from "../../lib/cohort-snapshot.js";
 import { denseRank } from "../../lib/rank.js";
+import { loadTeamTotals } from "../../lib/team-score.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -154,20 +155,20 @@ export default api({
         { label: "Get team members" }
       );
 
-      // Team rank (by sum of member points + team_points)
-      const teamRanks = await ctx.integrations.camp_201_db.query(
-        `SELECT t.id as team_id, COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) AS total
-         FROM camp201_teams t
-         LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
-         WHERE t.cohort_id = (SELECT cohort_id FROM camp201_teams WHERE id = $1) AND t.name <> 'TEST'
-         GROUP BY t.id, t.team_points ORDER BY total DESC LIMIT 10`,
-        z.object({ team_id: z.coerce.number(), total: z.coerce.number() }),
+      // Team rank (size-fair: average member pts × standard team size + team pts)
+      const teamCohort = await ctx.integrations.camp_201_db.query(
+        `SELECT cohort_id FROM camp201_teams WHERE id = $1 LIMIT 1`,
+        z.object({ cohort_id: z.coerce.number().nullable() }),
         [team.id],
-        { label: "Get team rankings" }
+        { label: "Get team cohort" }
       );
+      const teamCohortId = teamCohort[0]?.cohort_id ?? null;
+      const teamRanks = teamCohortId !== null
+        ? await loadTeamTotals(ctx.integrations.camp_201_db, teamCohortId, { excludeTest: true })
+        : [];
       totalTeams = teamRanks.length;
-      const mine = teamRanks.find((r) => r.team_id === team.id);
-      teamRank = mine ? denseRank(teamRanks.map((r) => r.total), mine.total) : null;
+      const mine = teamRanks.find((r) => r.id === team.id);
+      teamRank = mine ? denseRank(teamRanks.map((r) => r.total_points), mine.total_points) : null;
     }
 
     // Counselor viewing a past cohort: points, ranks, and team placement as of close.

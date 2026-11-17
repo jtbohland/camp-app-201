@@ -36,7 +36,13 @@ export default api({
       color: z.string().nullable(),
       assigned_company: z.any().nullable(),
       members: z.array(TeamMemberSchema),
+      /** Size-fair team score (average member pts × standard team size + team pts). */
       total_points: z.number(),
+      /** Plain sum before the size adjustment. */
+      raw_points: z.number(),
+      size_adjusted: z.boolean(),
+      standard_size: z.number(),
+      member_count: z.number(),
     })),
   }),
   async run(ctx) {
@@ -76,6 +82,10 @@ export default api({
             country: profileById.get(p.id)?.country ?? null,
           })),
         total_points: t.total_points,
+        raw_points: t.raw_points,
+        size_adjusted: t.size_adjusted,
+        standard_size: t.standard_size,
+        member_count: t.member_count,
       }));
 
     return { teams: result };

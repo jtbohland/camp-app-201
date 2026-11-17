@@ -6,6 +6,7 @@ import TeamLogoBadge from "@/components/TeamLogoBadge/index.js";
 import TeamDesignEditor from "@/components/TeamDesignEditor/index.js";
 import TeamMemberPill from "@/components/TeamMemberPill/index.js";
 import TeamNameEditor from "./TeamNameEditor.js";
+import TeamSizeNote from "./TeamSizeNote.js";
 
 type TeamMember = {
   id: number;
@@ -26,6 +27,10 @@ type Team = {
   assigned_company?: { slug: string; name: string; emoji: string; color: string; industry: string } | null;
   members: TeamMember[];
   total_points: number;
+  raw_points?: number;
+  size_adjusted?: boolean;
+  standard_size?: number;
+  member_count?: number;
 };
 
 type TeamCardProps = {
@@ -145,6 +150,15 @@ export default function TeamCard({ team, isAdmin, currentCamperId, rank, usedCol
             <p className="text-xs text-muted-foreground italic">No members assigned yet</p>
           )}
         </div>
+
+        {team.size_adjusted && (
+          <TeamSizeNote
+            memberCount={team.member_count ?? team.members.length}
+            standardSize={team.standard_size ?? 0}
+            rawPoints={team.raw_points ?? team.total_points}
+            totalPoints={team.total_points}
+          />
+        )}
 
         {/* Top Scorer callout */}
         {topScorer && topScorer.points > 0 && (

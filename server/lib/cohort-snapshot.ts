@@ -1,5 +1,6 @@
 import { z } from "@superblocksteam/sdk-api";
 import type { CohortView } from "./cohort.js";
+import { scoreTeams } from "./team-score.js";
 
 /**
  * A cohort's final state, saved once when it closes (or when the next cohort starts).
@@ -35,6 +36,8 @@ export type CohortSnapshot = {
   camp_champ_team_id: number | null;
   final_survey_unlocked: boolean;
   camp_closed_at: string | null;
+  /** Set on cohorts closed after size-fair team scoring shipped. Older snapshots keep plain-sum totals. */
+  size_fair_scoring?: boolean;
 };
 
 const PersonRow = z.object({
@@ -121,6 +124,7 @@ export async function saveCohortSnapshot(db: any, cohortId: number): Promise<boo
     camp_champ_team_id: toId(await readConfig(db, "camp_champ_team_id")),
     final_survey_unlocked: (await readConfig(db, "final_survey_unlocked")) === "true",
     camp_closed_at: (await readConfig(db, "camp_closed_at")) || null,
+    size_fair_scoring: true,
   };
   const inserted = await db.query(
     `WITH ins AS (
@@ -148,14 +152,22 @@ export async function getCohortSnapshot(db: any, cohortId: number | null): Promi
   return data as CohortSnapshot;
 }
 
-export type StandingTeam = SnapshotTeam & { total_points: number; member_count: number };
+export type StandingTeam = SnapshotTeam & {
+  /** Size-fair score: average member points × standard team size + team points. */
+  total_points: number;
+  member_count: number;
+  /** Plain sum of member points + team points (before the size adjustment). */
+  raw_points: number;
+  size_adjusted: boolean;
+  standard_size: number;
+};
 
 export type Standings = {
   /** Everyone in the cohort, counselors included (flagged). Sorted by points. */
   people: SnapshotPerson[];
   /** Non-counselors only, sorted by points. */
   campers: SnapshotPerson[];
-  /** Teams sorted by total (member points + team points). */
+  /** Teams sorted by size-fair total (average member points × standard size + team points). */
   teams: StandingTeam[];
   /** Set when numbers come from the as-of-close snapshot. */
   snapshot: CohortSnapshot | null;
@@ -173,15 +185,25 @@ export async function getStandings(db: any, view: CohortView): Promise<Standings
 
   const sortedPeople = [...people].sort((a, b) => b.points - a.points || a.first_name.localeCompare(b.first_name));
   const campers = sortedPeople.filter((p) => !p.is_counselor);
-  const teams = teamsRaw
-    .map((t) => {
-      const members = campers.filter((c) => c.team_id === t.id);
-      return {
-        ...t,
-        total_points: members.reduce((s, m) => s + m.points, 0) + (t.team_points ?? 0),
-        member_count: members.length,
-      };
-    })
+  const withMembers = teamsRaw.map((t) => {
+    const members = campers.filter((c) => c.team_id === t.id);
+    return {
+      ...t,
+      team_points: t.team_points ?? 0,
+      member_points: members.reduce((s, m) => s + m.points, 0),
+      member_count: members.length,
+    };
+  });
+  // Cohorts closed before size-fair scoring keep the plain sum they were judged by.
+  const sizeFair = !view.isPast || snapshot?.size_fair_scoring === true;
+  const scored = sizeFair
+    ? scoreTeams(withMembers)
+    : withMembers.map((t) => {
+        const raw = t.member_points + t.team_points;
+        return { ...t, total_points: raw, raw_points: raw, size_adjusted: false, standard_size: 0 };
+      });
+  const teams: StandingTeam[] = scored
+    .map(({ member_points: _mp, ...t }) => t)
     .sort((a, b) => b.total_points - a.total_points || a.name.localeCompare(b.name));
 
   return { people: sortedPeople, campers, teams, snapshot };

@@ -168,7 +168,7 @@ const categories: PointCategory[] = [
 
 const principles: { icon: IconName; title: string; description: string }[] = [
   { icon: "eye", title: "Transparent", description: "Every point is logged. You can always see exactly why." },
-  { icon: "scale", title: "Fair", description: "Team bonuses go to the team (not inflated per-member). Individual effort is rewarded individually." },
+  { icon: "scale", title: "Fair", description: "Team bonuses go to the team (not inflated per-member), and team scores are scaled for team size so headcount never decides the winner." },
   { icon: "trending-up", title: "Accelerated", description: "The more you do, the more each action is worth. Consistency is rewarded." },
   { icon: "shield", title: "Team + Individual", description: "cAMP-V-P crowns the top individual. cAMP Champ crowns the top team." },
 ];
@@ -203,7 +203,11 @@ export default function XPlanationTab() {
           <div className="p-3 rounded-lg bg-muted/20 border">
             <p className="text-sm font-bold text-foreground">🏕 cAMP Champ</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Highest <span className="font-semibold text-foreground">team</span> score = sum of all members' individual points + team bonus points (check-in race, survey race, rubrics, hackathon).
+              Highest <span className="font-semibold text-foreground">team</span> score = team members' individual points + team bonus points (check-in race, survey race, rubrics, hackathon).
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              <span className="font-semibold text-foreground">Scaled for team size:</span> if teams aren't all the same size, member points count as{" "}
+              <span className="font-semibold text-foreground">average points per person × the usual team size</span>. Example: a team of 6 with 570 member pts counts as 570 ÷ 6 × 5 = 475. Team bonus points are added as-is.
             </p>
           </div>
         </div>

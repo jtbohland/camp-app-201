@@ -11,6 +11,9 @@ const LeaderboardTeamSchema = z.object({
   color: z.string().nullable(),
   total_points: z.number(),
   member_count: z.number(),
+  raw_points: z.number(),
+  size_adjusted: z.boolean(),
+  standard_size: z.number(),
 });
 
 const TopContributorSchema = z.object({
@@ -63,6 +66,7 @@ export default api({
       teams: teams.slice(0, 20).map((t) => ({
         id: t.id, name: t.name, logo_url: t.logo_url, color: t.color,
         total_points: t.total_points, member_count: t.member_count,
+        raw_points: t.raw_points, size_adjusted: t.size_adjusted, standard_size: t.standard_size,
       })),
       campers: campers.slice(0, 50).map((c) => {
         const team = c.team_id !== null ? teamById.get(c.team_id) : undefined;

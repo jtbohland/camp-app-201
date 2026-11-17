@@ -2,6 +2,7 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { assertNotViewingPast } from "../../lib/cohort.js";
 import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
 import { ABSENCE_LIMIT } from "../../lib/absences.js";
+import { loadTeamTotals } from "../../lib/team-score.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -250,31 +251,14 @@ export default api({
       );
     }
 
-    // ─── 4. Determine cAMP Champ (top team) ─────────────
-    const TeamTotalSchema = z.object({
-      team_id: z.coerce.number(),
-      team_name: z.string(),
-      total: z.coerce.number(),
-    });
-    const teamTotals = await ctx.integrations.camp_201_db.query(
-      `SELECT t.id as team_id, t.name as team_name,
-              COALESCE(SUM(c.points), 0) + COALESCE(t.team_points, 0) as total
-       FROM camp201_teams t
-       LEFT JOIN camp201_campers c ON c.team_id = t.id AND c.role NOT IN ('counselor', 'admin')
-       WHERE t.cohort_id = $1 AND t.name != 'TEST'
-       GROUP BY t.id, t.name, t.team_points
-       ORDER BY total DESC
-       LIMIT 1`,
-      TeamTotalSchema,
-      [cohortId],
-      { label: "Get cAMP Champ team" }
-    );
+    // ─── 4. Determine cAMP Champ (top team, size-fair score) ─────────────
+    const teamTotals = await loadTeamTotals(ctx.integrations.camp_201_db, cohortId, { excludeTest: true });
     let campChamp: { team_id: number; name: string; total: number } | null = null;
     if (teamTotals.length > 0) {
       campChamp = {
-        team_id: teamTotals[0].team_id,
-        name: teamTotals[0].team_name,
-        total: teamTotals[0].total,
+        team_id: teamTotals[0].id,
+        name: teamTotals[0].name,
+        total: teamTotals[0].total_points,
       };
       await ctx.integrations.camp_201_db.execute(
         `INSERT INTO camp201_config (key, value, updated_at) VALUES ('camp_champ_team_id', $1, NOW())
