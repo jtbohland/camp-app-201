@@ -31,14 +31,13 @@ export default api({
          r.pitcher_id as camper_id,
          c.first_name, c.last_name,
          t.name as team_name, t.color as team_color,
-         COUNT(DISTINCT r.id) as pitch_count,
-         COALESCE(ROUND(AVG(CASE WHEN s.is_self_eval = true THEN s.total ELSE NULL END)::numeric, 1), 0) as avg_self_score,
-         COALESCE(ROUND(AVG(CASE WHEN r.room_avg_scores IS NOT NULL THEN (r.room_avg_scores->>'total')::numeric ELSE NULL END), 1), 0) as avg_room_score,
-         COALESCE(SUM(DISTINCT r.points_awarded), 0) as total_points
+         COUNT(*) as pitch_count,
+         COALESCE(ROUND(AVG((r.self_scores->>'total')::numeric), 1), 0) as avg_self_score,
+         COALESCE(ROUND(AVG(CASE WHEN COALESCE(r.room_vote_count, 0) > 0 THEN (r.room_avg_scores->>'total')::numeric END), 1), 0) as avg_room_score,
+         COALESCE(SUM(r.points_awarded), 0) as total_points
        FROM camp201_wheel_rounds r
        JOIN camp201_campers c ON c.id = r.pitcher_id
        LEFT JOIN camp201_teams t ON t.id = c.team_id
-       LEFT JOIN camp201_wheel_scores s ON s.round_id = r.id AND s.scorer_id = r.pitcher_id
        WHERE r.status = 'closed' AND c.cohort_id = ${cohortIdSql(view.cohortId)}
        GROUP BY r.pitcher_id, c.first_name, c.last_name, t.name, t.color
        ORDER BY total_points DESC, pitch_count DESC

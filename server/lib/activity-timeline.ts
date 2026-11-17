@@ -96,7 +96,7 @@ export async function loadActivityTimeline(
          UNION ALL
          SELECT 'wheel:' || w.id, 'wheel', 'done', 'Pitched ' || COALESCE(w.product_name, 'a product') || ' at Wheel & Deal',
                 NULLIF(w.challenge_type, ''), w.created_at::timestamptz, w.points_awarded
-         FROM camp201_wheel_rounds w WHERE w.pitcher_id = $1
+         FROM camp201_wheel_rounds w WHERE w.pitcher_id = $1 AND w.status <> 'cancelled'
 
          UNION ALL
          SELECT 'prework:' || pw.id, 'prework', 'done', 'Finished pre-work: ' || COALESCE(jc.title, pw.item),

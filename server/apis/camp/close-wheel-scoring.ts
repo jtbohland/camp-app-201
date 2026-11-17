@@ -1,121 +1,75 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { assertNotViewingPast } from "../../lib/cohort.js";
+import { assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
+import { toScoreMap } from "../../lib/wheel.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
-const AvgSchema = z.object({
-  avg_clarity: z.coerce.number(),
-  avg_tone: z.coerce.number(),
-  avg_credibility: z.coerce.number(),
-  avg_close: z.coerce.number(),
-  avg_completion: z.coerce.number(),
-  avg_total: z.coerce.number(),
-  vote_count: z.coerce.number(),
-});
+const ScoreMap = z.record(z.string(), z.number());
 
 export default api({
   name: "CloseWheelScoring",
-  description: "Counselor closes scoring, calculates room averages, awards points",
+  description: "Counselor closes a round; averages votes and awards pitch points once",
   integrations: { camp_201_db: postgres(APPS_DB) },
   input: z.object({
     round_id: z.number(),
   }),
   output: z.object({
     success: z.boolean(),
+    already_closed: z.boolean(),
+    had_self_eval: z.boolean(),
     self_total: z.number(),
+    self_scores: ScoreMap,
+    room_avg: ScoreMap,
     room_avg_total: z.number(),
     room_vote_count: z.number(),
+    completion_score: z.number(),
     points_awarded: z.number(),
   }),
   async run(ctx, { round_id }) {
-    await assertNotViewingPast(ctx.integrations.camp_201_db, ctx.user.email);
-    // 1. Get self-eval scores
-    const SelfSchema = z.object({ total: z.number(), pitcher_id: z.number() });
-    const selfRows = await ctx.integrations.camp_201_db.query(
-      `SELECT s.total, r.pitcher_id
-       FROM camp201_wheel_scores s
-       JOIN camp201_wheel_rounds r ON r.id = s.round_id
-       WHERE s.round_id = $1 AND s.is_self_eval = TRUE
-       LIMIT 1`,
-      SelfSchema,
+    const db = ctx.integrations.camp_201_db;
+    await requireCounselor(db, ctx.user.email);
+    await assertNotViewingPast(db, ctx.user.email);
+
+    // Averages, points and the award all happen in one locked step, so a double click,
+    // two counselors, or a retry can never award a round twice.
+    const [closed] = await db.query(
+      `SELECT camp201_close_wheel_round($1, 0) AS points`,
+      z.object({ points: z.coerce.number().nullable() }),
       [round_id],
-      { label: "Get self-eval for round" }
+      { label: "Close round and award points" }
     );
-    const selfTotal = selfRows.length > 0 ? selfRows[0].total : 0;
-    const pitcherId = selfRows.length > 0 ? selfRows[0].pitcher_id : 0;
 
-    // 2. Calculate room averages (non-self-eval only, fully submitted scores)
-    const avgRows = await ctx.integrations.camp_201_db.query(
-      `SELECT
-        ROUND(AVG(clarity)::numeric, 1) as avg_clarity,
-        ROUND(AVG(tone)::numeric, 1) as avg_tone,
-        ROUND(AVG(credibility)::numeric, 1) as avg_credibility,
-        ROUND(AVG(close_score)::numeric, 1) as avg_close,
-        ROUND(AVG(completion)::numeric, 1) as avg_completion,
-        ROUND(AVG(total)::numeric, 1) as avg_total,
-        COUNT(*) as vote_count
-       FROM camp201_wheel_scores
-       WHERE round_id = $1 AND is_self_eval = FALSE`,
-      AvgSchema,
+    const rows = await db.query(
+      `SELECT status, self_scores, room_avg_scores, COALESCE(room_vote_count, 0) AS room_vote_count,
+              COALESCE(points_awarded, 0) AS points_awarded, COALESCE(completion_score, 0) AS completion_score
+         FROM camp201_wheel_rounds WHERE id = $1 LIMIT 1`,
+      z.object({
+        status: z.string(),
+        self_scores: z.unknown(),
+        room_avg_scores: z.unknown(),
+        room_vote_count: z.coerce.number(),
+        points_awarded: z.coerce.number(),
+        completion_score: z.coerce.number(),
+      }),
       [round_id],
-      { label: "Calculate room averages" }
+      { label: "Read round results" }
     );
-    const avg = avgRows[0];
+    const round = rows[0];
+    if (!round || round.status === "cancelled") throw new Error("This round was cancelled.");
 
-    // 3. Calculate points
-    // Base: +5 for pitching (courage!)
-    let points = 5;
-
-    // Self-awareness bonus: how close self-eval is to room average
-    if (avg.vote_count > 0) {
-      const diff = Math.abs(selfTotal - avg.avg_total);
-      if (diff <= 1) points += 3;       // Within 1 point = very self-aware
-      else if (diff <= 2) points += 2;   // Within 2 points
-      else points += 1;                  // 3+ off, still get something
-
-      // Room performance bonus: if room avg >= 12/15
-      if (avg.avg_total >= 12) points += 2;
-    }
-
-    // 4. Update the round with results
-    const roomAvgScores = {
-      clarity: avg.avg_clarity,
-      tone: avg.avg_tone,
-      credibility: avg.avg_credibility,
-      close: avg.avg_close,
-      completion: avg.avg_completion,
-      total: avg.avg_total,
-    };
-
-    await ctx.integrations.camp_201_db.execute(
-      `UPDATE camp201_wheel_rounds
-       SET status = 'closed',
-           self_scores = (SELECT row_to_json(s) FROM (SELECT clarity, tone, credibility, close_score, completion, total FROM camp201_wheel_scores WHERE round_id = $1 AND is_self_eval = TRUE LIMIT 1) s),
-           room_avg_scores = $2::jsonb,
-           room_vote_count = $3,
-           points_awarded = $4,
-           closed_at = NOW()
-       WHERE id = $1`,
-      [round_id, JSON.stringify(roomAvgScores), avg.vote_count, points],
-      { label: "Close wheel round" }
-    );
-
-    // 5. Award points to the pitcher (the point-log entry updates the total)
-    if (pitcherId > 0 && points !== 0) {
-      await ctx.integrations.camp_201_db.execute(
-        `INSERT INTO camp201_points_log (camper_id, points, reason, awarded_by, category)
-         VALUES ($1, $2, $3, 'system', 'wheel')`,
-        [pitcherId, points, `Wheel & Deal pitch (round ${round_id})`],
-        { label: "Award wheel points to pitcher" }
-      );
-    }
-
+    const self = toScoreMap(round.self_scores);
+    const room = toScoreMap(round.room_avg_scores);
     return {
       success: true,
-      self_total: selfTotal,
-      room_avg_total: Math.round(avg.avg_total * 10) / 10,
-      room_vote_count: avg.vote_count,
-      points_awarded: points,
+      already_closed: closed?.points === null,
+      had_self_eval: Object.keys(self).length > 0,
+      self_total: self.total ?? 0,
+      self_scores: self,
+      room_avg: room,
+      room_avg_total: room.total ?? 0,
+      room_vote_count: round.room_vote_count,
+      completion_score: round.completion_score,
+      points_awarded: round.points_awarded,
     };
   },
 });

@@ -186,12 +186,12 @@ export default api({
     // ─── 2. Award Wheel Dealer to Top Dealer ────────────
     let wheelDealerAwarded = false;
     const topDealer = await ctx.integrations.camp_201_db.query(
-      `SELECT r.pitcher_id as camper_id, COALESCE(SUM(DISTINCT r.points_awarded), 0) as total_points
+      `SELECT r.pitcher_id as camper_id, COALESCE(SUM(r.points_awarded), 0) as total_points
        FROM camp201_wheel_rounds r
        JOIN camp201_campers c ON c.id = r.pitcher_id AND c.cohort_id = $1
        WHERE r.status = 'closed'
        GROUP BY r.pitcher_id
-       ORDER BY total_points DESC, COUNT(DISTINCT r.id) DESC
+       ORDER BY total_points DESC, COUNT(*) DESC
        LIMIT 1`,
       z.object({ camper_id: z.coerce.number(), total_points: z.coerce.number() }),
       [cohortId],

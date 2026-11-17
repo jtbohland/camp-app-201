@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import confetti from "canvas-confetti";
+import { playDrum, playReveal } from "@/lib/wheelSounds.js";
 
 type Camper = {
   id: number;
@@ -46,11 +47,13 @@ export default function CamperSelector({ campers, onSelected, onCancel }: Props)
     const interval = setInterval(() => {
       const rand = campers[Math.floor(Math.random() * campers.length)];
       setDisplayName(`${rand.first_name} ${rand.last_name}`);
+      playDrum();
       tick++;
       if (tick > 20) {
         clearInterval(interval);
         setDisplayName(`${picked.first_name} ${picked.last_name}`);
         setPhase("revealed");
+        playReveal();
         fireNameConfetti();
       }
     }, 80);
