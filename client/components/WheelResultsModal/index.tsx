@@ -10,6 +10,8 @@ type Props = {
   roomVoteCount: number;
   completionScore: number;
   pointsAwarded: number;
+  spotOnBonus: number;
+  hadSelfEval: boolean;
   onClose: () => void;
 };
 
@@ -24,7 +26,7 @@ function ScoreBar({ value, max = 3, color }: { value: number; max?: number; colo
 
 export default function WheelResultsModal({
   pitcherName, selfScores, selfTotal, roomAvg, roomAvgTotal,
-  roomVoteCount, completionScore, pointsAwarded, onClose,
+  roomVoteCount, completionScore, pointsAwarded, spotOnBonus, hadSelfEval, onClose,
 }: Props) {
   const allCategories = [
     ...SCORING_CATEGORIES.map((c) => ({ key: c.key, icon: c.icon, label: c.label })),
@@ -32,7 +34,9 @@ export default function WheelResultsModal({
   ];
 
   const diff = Math.abs(selfTotal - roomAvgTotal);
-  const awarenessLabel = diff <= 1 ? "🎯 Spot on!" : diff <= 2 ? "👍 Close" : "🤔 Big gap";
+  const awarenessLabel = spotOnBonus > 0 ? "🎯 Spot on!" : diff <= 1 ? "👌 Self-aware" : diff <= 2 ? "👍 Close" : "🤔 Big gap";
+  const roomBonus = roomVoteCount > 0 && roomAvgTotal >= 12 ? 2 : 0;
+  const awareness = Math.max(0, pointsAwarded - 5 - roomBonus - spotOnBonus);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -101,7 +105,9 @@ export default function WheelResultsModal({
           <div>
             <div className="text-sm font-bold">{awarenessLabel.split(" ").slice(1).join(" ")}</div>
             <div className="text-xs text-muted-foreground">
-              Self vs Room difference: {Math.round(diff * 10) / 10} point{diff !== 1 ? "s" : ""}
+              {hadSelfEval
+                ? `Self vs Room gap: ${Math.round(diff * 10) / 10} point${diff !== 1 ? "s" : ""}${spotOnBonus > 0 ? " · +3 spot-on bonus!" : ""}`
+                : "No self-eval submitted, so no self-awareness points or leaderboard gap"}
             </div>
           </div>
         </div>
@@ -117,8 +123,9 @@ export default function WheelResultsModal({
             🎡 Next Round
           </Button>
           <div className="text-[10px] text-muted-foreground">
-            +5 courage · +{Math.min(3, pointsAwarded - 5 - (roomAvgTotal >= 12 ? 2 : 0) > 0 ? pointsAwarded - 5 - (roomAvgTotal >= 12 ? 2 : 0) : 0)} self-awareness
-            {roomAvgTotal >= 12 ? " · +2 room loved it" : ""}
+            +5 courage · +{awareness} self-awareness
+            {roomBonus ? " · +2 room loved it" : ""}
+            {spotOnBonus ? ` · +${spotOnBonus} spot on` : ""}
           </div>
         </div>
       </div>

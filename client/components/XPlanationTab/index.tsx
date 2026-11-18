@@ -56,7 +56,9 @@ const categories: PointCategory[] = [
       { label: "2nd team to check in", points: "+3 team pts", positive: true },
       { label: "3rd team", points: "+1 team pt", positive: true },
       { label: "4th+ teams", points: "0 team pts", positive: true },
-      { label: "Check in late (after grace)", points: "-2", positive: false, note: "Late campers get a prompt to check in with PIN" },
+      { label: "Late or missed check-ins #1–3", points: "-2 each", positive: false, note: "Late = checked in after grace with PIN. Missed = never checked in. Excused absences don't count." },
+      { label: "Late or missed check-ins #4–6", points: "-5 each", positive: false, note: "Penalties step up for repeat misses" },
+      { label: "Late or missed check-ins #7+", points: "-10 each", positive: false, note: "Plus a required chat with a counselor about presence & accountability" },
     ],
   },
   {
@@ -136,9 +138,11 @@ const categories: PointCategory[] = [
   {
     icon: "refresh-cw",
     title: "Wheel & Deal",
+    subtitle: "🎯 Leaderboard ranks the smallest gap between your self-score and the room average",
     color: "bg-indigo-500/10 text-indigo-600",
     items: [
       { label: "Pitch in front of the room (courage!)", points: "+5", positive: true },
+      { label: "Spot on: self-score matches room avg", points: "+3 bonus", positive: true, note: "Room average rounds to exactly your self-score" },
       { label: "Self-eval within 1 pt of room avg", points: "+3", positive: true },
       { label: "Self-eval within 2 pts", points: "+2", positive: true },
       { label: "Self-eval 3+ pts off", points: "+1", positive: true },

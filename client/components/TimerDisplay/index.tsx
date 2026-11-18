@@ -1,3 +1,5 @@
+import { formatCountdown } from "@/lib/formatDuration.js";
+
 type Props = {
   remaining: number;
   totalSeconds: number;
@@ -9,8 +11,7 @@ type Props = {
 
 /** The countdown ring everyone sees. */
 export default function TimerDisplay({ remaining, totalSeconds, finished, checkinOpen, large }: Props) {
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
+  const long = remaining >= 3600;
   const progress = totalSeconds > 0 ? ((totalSeconds - remaining) / totalSeconds) * 100 : 0;
 
   return (
@@ -27,8 +28,8 @@ export default function TimerDisplay({ remaining, totalSeconds, finished, checki
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={`${large ? "text-6xl" : "text-5xl"} font-mono font-bold ${finished ? "text-camp-amber animate-pulse" : "text-foreground"}`}>
-          {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+        <span className={`${long ? (large ? "text-5xl" : "text-4xl") : large ? "text-6xl" : "text-5xl"} font-mono font-bold ${finished ? "text-camp-amber animate-pulse" : "text-foreground"}`}>
+          {formatCountdown(remaining, true)}
         </span>
         {finished && <span className="text-sm font-medium text-camp-amber mt-1">Time's up!</span>}
         {checkinOpen && !finished && <span className="text-xs font-medium text-green-600 mt-1">Check-in OPEN</span>}

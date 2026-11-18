@@ -1,5 +1,6 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
-import { assertNotViewingPast } from "../../lib/cohort.js";
+import { assertNotViewingPast, cohortIdSql } from "../../lib/cohort.js";
+import { wheelLeadersSql } from "./get-wheel-leaderboard.js";
 import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
 import { ABSENCE_LIMIT } from "../../lib/absences.js";
 import { loadTeamTotals } from "../../lib/team-score.js";
@@ -185,16 +186,11 @@ export default api({
 
     // ─── 2. Award Wheel Dealer to Top Dealer ────────────
     let wheelDealerAwarded = false;
+    // Same ranking as the Wheel & Deal leaderboard: smallest self-vs-room gap wins.
     const topDealer = await ctx.integrations.camp_201_db.query(
-      `SELECT r.pitcher_id as camper_id, COALESCE(SUM(r.points_awarded), 0) as total_points
-       FROM camp201_wheel_rounds r
-       JOIN camp201_campers c ON c.id = r.pitcher_id AND c.cohort_id = $1
-       WHERE r.status = 'closed'
-       GROUP BY r.pitcher_id
-       ORDER BY total_points DESC, COUNT(*) DESC
-       LIMIT 1`,
+      wheelLeadersSql(cohortIdSql(cohortId), 1),
       z.object({ camper_id: z.coerce.number(), total_points: z.coerce.number() }),
-      [cohortId],
+      undefined,
       { label: "Get top W&D dealer" }
     );
     if (topDealer.length > 0) {

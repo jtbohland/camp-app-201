@@ -2,6 +2,7 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { ABSENCE_LIMIT, counselorPasswordMatches, getAbsenceCounts } from "../../lib/absences.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 import { BlackoutSessionSchema, loadBlackoutWindows, overlappingBlackouts } from "../../lib/blackouts.js";
+import { syncCheckinPenalties } from "../../lib/checkin-penalties.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -97,6 +98,8 @@ export default api({
       [input.camper_id, start.toISOString(), end.toISOString(), input.reason, approvalType, approvedBy, owner[0].cohort_id],
       { label: "Create absence" }
     );
+    // An absence covering a check-in they already missed gives that penalty back.
+    await syncCheckinPenalties(db, input.camper_id);
 
     return {
       success: true,

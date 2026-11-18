@@ -7,7 +7,18 @@ export const PRESET_TIMES = [
   { label: "15 min", seconds: 900 },
   { label: "20 min", seconds: 1200 },
   { label: "30 min", seconds: 1800 },
+  { label: "2 hr", seconds: 7200 },
+  { label: "3 hr", seconds: 10800 },
 ];
+
+/** Custom lengths: every minute up to an hour, then half-hour steps up to 3 hours. */
+const CUSTOM_MINUTES = [...Array.from({ length: 60 }, (_, i) => i + 1), 90, 120, 150, 180];
+
+function minutesLabel(m: number): string {
+  if (m < 60) return `${m} min`;
+  const h = m / 60;
+  return `${h % 1 === 0 ? h : h.toFixed(1)} hr`;
+}
 
 export const TIMER_MODES = [
   { value: "morning", label: "Morning", icon: "sunrise", checkin: true },
@@ -127,13 +138,13 @@ export default function TimerControls(p: Props) {
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-muted-foreground">Custom:</label>
           <select
-            value={Math.max(1, Math.floor(p.totalSeconds / 60))}
+            value={CUSTOM_MINUTES.includes(Math.floor(p.totalSeconds / 60)) ? Math.floor(p.totalSeconds / 60) : Math.max(1, Math.min(60, Math.floor(p.totalSeconds / 60)))}
             onChange={(e) => p.onSetLength(Number(e.target.value) * 60)}
             disabled={p.running || p.busy}
             className="px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            {Array.from({ length: 60 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>{m} min</option>
+            {CUSTOM_MINUTES.map((m) => (
+              <option key={m} value={m}>{minutesLabel(m)}</option>
             ))}
           </select>
         </div>

@@ -39,6 +39,8 @@ export default api({
     my_needs_checkin: z.boolean(),
     /** my_needs_checkin AND the grace minute is over, by the server clock. Drives the late pop-up. */
     my_is_late: z.boolean(),
+    /** When late: what this check-in will cost (-2 / -5 / -10, rising with repeat late/missed check-ins). */
+    my_late_penalty: z.number(),
   }),
   async run(ctx) {
     // Get active session
@@ -63,7 +65,7 @@ export default api({
     );
 
     if (sessions.length === 0) {
-      return { active: false, session: null, current_word: null, previous_word: null, checkin_open: false, teams_progress: [], my_needs_checkin: false, my_is_late: false };
+      return { active: false, session: null, current_word: null, previous_word: null, checkin_open: false, teams_progress: [], my_needs_checkin: false, my_is_late: false, my_late_penalty: -2 };
     }
 
     const session = sessions[0];
@@ -180,6 +182,27 @@ export default api({
       );
       myNeedsCheckin = me[0]?.needs ?? false;
     }
+    const myIsLate = myNeedsCheckin && now.getTime() > new Date(session.timer_ends_at).getTime() + 60_000;
+
+    // Repeat lateness costs more. This session may already count as a miss; otherwise it's the next strike.
+    let myLatePenalty = -2;
+    if (myIsLate) {
+      try {
+        const pen = await ctx.integrations.camp_201_db.query(
+          `SELECT COALESCE(
+             (SELECT s.rate FROM camp201_checkin_strikes(c.id) s WHERE s.session_id = $1),
+             camp201_checkin_strike_rate((SELECT COUNT(*) FROM camp201_checkin_strikes(c.id))::int + 1)
+           ) AS rate
+           FROM camp201_campers c WHERE lower(c.email) = $2 LIMIT 1`,
+          z.object({ rate: z.coerce.number() }),
+          [session.id, email],
+          { label: "My late penalty" }
+        );
+        myLatePenalty = pen[0]?.rate ?? -2;
+      } catch {
+        myLatePenalty = -2;
+      }
+    }
 
     return {
       active: true,
@@ -189,7 +212,8 @@ export default api({
       checkin_open: checkinOpen,
       teams_progress: teamsProgress.map((t) => ({ ...t, excused_members: t.excused_members ?? [] })),
       my_needs_checkin: myNeedsCheckin,
-      my_is_late: myNeedsCheckin && now.getTime() > new Date(session.timer_ends_at).getTime() + 60_000,
+      my_is_late: myIsLate,
+      my_late_penalty: myLatePenalty,
     };
   },
 });

@@ -51,10 +51,11 @@ export default function CheckInBackfill({ onChanged }: { onChanged?: () => void 
             : res.team_complete
             ? " Team is all in."
             : "";
+        const refund = res.points_change > 0 ? ` (+${res.points_change} back)` : "";
         toast.success(
           (res.result === "penalty_removed"
-            ? `Late penalty removed for ${p.name} (+${res.points_change}).`
-            : `${p.name} back-filled, no penalty.`) + team
+            ? `Late penalty removed for ${p.name}${refund}.`
+            : `${p.name} back-filled, no penalty${refund}.`) + team
         );
         await refetch();
         onChanged?.();
@@ -77,7 +78,7 @@ export default function CheckInBackfill({ onChanged }: { onChanged?: () => void 
         {fetching && !loading && <span className="text-[10px] text-muted-foreground">Updating…</span>}
       </div>
       <p className="text-xs text-muted-foreground mb-3">
-        For someone who couldn't check in for a reason out of their control. No penalty, no solo points, and their team still counts them for the race.
+        For someone who couldn't check in for a reason out of their control. Removes any late/missed penalty, gives no solo points, and their team still counts them for the race.
       </p>
 
       {loading ? (
