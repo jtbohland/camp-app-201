@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 import { recordTeamFinishIfComplete } from "../../lib/checkin-team-race.js";
+import { syncCheckinPenalties } from "../../lib/checkin-penalties.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -185,6 +186,11 @@ export default api({
       [session_id, camper_id, teamId, timing, submittedWord, points],
       { label: "Record check-in" }
     );
+
+    // ─── Repeat lateness: the 4th+ late/missed check-in costs more than -2 ───
+    if (timing === "late") {
+      points += await syncCheckinPenalties(ctx.integrations.camp_201_db, camper_id);
+    }
 
     // ─── Team race: once everyone on the team is in (or excused), place once and award 1st/2nd/3rd ───
     const race = await recordTeamFinishIfComplete(ctx.integrations.camp_201_db, session_id, teamId);

@@ -24,6 +24,8 @@ export default api({
     room_vote_count: z.number(),
     completion_score: z.number(),
     points_awarded: z.number(),
+    /** +3 when the room average rounds to the pitcher's own score. */
+    spot_on_bonus: z.number(),
   }),
   async run(ctx, { round_id }) {
     const db = ctx.integrations.camp_201_db;
@@ -41,7 +43,8 @@ export default api({
 
     const rows = await db.query(
       `SELECT status, self_scores, room_avg_scores, COALESCE(room_vote_count, 0) AS room_vote_count,
-              COALESCE(points_awarded, 0) AS points_awarded, COALESCE(completion_score, 0) AS completion_score
+              COALESCE(points_awarded, 0) AS points_awarded, COALESCE(completion_score, 0) AS completion_score,
+              COALESCE(spot_on_bonus, 0) AS spot_on_bonus
          FROM camp201_wheel_rounds WHERE id = $1 LIMIT 1`,
       z.object({
         status: z.string(),
@@ -50,6 +53,7 @@ export default api({
         room_vote_count: z.coerce.number(),
         points_awarded: z.coerce.number(),
         completion_score: z.coerce.number(),
+        spot_on_bonus: z.coerce.number(),
       }),
       [round_id],
       { label: "Read round results" }
@@ -70,6 +74,7 @@ export default api({
       room_vote_count: round.room_vote_count,
       completion_score: round.completion_score,
       points_awarded: round.points_awarded,
+      spot_on_bonus: round.spot_on_bonus,
     };
   },
 });

@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { ACTIVE_COHORT_ID_SQL, assertNotViewingPast, requireCounselor } from "../../lib/cohort.js";
 import { COUNTS_FOR_CHECKIN_SQL, EXCUSED_SQL, recordTeamFinishIfComplete } from "../../lib/checkin-team-race.js";
+import { syncCheckinPenalties } from "../../lib/checkin-penalties.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -16,8 +17,10 @@ const PersonRow = z.object({
   name: z.string(),
   team_id: z.coerce.number().nullable(),
   team_name: z.string().nullable(),
-  /** missing = no check-in; late = checked in late (-2 pts). */
+  /** missing = no check-in; late = checked in late. */
   status: z.enum(["missing", "late"]),
+  /** What this check-in currently costs them (0 while the check-in is still open). */
+  penalty: z.coerce.number(),
 });
 
 /**
@@ -58,7 +61,14 @@ export const GetCheckInBackfill = api({
       `SELECT c.id AS camper_id,
               COALESCE(NULLIF(TRIM(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')), ''), c.email) AS name,
               c.team_id, t.name AS team_name,
-              CASE WHEN r.id IS NULL THEN 'missing' ELSE 'late' END AS status
+              CASE WHEN r.id IS NULL THEN 'missing' ELSE 'late' END AS status,
+              COALESCE((SELECT SUM(pl.points) FROM camp201_points_log pl
+                         WHERE pl.camper_id = c.id
+                           AND ((pl.category = 'checkin_penalty' AND pl.checkin_session_id = $1)
+                                OR pl.reason = 'Check-in: late (session ' || $1::text || ')'
+                                OR pl.reverses_id IN (SELECT x.id FROM camp201_points_log x
+                                                       WHERE x.camper_id = c.id
+                                                         AND x.reason = 'Check-in: late (session ' || $1::text || ')'))), 0) AS penalty
        FROM camp201_campers c
        LEFT JOIN camp201_teams t ON t.id = c.team_id
        LEFT JOIN camp201_checkin_responses r ON r.session_id = $1 AND r.camper_id = c.id
@@ -122,6 +132,7 @@ export const BackfillCheckIn = api({
     let pointsChange = 0;
 
     if (!c.timing) {
+      // Missed check-in penalties are given back by the penalty sync below.
       // Missed: record them as in, for 0 points (the unique row stops a double tap).
       const ins = await db.query(
         `WITH ins AS (
@@ -172,6 +183,10 @@ export const BackfillCheckIn = api({
       );
       result = "penalty_removed";
     }
+
+    // A back-fill is no longer a late/missed check-in: give back that penalty and re-price the
+    // cAMPer's later ones (e.g. their 4th late drops back to -2).
+    pointsChange += await syncCheckinPenalties(db, camper_id);
 
     const race = await recordTeamFinishIfComplete(db, session_id, c.team_id);
     return { result, points_change: pointsChange, team_complete: race.teamComplete, team_place: race.place };

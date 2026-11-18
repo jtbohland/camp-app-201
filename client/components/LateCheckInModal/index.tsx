@@ -26,6 +26,7 @@ export default function LateCheckInModal({ camperId, isAdmin }: Props) {
 
   // Late is decided by the server clock (a fast device clock can't trigger the pop-up early).
   const session = data?.session;
+  const penalty = Math.abs(data?.my_late_penalty ?? -2);
   const showModal = !!session && !isError && data?.my_is_late === true
     && !dismissed.has(session.id) && session.status === "active";
 
@@ -70,7 +71,10 @@ export default function LateCheckInModal({ camperId, isAdmin }: Props) {
         </div>
 
         <p className="text-sm text-foreground/80 mb-4">
-          Please still check in with your PIN. This will deduct <span className="font-bold text-red-500">2 points</span> from your individual score.
+          Please still check in with your PIN. This will deduct <span className="font-bold text-red-500">{penalty} points</span> from your individual score.
+        </p>
+        <p className="text-xs text-muted-foreground mb-4">
+          Late or missed check-ins add up: #1–3 cost 2 pts each, #4–6 cost 5 each, #7+ cost 10 each. Skipping check-in counts as missed.
         </p>
 
         {/* PIN input */}
@@ -90,7 +94,7 @@ export default function LateCheckInModal({ camperId, isAdmin }: Props) {
             disabled={loading || !pin.trim()}
             className="w-full bg-red-600 hover:bg-red-700 text-white"
           >
-            {loading ? "Checking in..." : "Check In Late (-2 pts)"}
+            {loading ? "Checking in..." : `Check In Late (-${penalty} pts)`}
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground text-center mt-3">

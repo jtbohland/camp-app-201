@@ -52,6 +52,8 @@ type Results = {
   roomVoteCount: number;
   completionScore: number;
   pointsAwarded: number;
+  spotOnBonus: number;
+  hadSelfEval: boolean;
 };
 
 function formatPitchTime(s: number) {
@@ -176,6 +178,8 @@ export default function WheelAndDealPage() {
         roomVoteCount: r.room_vote_count,
         completionScore: r.completion_score,
         pointsAwarded: r.points_awarded,
+        spotOnBonus: r.spot_on_bonus ?? 0,
+        hadSelfEval: r.had_self_eval,
       });
       setCounselorPhase("results");
       await Promise.all([refetchRound(), queryClient.invalidateQueries("GetWheelLeaderboard")]);
@@ -242,6 +246,8 @@ export default function WheelAndDealPage() {
           roomVoteCount={resultsData.roomVoteCount}
           completionScore={resultsData.completionScore}
           pointsAwarded={resultsData.pointsAwarded}
+          spotOnBonus={resultsData.spotOnBonus}
+          hadSelfEval={resultsData.hadSelfEval}
           onClose={handleNextRound}
         />
       )}
@@ -272,8 +278,8 @@ export default function WheelAndDealPage() {
               <ol className="space-y-2 text-sm text-foreground">
                 <li className="flex gap-2"><span className="font-bold text-blue-600">1.</span><span><strong>🎡 Pick &amp; Spin</strong> — Counselor picks a cAMPer, the wheel spins to a product.</span></li>
                 <li className="flex gap-2"><span className="font-bold text-blue-600">2.</span><span><strong>🎤 Pitch</strong> — 2-minute verbal pitch, no slides, no script. Timer is facilitator-controlled.</span></li>
-                <li className="flex gap-2"><span className="font-bold text-blue-600">3.</span><span><strong>⭐ Everyone Scores</strong> — The pitcher rates themselves. Everyone else in the room submits their own score too.</span></li>
-                <li className="flex gap-2"><span className="font-bold text-blue-600">4.</span><span><strong>🔒 Close</strong> — Counselor closes scoring. Results reveal the pitcher's self-eval vs. the room average.</span></li>
+                <li className="flex gap-2"><span className="font-bold text-blue-600">3.</span><span><strong>⭐ Everyone Scores at once</strong> — As soon as the pitch ends, the pitcher's self-eval and the room's votes open together. Counselors see who's in and whether the self-eval is submitted.</span></li>
+                <li className="flex gap-2"><span className="font-bold text-blue-600">4.</span><span><strong>🔒 Close</strong> — Counselor closes scoring. Results reveal the pitcher's self-eval vs. the room average. The leaderboard ranks the smallest gap.</span></li>
               </ol>
             </div>
             <div>
@@ -296,7 +302,7 @@ export default function WheelAndDealPage() {
                 </div>
                 <div><span className="font-semibold text-orange-600">/15 total</span> — 5 categories × 3 max = 15 possible</div>
                 <div><span className="font-semibold text-blue-600">AUTO</span> — Completion: 3 = 30+ sec left · 2 = under 30 sec · 1 = time up</div>
-                <div className="mt-2 font-medium text-foreground">🏆 Points: +5 for pitching · up to +3 self-awareness · +2 if room avg ≥ 12</div>
+                <div className="mt-2 font-medium text-foreground">🏆 Points: +5 for pitching · up to +3 self-awareness · +2 if room avg ≥ 12 · 🎯 +3 spot-on if the room avg matches your self-score</div>
               </div>
             </div>
           </div>

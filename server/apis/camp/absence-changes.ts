@@ -2,11 +2,13 @@ import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { getCounselorAccess } from "../../lib/cohort.js";
 import { isCampClosed } from "../../lib/camp-closed-guard.js";
 import { BlackoutSessionSchema, loadBlackoutWindows, overlappingBlackouts } from "../../lib/blackouts.js";
+import { syncCheckinPenalties } from "../../lib/checkin-penalties.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
 const OwnedAbsenceSchema = z.object({
   id: z.coerce.number(),
+  camper_id: z.coerce.number(),
   is_owner: z.boolean(),
   status: z.string(),
   role: z.string().nullable(),
@@ -16,7 +18,7 @@ const OwnedAbsenceSchema = z.object({
 async function loadOwnedAbsence(db: any, absenceId: number, email: string) {
   const access = await getCounselorAccess(db, email);
   const rows = await db.query(
-    `SELECT a.id, lower(c.email) = lower($2) AS is_owner, COALESCE(a.status, 'approved') AS status, c.role
+    `SELECT a.id, a.camper_id, lower(c.email) = lower($2) AS is_owner, COALESCE(a.status, 'approved') AS status, c.role
      FROM camp201_absence_requests a
      JOIN camp201_campers c ON c.id = a.camper_id
      WHERE a.id = $1 LIMIT 1`,
@@ -73,6 +75,7 @@ export const UpdateAbsenceRequest = api({
       [input.absence_id, start.toISOString(), end.toISOString(), input.reason],
       { label: "Update absence" }
     );
+    await syncCheckinPenalties(db, row.camper_id);
     return { success: true, error: null, blackout_sessions: [] };
   },
 });
@@ -100,6 +103,7 @@ export const WithdrawAbsenceRequest = api({
       [absence_id, email],
       { label: "Withdraw absence" }
     );
+    await syncCheckinPenalties(db, row.camper_id);
     return { success: true };
   },
 });

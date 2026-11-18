@@ -4,6 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import HubBrief from "@/components/HubBrief/index.js";
 import HubBoard from "@/components/HubBoard/index.js";
 import HubFeedbackReceived from "@/components/HubFeedbackReceived/index.js";
+import HubRubric from "@/components/HubRubric/index.js";
 import HubTeamTool, { teamToolLabel } from "@/components/HubTeamTool/index.js";
 import {
   isTeamWork, prepStatus, presKey, presTypeMeta,
@@ -26,7 +27,7 @@ type Props = {
   fetching: boolean;
 };
 
-type SubTab = "brief" | "tool" | "board" | "feedback";
+type SubTab = "brief" | "rubric" | "tool" | "board" | "feedback";
 
 /** Everything a team needs for one presentation: brief, the working tool, shared board, and feedback. */
 export default function HubPresentationTab(props: Props) {
@@ -39,6 +40,7 @@ export default function HubPresentationTab(props: Props) {
 
   const tabs: { id: SubTab; label: string; icon: string; show: boolean }[] = [
     { id: "brief", label: "Brief", icon: "flag", show: true },
+    { id: "rubric", label: "Rubric", icon: "clipboard-check", show: p.rubric_template_id !== null && !locked },
     { id: "tool", label: toolLabel ?? "", icon: "pencil-ruler", show: !!toolLabel && !locked },
     { id: "board", label: `Team board${items.length ? ` (${items.length})` : ""}`, icon: "layout-list", show: !locked },
     { id: "feedback", label: `Feedback${feedbackCount ? ` (${feedbackCount})` : ""}`, icon: "message-circle", show: isTeamWork(p.presentation_type) },
@@ -79,6 +81,9 @@ export default function HubPresentationTab(props: Props) {
       </div>
 
       {active === "brief" && (locked ? <LockedBrief /> : <HubBrief presentation={p} />)}
+      {active === "rubric" && !locked && p.rubric_template_id !== null && (
+        <HubRubric rubricTemplateId={p.rubric_template_id} />
+      )}
       {active === "tool" && !locked && (
         <HubTeamTool
           presentation={p}

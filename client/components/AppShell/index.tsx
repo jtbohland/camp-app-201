@@ -8,6 +8,7 @@ import QuickAwardPoints from "@/components/QuickAwardPoints";
 import CloseCampModal from "@/components/CloseCampModal/index.js";
 import LateCheckInModal from "@/components/LateCheckInModal/index.js";
 import LateSurveyModal from "@/components/LateSurveyModal/index.js";
+import PresenceMemoModal from "@/components/PresenceMemoModal/index.js";
 import BlackoutConflictModal from "@/components/BlackoutConflictModal/index.js";
 import RegistrationGuard from "@/components/RegistrationGuard/index.js";
 import PastCohortBanner from "@/components/PastCohortBanner/index.js";
@@ -57,6 +58,7 @@ export default function AppShell() {
       {!isAdmin && camper?.id && setupDone && (
         <LateSurveyModal camperId={camper.id} isAdmin={false} />
       )}
+      {!isAdmin && !isReadOnly && camper?.id && setupDone && <PresenceMemoModal />}
       {!isAdmin && !isReadOnly && camper?.id && setupDone && (
         <BlackoutConflictModal camperId={camper.id} />
       )}

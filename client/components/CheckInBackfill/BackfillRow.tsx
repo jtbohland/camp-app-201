@@ -7,6 +7,8 @@ export type BackfillPerson = {
   name: string;
   team_name: string | null;
   status: "missing" | "late";
+  /** What this check-in currently costs them (0 while the check-in is still open). */
+  penalty: number;
 };
 
 type Props = {
@@ -18,18 +20,19 @@ type Props = {
 /** One cAMPer who missed a check-in (or was charged late), with a one-click back-fill. */
 function BackfillRow({ person, busy, onBackfill }: Props) {
   const missing = person.status === "missing";
+  const cost = person.penalty < 0 ? ` (${person.penalty})` : "";
   return (
     <div className="flex items-center justify-between gap-3 py-2">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{person.name}</p>
         <p className="text-[11px] text-muted-foreground">
           {person.team_name ?? "No team"} ·{" "}
-          <span className={missing ? "text-red-600" : "text-amber-700"}>{missing ? "Missed" : "Late (-2)"}</span>
+          <span className={missing ? "text-red-600" : "text-amber-700"}>{missing ? `Missed${cost}` : `Late${cost}`}</span>
         </p>
       </div>
       <Button size="sm" variant="outline" disabled={busy} onClick={() => onBackfill(person)}>
         {busy ? <Icon icon="loader-2" className="w-3.5 h-3.5 animate-spin" /> : <Icon icon="user-check" className="w-3.5 h-3.5" />}
-        {missing ? "Back-fill" : "Remove penalty"}
+        {missing && person.penalty >= 0 ? "Back-fill" : missing ? "Back-fill + refund" : "Remove penalty"}
       </Button>
     </div>
   );

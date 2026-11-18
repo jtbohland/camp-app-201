@@ -39,6 +39,7 @@ import MigrateCheckinTables from './camp/migrate-checkin-tables.js';
 import SeedWordBank from './camp/seed-word-bank.js';
 import StartCheckIn from './camp/start-checkin.js';
 import GetActiveCheckIn from './camp/get-active-checkin.js';
+import GetMyPresenceStatus from './camp/get-my-presence-status.js';
 import SubmitCheckIn from './camp/submit-checkin.js';
 import CloseCheckIn from './camp/close-checkin.js';
 import { GetCheckInBackfill, BackfillCheckIn } from './camp/checkin-backfill.js';
@@ -271,6 +272,7 @@ const apis = {
   SeedWordBank,
   StartCheckIn,
   GetActiveCheckIn,
+  GetMyPresenceStatus,
   SubmitCheckIn,
   CloseCheckIn,
   GetCheckInBackfill,

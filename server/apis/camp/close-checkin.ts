@@ -1,6 +1,7 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
 import { requireCounselor } from "../../lib/cohort.js";
 import { recordTeamFinishIfComplete } from "../../lib/checkin-team-race.js";
+import { syncSessionCohortPenalties } from "../../lib/checkin-penalties.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -48,6 +49,9 @@ export default api({
     for (const t of teams) {
       await recordTeamFinishIfComplete(ctx.integrations.camp_201_db, session_id, t.id);
     }
+
+    // Misses are final once the check-in closes: charge them (and re-price repeat lateness).
+    await syncSessionCohortPenalties(ctx.integrations.camp_201_db, session_id);
 
     // Get summary stats
     const StatsSchema = z.object({

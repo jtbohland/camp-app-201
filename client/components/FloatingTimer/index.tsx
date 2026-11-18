@@ -2,12 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useTimerContext } from "@/components/TimerContext/index.js";
 import { Icon } from "@/components/ui/icon";
-
-function formatTime(s: number) {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, "0")}`;
-}
+import { formatCountdown } from "@/lib/formatDuration.js";
 
 /** Small draggable copy of the shared timer. Only counselors get pause/play/reset. */
 export default function FloatingTimer() {
@@ -86,8 +81,8 @@ export default function FloatingTimer() {
               className={state.finished ? "text-red-500" : isLow ? "text-amber-500" : "text-emerald-500"}
             />
           </svg>
-          <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${state.finished ? "text-red-600" : "text-foreground"}`}>
-            {formatTime(state.remaining)}
+          <span className={`absolute inset-0 flex items-center justify-center ${state.remaining >= 3600 ? "text-[8px]" : "text-[10px]"} font-bold ${state.finished ? "text-red-600" : "text-foreground"}`}>
+            {formatCountdown(state.remaining)}
           </span>
         </div>
 
