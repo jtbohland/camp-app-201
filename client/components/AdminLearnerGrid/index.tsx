@@ -11,6 +11,7 @@ import CohortMemberCard from "@/components/CohortMemberCard/index.js";
 import ConfirmRemoveCamperDialog from "@/components/ConfirmRemoveCamperDialog/index.js";
 import RemovedCampersList from "@/components/RemovedCampersList/index.js";
 import LastSeenPill from "@/components/LastSeenPill/index.js";
+import AwardLeaderPills from "@/components/AwardLeaderPills/index.js";
 import { errorMessage } from "@/lib/cohortRefresh";
 import { refreshRosterViews } from "@/lib/camperRemoval";
 import { COHORT_SORTS, sortCohortMembers, type CohortMember, type CohortSort } from "@/lib/cohortMember.js";
@@ -34,6 +35,8 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
   const { run: removeCamper } = useApi("RemoveCamper");
   // Manager message counts per cAMPer (tile badges)
   const { data: threadBadges } = useApiData("GetManagerThreadBadges", {}, { refetchInterval: 60_000 });
+  // Live award leaders (cAMP-V-P, Most Spirited, Wheel Dealer): refresh every 30 s so pills follow the leaderboard.
+  const { data: awardLeaders } = useApiData("GetLiveAwardLeaders", inputs, { refetchInterval: 30_000 });
   const messagesByCamper = useMemo(
     () => new Map((threadBadges?.by_camper ?? []).map((b) => [b.camper_id, b])),
     [threadBadges],
@@ -161,6 +164,7 @@ export default function AdminLearnerGrid({ cohortId, onCamperClick, canEdit }: P
                     <Icon icon="star" className="h-3 w-3" />
                     {camper.points} pts
                   </span>
+                  <AwardLeaderPills camperId={camper.id} leaders={awardLeaders} />
                   <span
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                       camper.absences_used >= 3 ? "bg-red-100 text-red-700" : "bg-muted text-muted-foreground"
