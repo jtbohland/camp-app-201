@@ -155,7 +155,7 @@ const categories: PointCategory[] = [
     color: "bg-violet-500/10 text-violet-600",
     items: [
       { label: "Winning team (most peer votes)", points: "+15 team pts", positive: true },
-      { label: "Innovation Award badge for all winning members", points: "🏆 Badge", positive: true },
+      { label: "Innovation Award badge for all winning members", points: "🏆 Badge", positive: true, note: "Every member of the hackathon team with the most peer votes earns it" },
     ],
   },
   {
@@ -165,7 +165,7 @@ const categories: PointCategory[] = [
     items: [
       { label: "First photo uploaded", points: "+2", positive: true },
       { label: "First text memory shared", points: "+1", positive: true },
-      { label: "KINDling badge — shared both a photo + text", points: "🏅 Badge", positive: true },
+      { label: "KINDling badge — shared both a photo + text", points: "🏅 Badge", positive: true, note: "Share at least one photo and one text memory on the Memories page to earn it" },
     ],
   },
 ];
@@ -173,19 +173,84 @@ const categories: PointCategory[] = [
 // ─── Close-out Bonuses (awarded automatically when counselors close cAMP) ───
 
 const closeOutBonuses: PointItem[] = [
-  { label: "Attendance: no excused absences used", points: "+3", positive: true },
-  { label: "Attendance: 1 excused absence used", points: "+2", positive: true },
-  { label: "Attendance: 2 excused absences used", points: "+1", positive: true },
-  { label: "Attendance: all 3 excused absences used", points: "0", positive: true },
-  { label: "Each extra absence a counselor approves with a penalty", points: "-1 each", positive: false, note: "Emergency approvals never cost points" },
-  { label: "Camp Spirit badge: most peer votes in the Camp Spirit vote", points: "+15", positive: true, note: "Ties go to whoever received the most kind-word notes. Still tied? They share it." },
-  { label: "Summit Seeker badge: 100+ total points", points: "+5", positive: true },
-  { label: "Peak Performer badge: 250+ total points", points: "+10", positive: true },
-  { label: "Legend of the Lake badge: 500+ total points", points: "+20", positive: true },
-  { label: "Wheel Dealer badge: #1 on the Wheel & Deal leaderboard", points: "🏅 Badge", positive: true, note: "Smallest gap between self-score and room average" },
-  { label: "cAMP-V-P badge: most individual points", points: "👑 Badge", positive: true },
-  { label: "Alpine Legend badge: cAMP-V-P + Wheel Dealer + Camp Spirit, all on one person", points: "+25", positive: true, note: "The rarest badge at cAMP" },
-  { label: "cAMP Champ: top team score", points: "🏕 Title", positive: true },
+  {
+    label: "Attendance: no excused absences used",
+    points: "+3",
+    positive: true,
+    note: "You were there for every session without using any of your 3 excused absences.",
+  },
+  {
+    label: "Attendance: 1 excused absence used",
+    points: "+2",
+    positive: true,
+    note: "You used 1 of your 3 excused absences.",
+  },
+  {
+    label: "Attendance: 2 excused absences used",
+    points: "+1",
+    positive: true,
+    note: "You used 2 of your 3 excused absences.",
+  },
+  {
+    label: "Attendance: all 3 excused absences used",
+    points: "0",
+    positive: true,
+    note: "No attendance bonus, but no penalty either.",
+  },
+  {
+    label: "Each extra absence a counselor approves with a penalty",
+    points: "-1 each",
+    positive: false,
+    note: "After your 3 excused absences, a counselor can approve more. Each one approved with a penalty costs 1 point. Emergency approvals never cost points.",
+  },
+  {
+    label: "Camp Spirit badge",
+    points: "+15",
+    positive: true,
+    note: "Voted by your fellow cAMPers in the Camp Spirit survey for bringing the most energy, kindness and heart to cAMP. Ties go to whoever received the most kind-word notes. Still tied? They share it.",
+  },
+  {
+    label: "Summit Seeker badge",
+    points: "+5",
+    positive: true,
+    note: "Your first big milestone: have 100+ total points when cAMP closes.",
+  },
+  {
+    label: "Peak Performer badge",
+    points: "+10",
+    positive: true,
+    note: "Have 250+ total points when cAMP closes.",
+  },
+  {
+    label: "Legend of the Lake badge",
+    points: "+20",
+    positive: true,
+    note: "Have 500+ total points when cAMP closes.",
+  },
+  {
+    label: "Wheel Dealer badge",
+    points: "🏅 Badge",
+    positive: true,
+    note: "The most self-aware pitcher: #1 on the Wheel & Deal leaderboard, meaning the smallest average gap between your self-score and the room's average. Pitch and submit your self-score to qualify.",
+  },
+  {
+    label: "cAMP-V-P badge",
+    points: "👑 Badge",
+    positive: true,
+    note: "The top individual at cAMP: most total points once all close-out bonuses are added. Revealed at the closing ceremony.",
+  },
+  {
+    label: "Alpine Legend badge",
+    points: "+25",
+    positive: true,
+    note: "The rarest badge at cAMP: one person wins cAMP-V-P, Wheel Dealer and Camp Spirit.",
+  },
+  {
+    label: "cAMP Champ title",
+    points: "🏕 Title",
+    positive: true,
+    note: "The team with the highest team score (scaled for team size). Revealed at the closing ceremony.",
+  },
 ];
 
 const principles: { icon: IconName; title: string; description: string }[] = [
@@ -232,38 +297,6 @@ export default function XPlanationTab() {
               <span className="font-semibold text-foreground">average points per person × the usual team size</span>. Example: a team of 6 with 570 member pts counts as 570 ÷ 6 × 5 = 475. Team bonus points are added as-is.
             </p>
           </div>
-        </div>
-      </Card>
-
-      {/* Close-out Bonuses */}
-      <Card className="p-5 border-amber-500/40 bg-amber-50/40">
-        <h2 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
-          <Icon icon="flag" className="w-5 h-5 text-amber-500" />
-          Close-out Bonuses
-        </h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          These are added automatically when counselors close cAMP on the final day, in this order: attendance, Camp Spirit,
-          point milestones, then the cAMP-V-P, so Camp Spirit points can push you past a milestone. Award winners and their
-          points stay hidden until the closing ceremony reveal.
-        </p>
-        <div className="space-y-1.5">
-          {closeOutBonuses.map((item) => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-sm text-foreground/80">
-                  <Icon
-                    icon={item.positive ? "check" : "minus"}
-                    className={`w-3.5 h-3.5 shrink-0 ${item.positive ? "text-camp-green" : "text-red-500"}`}
-                  />
-                  {item.label}
-                </span>
-                <span className={`text-sm font-bold whitespace-nowrap ${item.positive ? "text-camp-green" : "text-red-500"}`}>
-                  {item.points}
-                </span>
-              </div>
-              {item.note && <p className="text-[10px] text-muted-foreground ml-5.5 mt-0.5">{item.note}</p>}
-            </div>
-          ))}
         </div>
       </Card>
 
@@ -371,6 +404,38 @@ export default function XPlanationTab() {
             </li>
           ))}
         </ul>
+      </Card>
+
+      {/* Close-out Bonuses */}
+      <Card className="p-5 border-amber-500/40 bg-amber-50/40">
+        <h2 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
+          <Icon icon="flag" className="w-5 h-5 text-amber-500" />
+          Close-out Bonuses
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          These are added automatically when counselors close cAMP on the final day, in this order: attendance, Camp Spirit,
+          point milestones, then the cAMP-V-P, so Camp Spirit points can push you past a milestone. Award winners and their
+          points stay hidden until the closing ceremony reveal.
+        </p>
+        <div className="space-y-3">
+          {closeOutBonuses.map((item) => (
+            <div key={item.label}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Icon
+                    icon={item.positive ? "check" : "minus"}
+                    className={`w-3.5 h-3.5 shrink-0 ${item.positive ? "text-camp-green" : "text-red-500"}`}
+                  />
+                  {item.label}
+                </span>
+                <span className={`text-sm font-bold whitespace-nowrap ${item.positive ? "text-camp-green" : "text-red-500"}`}>
+                  {item.points}
+                </span>
+              </div>
+              {item.note && <p className="text-xs text-muted-foreground ml-5.5 mt-0.5">{item.note}</p>}
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );

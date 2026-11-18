@@ -203,6 +203,7 @@ import AddMemory from './camp/add-memory.js';
 import ToggleMemoryReaction from './camp/toggle-memory-reaction.js';
 import DeleteMemory from './camp/delete-memory.js';
 import GetCloseCampStatus from './camp/get-close-camp-status.js';
+import GetLiveAwardLeaders from './camp/get-live-award-leaders.js';
 import CloseCamp from './camp/close-camp.js';
 import ArchiveCohortToLegacyWall from './camp/archive-cohort-to-legacy-wall.js';
 import { GetViewCohort, SetViewCohort } from './camp/cohort-view.js';
@@ -463,6 +464,7 @@ const apis = {
   ToggleMemoryReaction,
   DeleteMemory,
   GetCloseCampStatus,
+  GetLiveAwardLeaders,
   CloseCamp,
   SetupCheckinTeamRace,
   SubmitLateCheckIn,
