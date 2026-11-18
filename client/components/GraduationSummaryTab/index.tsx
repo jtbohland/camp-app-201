@@ -50,7 +50,10 @@ function CamperGraduationSummary() {
   const { data: gateData } = useApiData("GetFeatureGates", {});
   const gates = (gateData?.gates ?? []) as any[];
   const gradGate = gates.find((g: any) => g.feature_key === "graduation");
-  const isLocked = gradGate ? gradGate.is_locked : true;
+  // Also held until the cAMP-V-P reveal so close-out awards (Camp Spirit, Alpine Legend) stay a surprise.
+  const { data: closeStatus } = useApiData("GetCloseCampStatus", {}, { staleTime: 10_000 });
+  const awaitingReveal = (closeStatus?.camp_closed ?? false) && !(closeStatus?.vp_revealed ?? false);
+  const isLocked = (gradGate ? gradGate.is_locked : true) || awaitingReveal;
 
   // Awards data
   const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { enabled: camperId > 0, staleTime: 30_000 });
@@ -61,15 +64,7 @@ function CamperGraduationSummary() {
   const { data: spiritData } = useApiData("GetSpiritVoteResults", { camper_id: camperId }, { enabled: camperId > 0, staleTime: 30_000 });
   const spiritVotesReceived = spiritData?.my_votes_received?.vote_count ?? 0;
   const spiritNotes = (spiritData?.my_votes_received?.notes ?? []) as { note: string | null }[];
-  const spiritWinners = spiritData?.winners ?? [];
-  const isSpiritWinner = (() => {
-    if (!spiritData?.voting_complete || spiritWinners.length === 0) return false;
-    const topVotes = (spiritWinners as any[])[0].vote_count;
-    const tied = (spiritWinners as any[]).filter((w: any) => w.vote_count === topVotes);
-    if (tied.length === 1) return tied[0].camper_id === camperId;
-    const maxNotes = Math.max(...tied.map((w: any) => w.note_count));
-    return tied.filter((w: any) => w.note_count === maxNotes).some((w: any) => w.camper_id === camperId);
-  })();
+  const isSpiritWinner = (spiritData?.winner_ids ?? []).includes(camperId);
 
   // Badges from graduation data
   const badgeList = (data?.badge_list ?? []) as { id: number; name: string; description: string; icon: string; color: string }[];
@@ -134,7 +129,7 @@ function CamperGraduationSummary() {
   const awards: { emoji: string; title: string; subtitle: string; gradient: string }[] = [];
   if (isCampVP) awards.push({ emoji: "👑", title: "cAMP-V-P", subtitle: "Most Valuable cAMPer — #1 in total XP", gradient: "from-yellow-400 to-amber-500" });
   if (isTopDealer) awards.push({ emoji: "🎡", title: "Top Dealer", subtitle: `${myWdStats?.pitch_count ?? 0} pitches · ${myWdStats?.total_points ?? 0} W&D pts`, gradient: "from-blue-500 to-indigo-500" });
-  if (isSpiritWinner) awards.push({ emoji: "✨", title: "Camp Spirit", subtitle: `Voted by your peers — ${spiritVotesReceived} vote${spiritVotesReceived !== 1 ? "s" : ""}`, gradient: "from-emerald-400 to-teal-500" });
+  if (isSpiritWinner) awards.push({ emoji: "✨", title: "Camp Spirit", subtitle: `Voted by your peers — ${spiritVotesReceived} vote${spiritVotesReceived !== 1 ? "s" : ""} · +15 pts`, gradient: "from-emerald-400 to-teal-500" });
   if (hasInnovation) awards.push({ emoji: "🏆", title: "Innovation Award", subtitle: "AI Hackathon winning team", gradient: "from-amber-500 to-orange-500" });
 
   return (

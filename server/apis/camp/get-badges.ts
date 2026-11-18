@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { SURPRISE_BADGE_IDS, SURPRISE_HIDDEN_SQL } from "../../lib/spirit.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -62,9 +63,11 @@ export default api({
          JOIN camp201_badges b ON b.id = cb.badge_id
          LEFT JOIN camp201_campers c ON c.id = cb.awarded_by
          WHERE cb.camper_id = $1
+           -- Close-out surprise badges stay hidden until the cAMP-V-P reveal.
+           AND NOT (cb.badge_id = ANY($2::int[]) AND ${SURPRISE_HIDDEN_SQL})
          ORDER BY cb.awarded_at DESC LIMIT 50`,
         EarnedBadgeSchema,
-        [camper_id],
+        [camper_id, SURPRISE_BADGE_IDS],
         { label: "Get earned badges" }
       );
     }

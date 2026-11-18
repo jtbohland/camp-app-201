@@ -4,6 +4,7 @@ import { wheelLeadersSql } from "./get-wheel-leaderboard.js";
 import { saveCohortSnapshot } from "../../lib/cohort-snapshot.js";
 import { ABSENCE_LIMIT } from "../../lib/absences.js";
 import { loadTeamTotals } from "../../lib/team-score.js";
+import { CAMP_SPIRIT_POINTS, SpiritWinnerSchema, spiritWinnersSql } from "../../lib/spirit.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -11,7 +12,7 @@ const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 const SUMMIT_SEEKER_ID = 2;   // 100+ points
 const PEAK_PERFORMER_ID = 3;  // 250+ points
 const LEGEND_LAKE_ID = 4;     // 500+ points
-const CAMP_SPIRIT_ID = 11;    // Peer-voted (already awarded before close)
+const CAMP_SPIRIT_ID = 11;    // Peer-voted; awarded below at close (+15) so it stays a surprise
 const WHEEL_DEALER_ID = 34;   // Top of W&D leaderboard
 const CAMP_VP_ID = 199;       // cAMP-V-P (most individual points)
 const ALPINE_LEGEND_ID = 105; // cAMP-V-P + Wheel Dealer + Camp Spirit
@@ -36,6 +37,7 @@ export default api({
     camp_vp: z.object({ camper_id: z.number(), name: z.string(), points: z.number() }).nullable(),
     camp_champ: z.object({ team_id: z.number(), name: z.string(), total: z.number() }).nullable(),
     alpine_legends: z.array(z.object({ camper_id: z.number(), name: z.string() })),
+    camp_spirit: z.array(z.object({ camper_id: z.number(), name: z.string() })),
     milestone_awards: z.number(),
     wheel_dealer_awarded: z.boolean(),
   }),
@@ -76,6 +78,7 @@ export default api({
         camp_vp: null,
         camp_champ: null,
         alpine_legends: [],
+        camp_spirit: [],
         milestone_awards: 0,
         wheel_dealer_awarded: false,
       };
@@ -136,6 +139,38 @@ export default api({
       [cohortId, ABSENCE_LIMIT],
       { label: "Award attendance points" }
     );
+
+    // ─── 0b. Camp Spirit (peer vote) ────────────────────
+    // Most votes from the survey-day vote; a tie goes to most kind-word notes, still tied = shared.
+    // Awarded here (before milestones and cAMP-V-P, which it can affect) and kept hidden until
+    // the cAMP-V-P reveal. Safe to repeat: the badge is inserted once and points follow only a new badge.
+    const spiritWinners = await ctx.integrations.camp_201_db.query(
+      spiritWinnersSql(cohortIdSql(cohortId)),
+      SpiritWinnerSchema,
+      undefined,
+      { label: "Find Camp Spirit winner" }
+    );
+    for (const w of spiritWinners) {
+      await ctx.integrations.camp_201_db.execute(
+        `WITH ins AS (
+           INSERT INTO camp201_camper_badges (camper_id, badge_id, awarded_at, awarded_by)
+           VALUES ($1, $2, NOW(), NULLIF($3::int, 0))
+           ON CONFLICT (camper_id, badge_id) DO NOTHING
+           RETURNING camper_id
+         )
+         INSERT INTO camp201_points_log (camper_id, points, reason, category, cohort_id)
+         SELECT camper_id, $4::int, $5, 'badge', $6 FROM ins`,
+        [
+          w.camper_id,
+          CAMP_SPIRIT_ID,
+          closer_camper_id,
+          CAMP_SPIRIT_POINTS,
+          `Camp Spirit: voted by your cAMPeers (${w.vote_count} vote${w.vote_count === 1 ? "" : "s"})`,
+          cohortId,
+        ],
+        { label: "Award Camp Spirit badge + points" }
+      );
+    }
 
     // ─── 1. Award milestone badges ──────────────────────
     const CamperSchema = z.object({
@@ -349,6 +384,7 @@ export default api({
       camp_vp: campVp,
       camp_champ: campChamp,
       alpine_legends: alpineLegends,
+      camp_spirit: spiritWinners.map((w) => ({ camper_id: w.camper_id, name: `${w.first_name} ${w.last_name}` })),
       milestone_awards: milestoneAwards,
       wheel_dealer_awarded: wheelDealerAwarded,
     };

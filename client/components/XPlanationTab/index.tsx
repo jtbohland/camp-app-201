@@ -170,6 +170,24 @@ const categories: PointCategory[] = [
   },
 ];
 
+// ─── Close-out Bonuses (awarded automatically when counselors close cAMP) ───
+
+const closeOutBonuses: PointItem[] = [
+  { label: "Attendance: no excused absences used", points: "+3", positive: true },
+  { label: "Attendance: 1 excused absence used", points: "+2", positive: true },
+  { label: "Attendance: 2 excused absences used", points: "+1", positive: true },
+  { label: "Attendance: all 3 excused absences used", points: "0", positive: true },
+  { label: "Each extra absence a counselor approves with a penalty", points: "-1 each", positive: false, note: "Emergency approvals never cost points" },
+  { label: "Camp Spirit badge: most peer votes in the Camp Spirit vote", points: "+15", positive: true, note: "Ties go to whoever received the most kind-word notes. Still tied? They share it." },
+  { label: "Summit Seeker badge: 100+ total points", points: "+5", positive: true },
+  { label: "Peak Performer badge: 250+ total points", points: "+10", positive: true },
+  { label: "Legend of the Lake badge: 500+ total points", points: "+20", positive: true },
+  { label: "Wheel Dealer badge: #1 on the Wheel & Deal leaderboard", points: "🏅 Badge", positive: true, note: "Smallest gap between self-score and room average" },
+  { label: "cAMP-V-P badge: most individual points", points: "👑 Badge", positive: true },
+  { label: "Alpine Legend badge: cAMP-V-P + Wheel Dealer + Camp Spirit, all on one person", points: "+25", positive: true, note: "The rarest badge at cAMP" },
+  { label: "cAMP Champ: top team score", points: "🏕 Title", positive: true },
+];
+
 const principles: { icon: IconName; title: string; description: string }[] = [
   { icon: "eye", title: "Transparent", description: "Every point is logged. You can always see exactly why." },
   { icon: "scale", title: "Fair", description: "Team bonuses go to the team (not inflated per-member), and team scores are scaled for team size so headcount never decides the winner." },
@@ -214,6 +232,38 @@ export default function XPlanationTab() {
               <span className="font-semibold text-foreground">average points per person × the usual team size</span>. Example: a team of 6 with 570 member pts counts as 570 ÷ 6 × 5 = 475. Team bonus points are added as-is.
             </p>
           </div>
+        </div>
+      </Card>
+
+      {/* Close-out Bonuses */}
+      <Card className="p-5 border-amber-500/40 bg-amber-50/40">
+        <h2 className="text-base font-semibold text-foreground mb-1 flex items-center gap-2">
+          <Icon icon="flag" className="w-5 h-5 text-amber-500" />
+          Close-out Bonuses
+        </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          These are added automatically when counselors close cAMP on the final day, in this order: attendance, Camp Spirit,
+          point milestones, then the cAMP-V-P, so Camp Spirit points can push you past a milestone. Award winners and their
+          points stay hidden until the closing ceremony reveal.
+        </p>
+        <div className="space-y-1.5">
+          {closeOutBonuses.map((item) => (
+            <div key={item.label}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm text-foreground/80">
+                  <Icon
+                    icon={item.positive ? "check" : "minus"}
+                    className={`w-3.5 h-3.5 shrink-0 ${item.positive ? "text-camp-green" : "text-red-500"}`}
+                  />
+                  {item.label}
+                </span>
+                <span className={`text-sm font-bold whitespace-nowrap ${item.positive ? "text-camp-green" : "text-red-500"}`}>
+                  {item.points}
+                </span>
+              </div>
+              {item.note && <p className="text-[10px] text-muted-foreground ml-5.5 mt-0.5">{item.note}</p>}
+            </div>
+          ))}
         </div>
       </Card>
 
@@ -313,6 +363,7 @@ export default function XPlanationTab() {
             "The Mini EBR is the highest-value presentation — each counselor can award up to 50 team pts.",
             "Team points matter! Check-in races, survey races, and rubric scores all boost your team.",
             "Share a photo AND a text memory to earn the KINDling badge.",
+            "Vote in the Camp Spirit vote: the winner earns +15 at close, revealed at the closing ceremony.",
           ].map((tip) => (
             <li key={tip} className="flex items-start gap-2 text-sm text-foreground/80">
               <Icon icon="arrow-right" className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />

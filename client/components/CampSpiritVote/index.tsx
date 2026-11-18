@@ -65,7 +65,7 @@ export default function CampSpiritVote({ camperId, cohortMembers }: Props) {
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1">
-          Results will be revealed on the final day. Thank you for recognizing your peers! 🏕️
+          The winner is revealed at the closing ceremony with the cAMP-V-P, and earns the Camp Spirit badge (+15 pts). Thank you for recognizing your peers! 🏕️
         </p>
       </Card>
     );
@@ -86,7 +86,7 @@ export default function CampSpiritVote({ camperId, cohortMembers }: Props) {
       <div className="bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2 mb-4">
         <p className="text-[11px] text-amber-800">
           <strong>💡 Why today?</strong> We vote the day before the last day so the winner is announced
-          during tomorrow's closing ceremony alongside cAMP-V-P and team awards!
+          during tomorrow's closing ceremony alongside cAMP-V-P and team awards! The winner earns the Camp Spirit badge (+15 pts).
         </p>
       </div>
 
