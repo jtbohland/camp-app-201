@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { SURPRISE_ENTRY_SQL, SURPRISE_HIDDEN_SQL } from "../../lib/spirit.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -47,6 +48,8 @@ export default api({
                   SUM(CASE WHEN COALESCE(pl.category, '') = 'team_award' THEN 0 ELSE pl.points END)
                     OVER (ORDER BY pl.created_at, pl.id) AS running_total
            FROM camp201_points_log pl JOIN me ON me.id = pl.camper_id
+           -- Close-out surprise awards stay hidden until the cAMP-V-P reveal.
+           WHERE NOT (${SURPRISE_ENTRY_SQL} AND ${SURPRISE_HIDDEN_SQL})
          )
          SELECT id, points, reason,
                 to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
@@ -61,8 +64,8 @@ export default api({
       ),
       db.query(
         `WITH me AS (SELECT id, COALESCE(points, 0) AS points FROM camp201_campers WHERE LOWER(email) = $1 LIMIT 1)
-         SELECT (SELECT points FROM me)::int AS total,
-                COALESCE(SUM(pl.points) FILTER (WHERE pl.points > 0), 0)::int AS earned,
+         SELECT ((SELECT points FROM me) - COALESCE(SUM(pl.points) FILTER (WHERE ${SURPRISE_ENTRY_SQL} AND ${SURPRISE_HIDDEN_SQL}), 0))::int AS total,
+                COALESCE(SUM(pl.points) FILTER (WHERE pl.points > 0 AND NOT (${SURPRISE_ENTRY_SQL} AND ${SURPRISE_HIDDEN_SQL})), 0)::int AS earned,
                 COALESCE(-SUM(pl.points) FILTER (WHERE pl.points < 0), 0)::int AS lost
          FROM camp201_points_log pl JOIN me ON me.id = pl.camper_id
          WHERE COALESCE(pl.category, '') <> 'team_award'

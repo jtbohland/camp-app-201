@@ -31,22 +31,9 @@ export default function CampVPLeaderboard({ teams }: Props) {
   const { data: wdData } = useApiData("GetWheelLeaderboard", {}, { staleTime: 30_000 });
   const topDealerId = (wdData?.leaders ?? [])[0]?.camper_id ?? null;
 
-  // Get Camp Spirit winner(s)
+  // Camp Spirit winner(s): the server only returns them once cAMP closes and the cAMP-V-P is revealed.
   const { data: spiritData } = useApiData("GetSpiritVoteResults", { camper_id: 0 }, { staleTime: 30_000 });
-  const spiritWinnerIds: Set<number> = useMemo(() => {
-    if (!spiritData?.voting_complete) return new Set();
-    const winners = spiritData?.winners ?? [];
-    if (winners.length === 0) return new Set();
-    const topVotes = winners[0].vote_count;
-    const topNotes = winners[0].note_count;
-    // All with same vote count AND same note count are co-winners
-    const tied = winners.filter((w: any) => w.vote_count === topVotes);
-    if (tied.length === 1) return new Set([tied[0].camper_id]);
-    // Tiebreaker: most kind words (notes)
-    const maxNotes = Math.max(...tied.map((w: any) => w.note_count));
-    const noteWinners = tied.filter((w: any) => w.note_count === maxNotes);
-    return new Set(noteWinners.map((w: any) => w.camper_id));
-  }, [spiritData]);
+  const spiritWinnerIds = useMemo(() => new Set<number>(spiritData?.winner_ids ?? []), [spiritData]);
 
   // Flatten all members with team info, sorted by individual points
   const rankedCampers = useMemo(() => {

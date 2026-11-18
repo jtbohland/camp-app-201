@@ -1,4 +1,5 @@
 import { api, z, postgres } from "@superblocksteam/sdk-api";
+import { SURPRISE_ENTRY_SQL, SURPRISE_HIDDEN_SQL } from "../../lib/spirit.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -75,7 +76,11 @@ export default api({
   }),
   async run(ctx, { email }) {
     const campers = await ctx.integrations.camp_201_db.query(
-      `SELECT * FROM camp201_campers WHERE email = $1 LIMIT 1`,
+      // Points shown to the cAMPer leave out close-out surprise awards until the cAMP-V-P reveal.
+      `SELECT c.*, (c.points - COALESCE((
+                 SELECT SUM(pl.points) FROM camp201_points_log pl
+                 WHERE pl.camper_id = c.id AND ${SURPRISE_ENTRY_SQL} AND ${SURPRISE_HIDDEN_SQL}), 0)) AS points
+       FROM camp201_campers c WHERE c.email = $1 LIMIT 1`,
       CamperSchema,
       [email],
       { label: "Fetch current camper by email" }

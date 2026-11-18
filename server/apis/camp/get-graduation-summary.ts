@@ -3,6 +3,7 @@ import { resolveViewCohort } from "../../lib/cohort.js";
 import { getStandings } from "../../lib/cohort-snapshot.js";
 import { denseRank } from "../../lib/rank.js";
 import { loadTeamTotals } from "../../lib/team-score.js";
+import { SURPRISE_BADGE_IDS, SURPRISE_ENTRY_SQL, SURPRISE_HIDDEN_SQL } from "../../lib/spirit.js";
 
 const APPS_DB = "2fbe75bd-6389-4f20-902d-ceafeb17ad54";
 
@@ -78,9 +79,10 @@ export default api({
 
     // Stats
     const badgesResult = await ctx.integrations.camp_201_db.query(
-      `SELECT COUNT(*)::int as count FROM camp201_camper_badges WHERE camper_id = $1`,
+      `SELECT COUNT(*)::int as count FROM camp201_camper_badges cb
+       WHERE cb.camper_id = $1 AND NOT (cb.badge_id = ANY($2::int[]) AND ${SURPRISE_HIDDEN_SQL})`,
       CountSchema,
-      [camper_id],
+      [camper_id, SURPRISE_BADGE_IDS],
       { label: "Count badges" }
     );
     const badgeList = await ctx.integrations.camp_201_db.query(
@@ -88,10 +90,11 @@ export default api({
        FROM camp201_camper_badges cb
        JOIN camp201_badges b ON b.id = cb.badge_id
        WHERE cb.camper_id = $1
+         AND NOT (cb.badge_id = ANY($2::int[]) AND ${SURPRISE_HIDDEN_SQL})
        ORDER BY cb.awarded_at
        LIMIT 20`,
       z.object({ id: z.number(), name: z.string(), description: z.string(), icon: z.string(), color: z.string() }),
-      [camper_id],
+      [camper_id, SURPRISE_BADGE_IDS],
       { label: "Get badge list" }
     );
     const checkinsResult = await ctx.integrations.camp_201_db.query(
@@ -116,7 +119,9 @@ export default api({
     // Top point events
     const HighlightSchema = z.object({ reason: z.string(), points: z.coerce.number() });
     const highlights = await ctx.integrations.camp_201_db.query(
-      `SELECT reason, points FROM camp201_points_log WHERE camper_id = $1 ORDER BY points DESC LIMIT 10`,
+      `SELECT pl.reason, pl.points FROM camp201_points_log pl
+       WHERE pl.camper_id = $1 AND NOT (${SURPRISE_ENTRY_SQL} AND ${SURPRISE_HIDDEN_SQL})
+       ORDER BY pl.points DESC LIMIT 10`,
       HighlightSchema,
       [camper_id],
       { label: "Get point highlights" }
