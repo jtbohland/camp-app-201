@@ -31,6 +31,7 @@ import AdminPresentations from "@/components/AdminPresentations/index.js";
 import AdminCloseCamp from "@/components/AdminCloseCamp/index.js";
 import AdminPointLog from "@/components/AdminPointLog/index.js";
 import AdminLegacyPhotos from "@/components/AdminLegacyPhotos/index.js";
+import AdminEbrPrep from "@/components/AdminEbrPrep/index.js";
 
 // New components
 import HubDashboard from "@/components/HubDashboard/index.js";
@@ -74,6 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: "3 · Run cAMP",
     items: [
       { key: "gates", label: "Feature Gates", icon: "lock" },
+      { key: "ebr-prep", label: "EBR Role Prep", icon: "theater" },
       { key: "absences", label: "Absences", icon: "calendar-x" },
       { key: "point-log", label: "Point Log", icon: "scroll-text" },
       { key: "analytics", label: "Analytics & Surveys", icon: "bar-chart-3" },
@@ -318,6 +320,7 @@ export default function AdminPage() {
             </div>
           )}
           {view === "legacy-photos" && <AdminLegacyPhotos />}
+          {view === "ebr-prep" && <AdminEbrPrep canEdit={!isReadOnly} />}
           {view === "close-camp" && (
             isReadOnly ? <PastCohortResults /> : <AdminCloseCamp camperId={0} />
           )}
